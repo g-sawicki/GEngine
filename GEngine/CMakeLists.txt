@@ -1,4 +1,4 @@
-﻿add_executable(${PROJECT_NAME})
+﻿add_executable(${PROJECT_NAME} WIN32)
 
 target_sources(${PROJECT_NAME} PRIVATE
     "main.cpp"
@@ -11,3 +11,5 @@ if(MSVC)
 else()
 	target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE d3d12 dxgi dxguid Microsoft::DirectX-Headers)
