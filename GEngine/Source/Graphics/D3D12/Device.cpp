@@ -1,7 +1,6 @@
-#include "Device.hpp"
+#include "PCH.hpp"
 
-#include <cassert>
-#include <stdexcept>
+#include "Device.hpp"
 
 static inline void ThrowIfFailed(HRESULT hr)
 {

@@ -1,27 +1,6 @@
-﻿#include "Source/Graphics/D3D12/Device.hpp"
+﻿#include "PCH.hpp"
 
-#include <Windows.h>
-#include <shellapi.h>
-
-#if defined(CreateWindow)
-#undef CreateWindow
-#endif
-
-#include <wrl.h>
-using namespace Microsoft::WRL;
-
-// DirectX 12 specific headers.
-#include <DirectXMath.h>
-#include <d3d12.h>
-#include <dxgi1_6.h>
-
-// D3D12 extension library.
-#include <directx/d3dx12.h>
-
-
-#include <algorithm>
-#include <cassert>
-#include <chrono>
+#include "Source/Graphics/D3D12/Device.hpp"
 
 static inline void ThrowIfFailed(HRESULT hr) {
     if (FAILED(hr))
