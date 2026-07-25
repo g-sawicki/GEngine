@@ -2,6 +2,7 @@
 
 target_sources(${PROJECT_NAME} PRIVATE
     "main.cpp"
+    "Source/Graphics/D3D12/Device.cpp"
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)

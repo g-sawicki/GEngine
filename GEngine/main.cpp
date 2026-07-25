@@ -1,4 +1,6 @@
-﻿#include <Windows.h>
+﻿#include "Source/Graphics/D3D12/Device.hpp"
+
+#include <Windows.h>
 #include <shellapi.h>
 
 #if defined(CreateWindow)
@@ -15,6 +17,7 @@ using namespace Microsoft::WRL;
 
 // D3D12 extension library.
 #include <directx/d3dx12.h>
+
 
 #include <algorithm>
 #include <cassert>
@@ -42,7 +45,7 @@ HWND g_hWnd;
 RECT g_WindowRect;
 
 // DirectX 12 Objects
-ComPtr<ID3D12Device2> g_Device;
+ID3D12Device2* s_Device = nullptr; // Non-owning pointer set after Device construction
 ComPtr<ID3D12CommandQueue> g_CommandQueue;
 ComPtr<IDXGISwapChain4> g_SwapChain;
 ComPtr<ID3D12Resource> g_BackBuffers[g_NumFrames];
@@ -84,17 +87,6 @@ static void ParseCommandLineArguments() {
 
     // Free memory allocated by CommandLineToArgvW
     ::LocalFree(argv);
-}
-
-static void EnableDebugLayer() {
-#if defined(_DEBUG)
-    // Always enable the debug layer before doing anything DX12 related
-    // so all possible errors generated while creating DX12 objects
-    // are caught by the debug layer.
-    ComPtr<ID3D12Debug> debugInterface;
-    ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
-    debugInterface->EnableDebugLayer();
-#endif
 }
 
 static HWND CreateWindow(const wchar_t *windowClassName, HINSTANCE hInst, const wchar_t *windowTitle, uint32_t width,
@@ -157,58 +149,7 @@ static ComPtr<IDXGIAdapter4> GetAdapter(bool useWarp) {
     return dxgiAdapter4;
 }
 
-static ComPtr<ID3D12Device2> CreateDevice(ComPtr<IDXGIAdapter4> adapter) {
-    ComPtr<ID3D12Device2> d3d12Device2;
-    ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device2)));
-    // Enable debug messages in debug mode.
-#if defined(_DEBUG)
-    ComPtr<ID3D12InfoQueue> pInfoQueue;
-    if (SUCCEEDED(d3d12Device2.As(&pInfoQueue))) {
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-        // Suppress whole categories of messages
-        // D3D12_MESSAGE_CATEGORY Categories[] = {};
-
-        // Suppress messages based on their severity level
-        D3D12_MESSAGE_SEVERITY Severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
-
-        // Suppress individual messages by their ID
-        D3D12_MESSAGE_ID DenyIds[] = {
-            D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE, // I'm
-                                                                          // really
-                                                                          // not
-                                                                          // sure
-                                                                          // how
-                                                                          // to
-                                                                          // avoid
-                                                                          // this
-                                                                          // message.
-            D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                       // This warning occurs when
-                                                                          // using capture frame while
-                                                                          // graphics debugging.
-            D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                     // This warning occurs
-                                                                          // when using capture
-                                                                          // frame while graphics
-                                                                          // debugging.
-        };
-
-        D3D12_INFO_QUEUE_FILTER NewFilter = {};
-        // NewFilter.DenyList.NumCategories = _countof(Categories);
-        // NewFilter.DenyList.pCategoryList = Categories;
-        NewFilter.DenyList.NumSeverities = _countof(Severities);
-        NewFilter.DenyList.pSeverityList = Severities;
-        NewFilter.DenyList.NumIDs = _countof(DenyIds);
-        NewFilter.DenyList.pIDList = DenyIds;
-
-        ThrowIfFailed(pInfoQueue->PushStorageFilter(&NewFilter));
-    }
-#endif
-
-    return d3d12Device2;
-}
-
-static ComPtr<ID3D12CommandQueue> CreateCommandQueue(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type) {
+static ComPtr<ID3D12CommandQueue> CreateCommandQueue(ID3D12Device2* device, D3D12_COMMAND_LIST_TYPE type) {
     ComPtr<ID3D12CommandQueue> d3d12CommandQueue;
 
     D3D12_COMMAND_QUEUE_DESC desc = {};
@@ -280,7 +221,7 @@ static ComPtr<IDXGISwapChain4> CreateSwapChain(HWND hWnd, ComPtr<ID3D12CommandQu
     return dxgiSwapChain4;
 }
 
-static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ComPtr<ID3D12Device2> device, D3D12_DESCRIPTOR_HEAP_TYPE type,
+static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device2* device, D3D12_DESCRIPTOR_HEAP_TYPE type,
                                                          uint32_t numDescriptors) {
     ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 
@@ -293,7 +234,7 @@ static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ComPtr<ID3D12Device2> d
     return descriptorHeap;
 }
 
-void UpdateRenderTargetViews(ComPtr<ID3D12Device2> device, ComPtr<IDXGISwapChain4> swapChain,
+void UpdateRenderTargetViews(ID3D12Device2* device, ComPtr<IDXGISwapChain4> swapChain,
                              ComPtr<ID3D12DescriptorHeap> descriptorHeap) {
     auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
@@ -311,7 +252,7 @@ void UpdateRenderTargetViews(ComPtr<ID3D12Device2> device, ComPtr<IDXGISwapChain
     }
 }
 
-static ComPtr<ID3D12CommandAllocator> CreateCommandAllocator(ComPtr<ID3D12Device2> device,
+static ComPtr<ID3D12CommandAllocator> CreateCommandAllocator(ID3D12Device2* device,
                                                              D3D12_COMMAND_LIST_TYPE type) {
     ComPtr<ID3D12CommandAllocator> commandAllocator;
     ThrowIfFailed(device->CreateCommandAllocator(type, IID_PPV_ARGS(&commandAllocator)));
@@ -319,7 +260,7 @@ static ComPtr<ID3D12CommandAllocator> CreateCommandAllocator(ComPtr<ID3D12Device
     return commandAllocator;
 }
 
-static ComPtr<ID3D12GraphicsCommandList> CreateCommandList(ComPtr<ID3D12Device2> device,
+static ComPtr<ID3D12GraphicsCommandList> CreateCommandList(ID3D12Device2* device,
                                                            ComPtr<ID3D12CommandAllocator> commandAllocator,
                                                            D3D12_COMMAND_LIST_TYPE type) {
     ComPtr<ID3D12GraphicsCommandList> commandList;
@@ -330,7 +271,7 @@ static ComPtr<ID3D12GraphicsCommandList> CreateCommandList(ComPtr<ID3D12Device2>
     return commandList;
 }
 
-static ComPtr<ID3D12Fence> CreateFence(ComPtr<ID3D12Device2> device) {
+static ComPtr<ID3D12Fence> CreateFence(ID3D12Device2* device) {
     ComPtr<ID3D12Fence> fence;
 
     ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
@@ -452,7 +393,7 @@ static void Resize(uint32_t width, uint32_t height) {
 
         g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
 
-        UpdateRenderTargetViews(g_Device, g_SwapChain, g_RTVDescriptorHeap);
+        UpdateRenderTargetViews(s_Device, g_SwapChain, g_RTVDescriptorHeap);
     }
 }
 
@@ -582,7 +523,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, [[maybe_unused]] HINSTANCE hPrevInsta
     // Window class name. Used for registering / creating the window.
     const wchar_t *windowClassName = L"DX12WindowClass";
     ParseCommandLineArguments();
-    EnableDebugLayer();
+    Device::EnableDebugLayer();
     g_TearingSupported = CheckTearingSupport();
 
     RegisterWindowClass(hInstance, windowClassName);
@@ -592,24 +533,25 @@ int CALLBACK wWinMain(HINSTANCE hInstance, [[maybe_unused]] HINSTANCE hPrevInsta
     ::GetWindowRect(g_hWnd, &g_WindowRect);
     ComPtr<IDXGIAdapter4> dxgiAdapter4 = GetAdapter(g_UseWarp);
 
-    g_Device = CreateDevice(dxgiAdapter4);
+    Device device(dxgiAdapter4);
+    s_Device = device.Get();
 
-    g_CommandQueue = CreateCommandQueue(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+    g_CommandQueue = CreateCommandQueue(s_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
 
     g_SwapChain = CreateSwapChain(g_hWnd, g_CommandQueue, g_ClientWidth, g_ClientHeight, g_NumFrames);
 
     g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
 
-    g_RTVDescriptorHeap = CreateDescriptorHeap(g_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, g_NumFrames);
-    g_RTVDescriptorSize = g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    g_RTVDescriptorHeap = CreateDescriptorHeap(s_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, g_NumFrames);
+    g_RTVDescriptorSize = s_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    UpdateRenderTargetViews(g_Device, g_SwapChain, g_RTVDescriptorHeap);
+    UpdateRenderTargetViews(s_Device, g_SwapChain, g_RTVDescriptorHeap);
     for (int i = 0; i < g_NumFrames; ++i) {
-        g_CommandAllocators[i] = CreateCommandAllocator(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+        g_CommandAllocators[i] = CreateCommandAllocator(s_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
     g_CommandList =
-        CreateCommandList(g_Device, g_CommandAllocators[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
-    g_Fence = CreateFence(g_Device);
+        CreateCommandList(s_Device, g_CommandAllocators[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
+    g_Fence = CreateFence(s_Device);
     g_FenceEvent = CreateEventHandle();
     g_IsInitialized = true;
 
