@@ -1,6 +1,6 @@
 ﻿#include "PCH.hpp"
 
-#include "Source/Graphics/D3D12/Device.hpp"
+#include "Graphics/D3D12/Device.hpp"
 
 static inline void ThrowIfFailed(HRESULT hr) {
     if (FAILED(hr))
