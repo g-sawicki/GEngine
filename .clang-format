@@ -1,4 +1,11 @@
 BasedOnStyle: LLVM
 IndentWidth: 4
-InsertNewlineAtEOF: true
 ColumnLimit: 120
+InsertNewlineAtEOF: true
+PointerAlignment: Left
+ReferenceAlignment: Left
+AccessModifierOffset: -2
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Inline
+IndentCaseLabels: false
+NamespaceIndentation: None
