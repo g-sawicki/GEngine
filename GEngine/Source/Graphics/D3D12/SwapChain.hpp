@@ -17,6 +17,8 @@ class SwapChain {
         return m_BackBuffers[GetCurrentBackBufferIndex()].Get();
     }
     [[nodiscard]] ID3D12Resource* GetBackBuffer(UINT index) const noexcept { return m_BackBuffers[index].Get(); }
+    [[nodiscard]] uint32_t GetWidth() const noexcept { return m_Width; }
+    [[nodiscard]] uint32_t GetHeight() const noexcept { return m_Height; }
 
     HRESULT Present(UINT syncInterval, UINT flags) noexcept;
     void OnResize(uint32_t width, uint32_t height);

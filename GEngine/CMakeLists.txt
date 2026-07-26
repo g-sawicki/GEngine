@@ -1,5 +1,11 @@
 ﻿add_executable(${PROJECT_NAME} WIN32)
 
+# ── Shaders ────────────────────────────────────────────────────────────────────
+include("${CMAKE_SOURCE_DIR}/cmake/ShaderCompiler.cmake")
+set(SHADER_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/Assets/Shaders")
+compile_shader("default.hlsl" "VSMain" "vs_6_5" "default_vs.h")
+compile_shader("default.hlsl" "PSMain" "ps_6_5" "default_ps.h")
+
 target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/D3D12/CommandList.cpp"
     "Source/Graphics/D3D12/CommandList.hpp"
@@ -20,9 +26,12 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/PCH.hpp"
     "Source/Window.cpp"
     "Source/Window.hpp"
+
+    "${SHADER_GEN_DIR}/default_vs.h"
+    "${SHADER_GEN_DIR}/default_ps.h"
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Source")
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${SHADER_GEN_DIR}")
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 

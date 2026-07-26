@@ -3,6 +3,8 @@
 #include "Graphics/Renderer.hpp"
 
 #include "Graphics/D3D12/Common.hpp"
+#include "default_ps.h"
+#include "default_vs.h"
 
 using namespace Microsoft::WRL;
 
@@ -92,6 +94,100 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
     }
 
     m_Fence = std::make_unique<Fence>(*m_Device);
+
+    // Root signature
+    {
+        CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
+        rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+        ComPtr<ID3DBlob> serializedRootSig;
+        ComPtr<ID3DBlob> errorBlob;
+        ThrowIfFailed(
+            D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &serializedRootSig, &errorBlob));
+
+        ThrowIfFailed(m_Device->Get()->CreateRootSignature(0, serializedRootSig->GetBufferPointer(),
+                                                           serializedRootSig->GetBufferSize(),
+                                                           IID_PPV_ARGS(&m_RootSignature)));
+    }
+
+    // Pipeline state object
+    {
+        D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
+            {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+            {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        };
+
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{
+            .pRootSignature = m_RootSignature.Get(),
+            .VS = {g_VSMain, sizeof(g_VSMain)},
+            .PS = {g_PSMain, sizeof(g_PSMain)},
+            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+            .SampleMask = UINT_MAX,
+            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
+            .InputLayout = {inputLayout, static_cast<UINT>(std::size(inputLayout))},
+            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .NumRenderTargets = 1,
+            .RTVFormats = {DXGI_FORMAT_R8G8B8A8_UNORM},
+            .SampleDesc = {.Count = 1, .Quality = 0},
+        };
+
+        ThrowIfFailed(m_Device->Get()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_PipelineState)));
+    }
+
+    // Vertex buffer
+    {
+        const D3D12_HEAP_PROPERTIES heapProps{
+            .Type = D3D12_HEAP_TYPE_UPLOAD,
+        };
+
+        const D3D12_RESOURCE_DESC desc{
+            .Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+            .Width = static_cast<UINT64>(s_Vertices.size() * sizeof(Vertex)),
+            .Height = 1,
+            .DepthOrArraySize = 1,
+            .MipLevels = 1,
+            .SampleDesc = {.Count = 1},
+            .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+        };
+
+        ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
+                                                               D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                                                               IID_PPV_ARGS(&m_VertexBuffer)));
+
+        void* data{};
+        m_VertexBuffer->Map(0, nullptr, &data);
+        std::memcpy(data, s_Vertices.data(), s_Vertices.size() * sizeof(Vertex));
+        m_VertexBuffer->Unmap(0, nullptr);
+    }
+
+    // Index buffer
+    {
+        const D3D12_HEAP_PROPERTIES heapProps{
+            .Type = D3D12_HEAP_TYPE_UPLOAD,
+        };
+
+        const D3D12_RESOURCE_DESC desc{
+            .Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+            .Width = static_cast<UINT64>(s_Indices.size() * sizeof(uint16_t)),
+            .Height = 1,
+            .DepthOrArraySize = 1,
+            .MipLevels = 1,
+            .SampleDesc = {.Count = 1},
+            .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+        };
+
+        ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
+                                                               D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                                                               IID_PPV_ARGS(&m_IndexBuffer)));
+
+        void* data{};
+        m_IndexBuffer->Map(0, nullptr, &data);
+        std::memcpy(data, s_Indices.data(), s_Indices.size() * sizeof(uint16_t));
+        m_IndexBuffer->Unmap(0, nullptr);
+    }
 }
 
 void Renderer::Destroy() {
@@ -108,6 +204,10 @@ void Renderer::Destroy() {
     m_SwapChain.reset();
     m_CommandQueue.reset();
     m_RTVDescriptorHeap.Reset();
+    m_PipelineState.Reset();
+    m_RootSignature.Reset();
+    m_VertexBuffer.Reset();
+    m_IndexBuffer.Reset();
     m_Device.reset();
 
 #if defined(_DEBUG)
@@ -153,6 +253,9 @@ void Renderer::Render() {
     frame.CommandList->Reset(frame.CommandAllocator.Get());
     auto* cmdList{frame.CommandList->GetHandle()};
 
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), currentIdx,
+                                      m_RTVDescriptorSize);
+
     // Clear the render target.
     {
         CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
@@ -160,10 +263,39 @@ void Renderer::Render() {
 
         cmdList->ResourceBarrier(1, &barrier);
         static constexpr FLOAT clearColor[]{0.4f, 0.6f, 0.9f, 1.0f};
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), currentIdx,
-                                          m_RTVDescriptorSize);
-
         cmdList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+    }
+
+    // Draw
+    {
+        D3D12_VIEWPORT viewport{
+            0,    0,   static_cast<float>(m_SwapChain->GetWidth()), static_cast<float>(m_SwapChain->GetHeight()),
+            0.0f, 1.0f};
+        D3D12_RECT scissorRect{0, 0, static_cast<LONG>(m_SwapChain->GetWidth()),
+                               static_cast<LONG>(m_SwapChain->GetHeight())};
+
+        cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
+        cmdList->SetPipelineState(m_PipelineState.Get());
+        cmdList->RSSetViewports(1, &viewport);
+        cmdList->RSSetScissorRects(1, &scissorRect);
+        cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        D3D12_VERTEX_BUFFER_VIEW vbv{
+            .BufferLocation = m_VertexBuffer->GetGPUVirtualAddress(),
+            .SizeInBytes = static_cast<UINT>(s_Vertices.size() * sizeof(Vertex)),
+            .StrideInBytes = sizeof(Vertex),
+        };
+        cmdList->IASetVertexBuffers(0, 1, &vbv);
+
+        D3D12_INDEX_BUFFER_VIEW ibv{
+            .BufferLocation = m_IndexBuffer->GetGPUVirtualAddress(),
+            .SizeInBytes = static_cast<UINT>(s_Indices.size() * sizeof(uint16_t)),
+            .Format = DXGI_FORMAT_R16_UINT,
+        };
+        cmdList->IASetIndexBuffer(&ibv);
+
+        cmdList->DrawIndexedInstanced(static_cast<UINT>(s_Indices.size()), 1, 0, 0, 0);
     }
 
     // Present
@@ -171,13 +303,13 @@ void Renderer::Render() {
         CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(
             backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT)};
         cmdList->ResourceBarrier(1, &barrier);
-        frame.CommandList->Close();
 
+        frame.CommandList->Close();
         ID3D12CommandList* const ppCommandLists[]{cmdList};
         m_CommandQueue->ExecuteCommandLists(ppCommandLists);
 
-        UINT syncInterval{VSync ? 1u : 0u};
-        UINT presentFlags{TearingSupported && !VSync ? DXGI_PRESENT_ALLOW_TEARING : 0};
+        UINT syncInterval{VSync || !TearingSupported ? 1u : 0u};
+        UINT presentFlags{!VSync && TearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0u};
         ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
 
         frame.FenceValue = m_Fence->Signal(m_CommandQueue->GetHandle());

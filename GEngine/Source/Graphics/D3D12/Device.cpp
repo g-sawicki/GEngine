@@ -37,7 +37,6 @@ Device::Device(IDXGIAdapter4* adapter) {
     if (SUCCEEDED(m_Device.As(&pInfoQueue))) {
         pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
         pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-        pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 
         D3D12_INFO_QUEUE_FILTER newFilter{};
 

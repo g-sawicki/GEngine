@@ -8,6 +8,11 @@
 
 namespace GEngine {
 
+struct Vertex {
+    float position[4];
+    float color[4];
+};
+
 class Renderer {
   public:
     struct FrameResource {
@@ -47,6 +52,20 @@ class Renderer {
 
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVDescriptorHeap;
     UINT m_RTVDescriptorSize{};
+
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> m_VertexBuffer;
+    Microsoft::WRL::ComPtr<ID3D12Resource> m_IndexBuffer;
+
+    static constexpr std::array<Vertex, 4> s_Vertices{{
+        {{0.5f, 0.5f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+        {{-0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f}},
+    }};
+    static constexpr std::array<uint16_t, 6> s_Indices{2, 1, 0, 3, 2, 0};
 };
 
 } // namespace GEngine
