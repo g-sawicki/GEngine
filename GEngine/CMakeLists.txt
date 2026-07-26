@@ -16,6 +16,10 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/D3D12/Device.hpp"
     "Source/Graphics/D3D12/Fence.cpp"
     "Source/Graphics/D3D12/Fence.hpp"
+    "Source/Graphics/D3D12/PipelineState.cpp"
+    "Source/Graphics/D3D12/PipelineState.hpp"
+    "Source/Graphics/D3D12/RootSignature.cpp"
+    "Source/Graphics/D3D12/RootSignature.hpp"
     "Source/Graphics/D3D12/SwapChain.cpp"
     "Source/Graphics/D3D12/SwapChain.hpp"
 

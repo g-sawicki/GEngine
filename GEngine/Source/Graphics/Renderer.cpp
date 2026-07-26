@@ -95,20 +95,9 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 
     m_Fence = std::make_unique<Fence>(*m_Device);
 
-    // Root signature
-    {
-        CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
-        rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-        ComPtr<ID3DBlob> serializedRootSig;
-        ComPtr<ID3DBlob> errorBlob;
-        ThrowIfFailed(
-            D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &serializedRootSig, &errorBlob));
-
-        ThrowIfFailed(m_Device->Get()->CreateRootSignature(0, serializedRootSig->GetBufferPointer(),
-                                                           serializedRootSig->GetBufferSize(),
-                                                           IID_PPV_ARGS(&m_RootSignature)));
-    }
+    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
+    rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    m_RootSignature = std::make_unique<RootSignature>(*m_Device, rootSigDesc);
 
     // Pipeline state object
     {
@@ -120,7 +109,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
         };
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{
-            .pRootSignature = m_RootSignature.Get(),
+            .pRootSignature = m_RootSignature->Get(),
             .VS = {g_VSMain, sizeof(g_VSMain)},
             .PS = {g_PSMain, sizeof(g_PSMain)},
             .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
@@ -134,7 +123,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
             .SampleDesc = {.Count = 1, .Quality = 0},
         };
 
-        ThrowIfFailed(m_Device->Get()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_PipelineState)));
+        m_PipelineState = std::make_unique<PipelineState>(*m_Device, psoDesc);
     }
 
     // Vertex buffer
@@ -204,8 +193,8 @@ void Renderer::Destroy() {
     m_SwapChain.reset();
     m_CommandQueue.reset();
     m_RTVDescriptorHeap.Reset();
-    m_PipelineState.Reset();
-    m_RootSignature.Reset();
+    m_PipelineState.reset();
+    m_RootSignature.reset();
     m_VertexBuffer.Reset();
     m_IndexBuffer.Reset();
     m_Device.reset();
@@ -274,8 +263,8 @@ void Renderer::Render() {
         D3D12_RECT scissorRect{0, 0, static_cast<LONG>(m_SwapChain->GetWidth()),
                                static_cast<LONG>(m_SwapChain->GetHeight())};
 
-        cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
-        cmdList->SetPipelineState(m_PipelineState.Get());
+        cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
+        cmdList->SetPipelineState(m_PipelineState->Get());
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);
         cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);

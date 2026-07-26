@@ -7,7 +7,9 @@ namespace GEngine {
 class SwapChain {
   public:
     static bool CheckTearingSupport(IDXGIFactory5* factory);
+    static constexpr uint32_t NumFrames{3u};
 
+  public:
     SwapChain(IDXGIFactory5* factory, HWND hWnd, CommandQueue& commandQueue, uint32_t width, uint32_t height,
               uint32_t bufferCount);
 
@@ -22,9 +24,6 @@ class SwapChain {
 
     HRESULT Present(UINT syncInterval, UINT flags) noexcept;
     void OnResize(uint32_t width, uint32_t height);
-
-  public:
-    static constexpr uint32_t NumFrames{3u};
 
   private:
     void RetrieveBackBuffers();

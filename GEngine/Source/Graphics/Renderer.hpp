@@ -4,6 +4,8 @@
 #include "Graphics/D3D12/CommandQueue.hpp"
 #include "Graphics/D3D12/Device.hpp"
 #include "Graphics/D3D12/Fence.hpp"
+#include "Graphics/D3D12/PipelineState.hpp"
+#include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/SwapChain.hpp"
 
 namespace GEngine {
@@ -53,8 +55,8 @@ class Renderer {
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVDescriptorHeap;
     UINT m_RTVDescriptorSize{};
 
-    Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature;
-    Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
+    std::unique_ptr<RootSignature> m_RootSignature;
+    std::unique_ptr<PipelineState> m_PipelineState;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> m_VertexBuffer;
     Microsoft::WRL::ComPtr<ID3D12Resource> m_IndexBuffer;
