@@ -18,7 +18,9 @@
 #include <chrono>
 #include <cstdint>
 #include <format>
+#include <functional>
 #include <memory>
 #include <source_location>
 #include <span>
 #include <stdexcept>
+#include <string>

@@ -5,6 +5,7 @@
 #include "Graphics/D3D12/Common.hpp"
 #include "Graphics/D3D12/Fence.hpp"
 #include "Graphics/D3D12/SwapChain.hpp"
+#include "Window.hpp"
 
 using namespace Microsoft::WRL;
 using namespace GEngine;
@@ -18,21 +19,19 @@ class Application {
     void OnUpdate();
     void OnRender();
     void OnResize(uint32_t width, uint32_t height);
-    void OnSetFullscreen(bool fullscreen);
 
     void UpdateRenderTargetViews();
+    LRESULT HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
   public:
-    // Window
-    HWND m_hWnd{};
-    RECT m_WindowRect{};
-    bool m_Running{true};
-
     struct FrameResource {
         ComPtr<ID3D12CommandAllocator> CommandAllocator;
         std::unique_ptr<CommandList> CommandList;
         uint64_t FenceValue = 0;
     };
+
+    // Window
+    std::unique_ptr<Window> m_Window;
 
     // D3D12 wrappers
     std::unique_ptr<Device> m_Device;
@@ -47,22 +46,15 @@ class Application {
     UINT m_RTVDescriptorSize{};
 
     // Settings
-    uint32_t m_ClientWidth{1280};
-    uint32_t m_ClientHeight{720};
     bool m_UseWarp{};
     bool m_VSync{true};
     bool m_TearingSupported{};
-    bool m_Fullscreen{};
 
     // Timing
     uint64_t m_FrameCounter{0};
     double m_ElapsedSeconds{0.0};
     std::chrono::high_resolution_clock::time_point m_T0{std::chrono::high_resolution_clock::now()};
 };
-
-// ---------------------------------------------------------------------------
-// Free helpers
-// ---------------------------------------------------------------------------
 
 static void ParseCommandLineArguments(Application& app) {
     int argc;
@@ -75,29 +67,6 @@ static void ParseCommandLineArguments(Application& app) {
     }
 
     ::LocalFree(argv);
-}
-
-static HWND CreateAppWindow(const wchar_t* windowClassName, HINSTANCE hInst, const wchar_t* windowTitle, uint32_t width,
-                            uint32_t height) {
-    const int screenWidth = ::GetSystemMetrics(SM_CXSCREEN);
-    const int screenHeight = ::GetSystemMetrics(SM_CYSCREEN);
-
-    RECT windowRect = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
-    ::AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
-
-    const int windowWidth = windowRect.right - windowRect.left;
-    const int windowHeight = windowRect.bottom - windowRect.top;
-
-    // Center the window within the screen. Clamp to 0, 0 for the top-left corner.
-    const int windowX = std::max<int>(0, (screenWidth - windowWidth) / 2);
-    const int windowY = std::max<int>(0, (screenHeight - windowHeight) / 2);
-
-    HWND hWnd = ::CreateWindowExW(NULL, windowClassName, windowTitle, WS_OVERLAPPEDWINDOW, windowX, windowY,
-                                  windowWidth, windowHeight, NULL, NULL, hInst, nullptr);
-
-    assert(hWnd && "Failed to create window");
-
-    return hWnd;
 }
 
 static ComPtr<IDXGIAdapter4> GetAdapter(IDXGIFactory6* dxgiFactory, bool useWarp) {
@@ -151,30 +120,16 @@ static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device2* device, 
     return descriptorHeap;
 }
 
-static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
-
-static void RegisterWindowClass(HINSTANCE hInst, const wchar_t* windowClassName) {
-    WNDCLASSEXW windowClass = {
-        .cbSize = sizeof(WNDCLASSEX),
-        .style = CS_HREDRAW | CS_VREDRAW,
-        .lpfnWndProc = &WndProc,
-        .cbClsExtra = 0,
-        .cbWndExtra = 0,
-        .hInstance = hInst,
-        .hIcon = ::LoadIcon(hInst, NULL),
-        .hCursor = ::LoadCursor(NULL, IDC_ARROW),
-        .hbrBackground = (HBRUSH)(COLOR_WINDOW + 1),
-        .lpszMenuName = NULL,
-        .lpszClassName = windowClassName,
-        .hIconSm = ::LoadIcon(hInst, NULL),
-    };
-
-    static ATOM atom = ::RegisterClassExW(&windowClass);
-    assert(atom > 0);
-}
-
 void Application::OnInit(HINSTANCE hInstance) {
     ParseCommandLineArguments(*this);
+
+    // Create the window.
+    m_Window = std::make_unique<Window>(hInstance, L"GEngine", 1280, 720);
+
+    // Set up callbacks.
+    m_Window->SetMessageCallback(
+        [this](HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) { return HandleMessage(hwnd, msg, wp, lp); });
+    m_Window->SetResizeCallback([this](uint32_t width, uint32_t height) { OnResize(width, height); });
 
     Device::EnableDebugLayer();
 
@@ -187,22 +142,14 @@ void Application::OnInit(HINSTANCE hInstance) {
 
     m_TearingSupported = SwapChain::CheckTearingSupport(dxgiFactory.Get());
 
-    const wchar_t* windowClassName = L"DX12WindowClass";
-    RegisterWindowClass(hInstance, windowClassName);
-    m_hWnd = CreateAppWindow(windowClassName, hInstance, L"Learning DirectX 12", m_ClientWidth, m_ClientHeight);
-
-    // Stash the Application pointer so WndProc can access it.
-    ::SetWindowLongPtrW(m_hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-
-    ::GetWindowRect(m_hWnd, &m_WindowRect);
-
     ComPtr<IDXGIAdapter4> dxgiAdapter4 = GetAdapter(dxgiFactory.Get(), m_UseWarp);
 
     m_Device = std::make_unique<Device>(dxgiAdapter4.Get());
     m_CommandQueue = std::make_unique<CommandQueue>(*m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-    m_SwapChain = std::make_unique<SwapChain>(dxgiFactory.Get(), m_hWnd, *m_CommandQueue, m_ClientWidth, m_ClientHeight,
-                                              SwapChain::NumFrames);
+    m_SwapChain =
+        std::make_unique<SwapChain>(dxgiFactory.Get(), m_Window->GetHandle(), *m_CommandQueue,
+                                    m_Window->GetClientWidth(), m_Window->GetClientHeight(), SwapChain::NumFrames);
 
     m_RTVDescriptorHeap = CreateDescriptorHeap(m_Device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, SwapChain::NumFrames);
     m_RTVDescriptorSize = m_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -245,28 +192,10 @@ void Application::OnDestroy() {
 }
 
 int Application::Run() {
-    ::ShowWindow(m_hWnd, SW_SHOW);
-
-    MSG msg{};
-    while (m_Running) {
-        while (::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            ::TranslateMessage(&msg);
-            ::DispatchMessage(&msg);
-            if (msg.message == WM_QUIT) {
-                m_Running = false;
-                break;
-            }
-        }
-
-        if (!m_Running)
-            break;
-
+    return m_Window->Run([this]() {
         OnUpdate();
         OnRender();
-    }
-
-    OnDestroy();
-    return static_cast<int>(msg.wParam);
+    });
 }
 
 void Application::UpdateRenderTargetViews() {
@@ -280,15 +209,13 @@ void Application::UpdateRenderTargetViews() {
 }
 
 void Application::OnResize(uint32_t width, uint32_t height) {
-    if (m_ClientWidth != width || m_ClientHeight != height) {
-        m_ClientWidth = std::max(1u, width);
-        m_ClientHeight = std::max(1u, height);
+    width = std::max(1u, width);
+    height = std::max(1u, height);
 
-        m_Fence->Flush(m_CommandQueue->GetHandle());
-        m_SwapChain->OnResize(m_ClientWidth, m_ClientHeight);
+    m_Fence->Flush(m_CommandQueue->GetHandle());
+    m_SwapChain->OnResize(width, height);
 
-        UpdateRenderTargetViews();
-    }
+    UpdateRenderTargetViews();
 }
 
 void Application::OnUpdate() {
@@ -349,106 +276,47 @@ void Application::OnRender() {
 
         // Check for device removal after present
         if (m_Device->IsDeviceRemoved()) {
-            m_Running = false;
+            m_Window->Quit();
         }
     }
 }
 
-void Application::OnSetFullscreen(bool enableFullscreen) {
-    if (m_Fullscreen == enableFullscreen)
-        return;
-
-    m_Fullscreen = enableFullscreen;
-
-    if (m_Fullscreen) {
-        ::GetWindowRect(m_hWnd, &m_WindowRect);
-        UINT windowStyle =
-            WS_OVERLAPPEDWINDOW & ~(WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
-
-        ::SetWindowLongW(m_hWnd, GWL_STYLE, windowStyle);
-        HMONITOR hMonitor = ::MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTONEAREST);
-        MONITORINFOEX monitorInfo{};
-        monitorInfo.cbSize = sizeof(MONITORINFOEX);
-        ::GetMonitorInfo(hMonitor, &monitorInfo);
-        ::SetWindowPos(m_hWnd, HWND_TOP, monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
-                       monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
-                       monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top, SWP_FRAMECHANGED | SWP_NOACTIVATE);
-
-        ::ShowWindow(m_hWnd, SW_MAXIMIZE);
-    } else {
-        ::SetWindowLong(m_hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
-
-        ::SetWindowPos(m_hWnd, HWND_NOTOPMOST, m_WindowRect.left, m_WindowRect.top,
-                       m_WindowRect.right - m_WindowRect.left, m_WindowRect.bottom - m_WindowRect.top,
-                       SWP_FRAMECHANGED | SWP_NOACTIVATE);
-
-        ::ShowWindow(m_hWnd, SW_NORMAL);
-    }
-
-    // Ensure swap chain buffers match the new window size
-    RECT clientRect{};
-    ::GetClientRect(m_hWnd, &clientRect);
-    OnResize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
-}
-
-static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    auto app = reinterpret_cast<Application*>(::GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (!app)
-        return ::DefWindowProcW(hwnd, message, wParam, lParam);
-
+LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPARAM wParam,
+                                   [[maybe_unused]] LPARAM lParam) {
     switch (message) {
-    case WM_PAINT:
-        ::ValidateRect(hwnd, nullptr);
-        break;
     case WM_SYSKEYDOWN:
     case WM_KEYDOWN: {
         bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
 
         switch (wParam) {
         case 'V':
-            app->m_VSync = !app->m_VSync;
-            break;
+            m_VSync = !m_VSync;
+            return 0;
         case VK_ESCAPE:
-            ::PostQuitMessage(0);
-            break;
+            m_Window->Quit();
+            return 0;
         case VK_RETURN:
             if (alt)
-                app->OnSetFullscreen(!app->m_Fullscreen);
-            break;
+                m_Window->ToggleFullscreen();
+            return 0;
         case VK_F11:
-            app->OnSetFullscreen(!app->m_Fullscreen);
-            break;
+            m_Window->ToggleFullscreen();
+            return 0;
         }
     } break;
     case WM_SYSCHAR:
-        break;
-    case WM_SIZE: {
-        if (wParam == SIZE_MINIMIZED)
-            break;
-
-        RECT clientRect{};
-        ::GetClientRect(hwnd, &clientRect);
-
-        int width = clientRect.right - clientRect.left;
-        int height = clientRect.bottom - clientRect.top;
-
-        app->OnResize(width, height);
-    } break;
-    case WM_DESTROY:
-        ::PostQuitMessage(0);
-        break;
-    default:
-        return ::DefWindowProcW(hwnd, message, wParam, lParam);
+        return 0;
     }
 
-    return 0;
+    // Signal that the message was not handled — Window will forward to DefWindowProc.
+    return -1;
 }
 
 int CALLBACK wWinMain(HINSTANCE hInstance, [[maybe_unused]] HINSTANCE hPrevInstance, [[maybe_unused]] PWSTR lpCmdLine,
                       [[maybe_unused]] int nCmdShow) {
-    SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-
-    Application app;
+    Application app{};
     app.OnInit(hInstance);
-    return app.Run();
+    int result = app.Run();
+    app.OnDestroy();
+    return result;
 }

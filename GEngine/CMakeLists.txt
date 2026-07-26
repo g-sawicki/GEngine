@@ -15,6 +15,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 
     "Source/main.cpp"
     "Source/PCH.hpp"
+    "Source/Window.cpp"
+    "Source/Window.hpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Source")
