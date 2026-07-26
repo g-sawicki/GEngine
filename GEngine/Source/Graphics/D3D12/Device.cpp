@@ -52,7 +52,7 @@ Device::Device(IDXGIAdapter4* adapter) {
 #endif
 }
 
-bool Device::IsDeviceRemoved() const {
+bool Device::IsDeviceRemoved() const noexcept {
     const HRESULT hr = m_Device->GetDeviceRemovedReason();
     if (FAILED(hr)) {
         wchar_t buf[64];

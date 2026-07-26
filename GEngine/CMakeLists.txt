@@ -13,6 +13,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/D3D12/SwapChain.cpp"
     "Source/Graphics/D3D12/SwapChain.hpp"
 
+    "Source/Graphics/Renderer.cpp"
+    "Source/Graphics/Renderer.hpp"
+
     "Source/main.cpp"
     "Source/PCH.hpp"
     "Source/Window.cpp"

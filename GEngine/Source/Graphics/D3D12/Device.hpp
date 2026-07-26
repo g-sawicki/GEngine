@@ -14,7 +14,7 @@ class Device {
 
     [[nodiscard]] ID3D12Device8* Get() const noexcept { return m_Device.Get(); }
 
-    [[nodiscard]] bool IsDeviceRemoved() const;
+    [[nodiscard]] bool IsDeviceRemoved() const noexcept;
 
     // Must be called before any D3D12 objects are created.
     static void EnableDebugLayer();
