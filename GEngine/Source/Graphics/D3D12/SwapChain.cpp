@@ -9,7 +9,7 @@ using namespace Microsoft::WRL;
 namespace GEngine {
 
 bool SwapChain::CheckTearingSupport(IDXGIFactory5* factory) {
-    BOOL allowTearing = FALSE;
+    BOOL allowTearing{FALSE};
     if (FAILED(factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing))))
         return false;
     return allowTearing == TRUE;
@@ -18,7 +18,7 @@ bool SwapChain::CheckTearingSupport(IDXGIFactory5* factory) {
 SwapChain::SwapChain(IDXGIFactory5* factory, HWND hWnd, CommandQueue& commandQueue, uint32_t width, uint32_t height,
                      uint32_t bufferCount)
     : m_Width(width), m_Height(height) {
-    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc{
         .Width = width,
         .Height = height,
         .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -48,11 +48,11 @@ void SwapChain::OnResize(uint32_t width, uint32_t height) {
     m_Width = std::max(1u, width);
     m_Height = std::max(1u, height);
 
-    for (uint32_t i = 0; i < NumFrames; ++i) {
+    for (uint32_t i{}; i < NumFrames; ++i) {
         m_BackBuffers[i].Reset();
     }
 
-    DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+    DXGI_SWAP_CHAIN_DESC swapChainDesc{};
     ThrowIfFailed(m_SwapChain->GetDesc(&swapChainDesc));
     ThrowIfFailed(
         m_SwapChain->ResizeBuffers(NumFrames, m_Width, m_Height, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags));
@@ -61,7 +61,7 @@ void SwapChain::OnResize(uint32_t width, uint32_t height) {
 }
 
 void SwapChain::RetrieveBackBuffers() {
-    for (uint32_t i = 0; i < NumFrames; ++i) {
+    for (uint32_t i{}; i < NumFrames; ++i) {
         ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&m_BackBuffers[i])));
     }
 }

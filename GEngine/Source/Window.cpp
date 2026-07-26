@@ -22,11 +22,11 @@ Window::~Window() {
 }
 
 void Window::RegisterWindowClass(HINSTANCE hInstance) {
-    static bool classRegistered = false;
+    static bool classRegistered{false};
     if (classRegistered)
         return;
 
-    WNDCLASSEXW windowClass = {
+    WNDCLASSEXW windowClass{
         .cbSize = sizeof(WNDCLASSEX),
         .style = CS_HREDRAW | CS_VREDRAW,
         .lpfnWndProc = &Window::WndProc,
@@ -41,24 +41,24 @@ void Window::RegisterWindowClass(HINSTANCE hInstance) {
         .hIconSm = ::LoadIcon(hInstance, nullptr),
     };
 
-    ATOM atom = ::RegisterClassExW(&windowClass);
+    ATOM atom{::RegisterClassExW(&windowClass)};
     assert(atom > 0);
     classRegistered = true;
 }
 
 void Window::CreateAppWindow(HINSTANCE hInstance) {
-    const int screenWidth = ::GetSystemMetrics(SM_CXSCREEN);
-    const int screenHeight = ::GetSystemMetrics(SM_CYSCREEN);
+    const int screenWidth{::GetSystemMetrics(SM_CXSCREEN)};
+    const int screenHeight{::GetSystemMetrics(SM_CYSCREEN)};
 
-    RECT windowRect = {0, 0, static_cast<LONG>(m_ClientWidth), static_cast<LONG>(m_ClientHeight)};
+    RECT windowRect{0, 0, static_cast<LONG>(m_ClientWidth), static_cast<LONG>(m_ClientHeight)};
     ::AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
-    const int windowWidth = windowRect.right - windowRect.left;
-    const int windowHeight = windowRect.bottom - windowRect.top;
+    const int windowWidth{windowRect.right - windowRect.left};
+    const int windowHeight{windowRect.bottom - windowRect.top};
 
     // Center the window within the screen.
-    const int windowX = std::max<int>(0, (screenWidth - windowWidth) / 2);
-    const int windowY = std::max<int>(0, (screenHeight - windowHeight) / 2);
+    const int windowX{std::max<int>(0, (screenWidth - windowWidth) / 2)};
+    const int windowY{std::max<int>(0, (screenHeight - windowHeight) / 2)};
 
     m_hWnd = ::CreateWindowExW(0, m_ClassName.c_str(), m_Title.c_str(), WS_OVERLAPPEDWINDOW, windowX, windowY,
                                windowWidth, windowHeight, nullptr, nullptr, hInstance, nullptr);
@@ -98,11 +98,11 @@ void Window::SetFullscreen(bool enableFullscreen) {
 
     if (m_Fullscreen) {
         ::GetWindowRect(m_hWnd, &m_WindowRect);
-        UINT windowStyle =
-            WS_OVERLAPPEDWINDOW & ~(WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+        UINT windowStyle{WS_OVERLAPPEDWINDOW &
+                         ~(WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)};
 
         ::SetWindowLongW(m_hWnd, GWL_STYLE, windowStyle);
-        HMONITOR hMonitor = ::MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTONEAREST);
+        HMONITOR hMonitor{::MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTONEAREST)};
         MONITORINFO monitorInfo{
             .cbSize = sizeof(MONITORINFO),
         };
@@ -131,7 +131,7 @@ void Window::SetFullscreen(bool enableFullscreen) {
 }
 
 LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    auto* window = reinterpret_cast<Window*>(::GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    auto* window{reinterpret_cast<Window*>(::GetWindowLongPtrW(hwnd, GWLP_USERDATA))};
     if (!window)
         return ::DefWindowProcW(hwnd, message, wParam, lParam);
 
@@ -160,7 +160,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
     default:
         // Forward unhandled messages to the application callback.
         if (window->m_MessageCallback) {
-            LRESULT result = window->m_MessageCallback(hwnd, message, wParam, lParam);
+            LRESULT result{window->m_MessageCallback(hwnd, message, wParam, lParam)};
             if (result == 0)
                 return 0;
         }

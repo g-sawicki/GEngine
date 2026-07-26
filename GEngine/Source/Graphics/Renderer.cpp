@@ -30,9 +30,9 @@ static ComPtr<IDXGIAdapter4> GetAdapter(IDXGIFactory6* dxgiFactory, bool useWarp
     }
 
     // Fallback: manually enumerate and pick the adapter with the most video memory
-    SIZE_T maxDedicatedVideoMemory = 0;
+    SIZE_T maxDedicatedVideoMemory{};
     ComPtr<IDXGIAdapter4> selectedAdapter;
-    for (UINT i = 0; dxgiFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+    for (UINT i{}; dxgiFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
         DXGI_ADAPTER_DESC1 desc;
         ThrowIfFailed(adapter->GetDesc1(&desc));
         if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
@@ -48,7 +48,7 @@ static ComPtr<IDXGIAdapter4> GetAdapter(IDXGIFactory6* dxgiFactory, bool useWarp
 
 static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device2* device, D3D12_DESCRIPTOR_HEAP_TYPE type,
                                                          uint32_t numDescriptors) {
-    D3D12_DESCRIPTOR_HEAP_DESC desc = {
+    D3D12_DESCRIPTOR_HEAP_DESC desc{
         .Type = type,
         .NumDescriptors = numDescriptors,
     };
@@ -63,7 +63,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
     Device::EnableDebugLayer();
 
     ComPtr<IDXGIFactory6> dxgiFactory;
-    UINT createFactoryFlags = 0;
+    UINT createFactoryFlags{};
 #if defined(_DEBUG)
     createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
@@ -71,7 +71,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 
     TearingSupported = SwapChain::CheckTearingSupport(dxgiFactory.Get());
 
-    ComPtr<IDXGIAdapter4> dxgiAdapter4 = GetAdapter(dxgiFactory.Get(), useWarp);
+    ComPtr<IDXGIAdapter4> dxgiAdapter4{GetAdapter(dxgiFactory.Get(), useWarp)};
 
     m_Device = std::make_unique<Device>(dxgiAdapter4.Get());
     m_CommandQueue = std::make_unique<CommandQueue>(*m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
@@ -84,7 +84,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 
     UpdateRenderTargetViews();
 
-    for (uint32_t i = 0; i < SwapChain::NumFrames; ++i) {
+    for (uint32_t i{}; i < SwapChain::NumFrames; ++i) {
         ThrowIfFailed(m_Device->Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
                                                               IID_PPV_ARGS(&m_FrameResources[i].CommandAllocator)));
         m_FrameResources[i].CommandList = std::make_unique<CommandList>(
@@ -122,10 +122,10 @@ void Renderer::Destroy() {
 }
 
 void Renderer::UpdateRenderTargetViews() {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart()};
 
-    for (uint32_t i = 0; i < SwapChain::NumFrames; ++i) {
-        ID3D12Resource* backBuffer = m_SwapChain->GetBackBuffer(i);
+    for (uint32_t i{}; i < SwapChain::NumFrames; ++i) {
+        ID3D12Resource* backBuffer{m_SwapChain->GetBackBuffer(i)};
         m_Device->Get()->CreateRenderTargetView(backBuffer, nullptr, rtvHandle);
         rtvHandle.Offset(m_RTVDescriptorSize);
     }
@@ -142,24 +142,24 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
 }
 
 void Renderer::Render() {
-    auto currentIdx = m_SwapChain->GetCurrentBackBufferIndex();
-    auto& frame = m_FrameResources[currentIdx];
+    auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
+    auto& frame{m_FrameResources[currentIdx]};
 
     // Ensure the GPU has finished with this frame's resources before reusing them.
     m_Fence->WaitForValue(frame.FenceValue);
 
-    ID3D12Resource* backBuffer = m_SwapChain->GetCurrentBackBuffer();
+    ID3D12Resource* backBuffer{m_SwapChain->GetCurrentBackBuffer()};
 
     frame.CommandList->Reset(frame.CommandAllocator.Get());
-    auto* cmdList = frame.CommandList->GetHandle();
+    auto* cmdList{frame.CommandList->GetHandle()};
 
     // Clear the render target.
     {
-        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            backBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
+                                                                              D3D12_RESOURCE_STATE_RENDER_TARGET)};
 
         cmdList->ResourceBarrier(1, &barrier);
-        static constexpr FLOAT clearColor[] = {0.4f, 0.6f, 0.9f, 1.0f};
+        static constexpr FLOAT clearColor[]{0.4f, 0.6f, 0.9f, 1.0f};
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), currentIdx,
                                           m_RTVDescriptorSize);
 
@@ -168,16 +168,16 @@ void Renderer::Render() {
 
     // Present
     {
-        CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(
+            backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT)};
         cmdList->ResourceBarrier(1, &barrier);
         frame.CommandList->Close();
 
-        ID3D12CommandList* const ppCommandLists[] = {cmdList};
+        ID3D12CommandList* const ppCommandLists[]{cmdList};
         m_CommandQueue->ExecuteCommandLists(ppCommandLists);
 
-        UINT syncInterval = VSync ? 1u : 0u;
-        UINT presentFlags = TearingSupported && !VSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+        UINT syncInterval{VSync ? 1u : 0u};
+        UINT presentFlags{TearingSupported && !VSync ? DXGI_PRESENT_ALLOW_TEARING : 0};
         ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
 
         frame.FenceValue = m_Fence->Signal(m_CommandQueue->GetHandle());

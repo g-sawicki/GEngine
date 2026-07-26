@@ -7,7 +7,7 @@
 namespace GEngine {
 
 CommandQueue::CommandQueue(Device& device, D3D12_COMMAND_LIST_TYPE type) {
-    D3D12_COMMAND_QUEUE_DESC desc = {
+    D3D12_COMMAND_QUEUE_DESC desc{
         .Type = type,
         .Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
         .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,

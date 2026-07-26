@@ -35,7 +35,7 @@ void Application::OnInit(HINSTANCE hInstance) {
         int argc;
         wchar_t** argv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
 
-        for (int i = 0; i < argc; ++i) {
+        for (int i{}; i < argc; ++i) {
             if (::wcscmp(argv[i], L"-warp") == 0 || ::wcscmp(argv[i], L"--warp") == 0) {
                 m_UseWarp = true;
             }
@@ -72,12 +72,12 @@ void Application::OnResize(uint32_t width, uint32_t height) {
 
 void Application::OnUpdate() {
     ++m_FrameCounter;
-    auto t1 = std::chrono::high_resolution_clock::now();
-    auto deltaTime = t1 - m_T0;
+    auto t1{std::chrono::high_resolution_clock::now()};
+    auto deltaTime{t1 - m_T0};
     m_T0 = t1;
     m_ElapsedSeconds += std::chrono::duration<double>(deltaTime).count();
     if (m_ElapsedSeconds > 1.0) {
-        auto fps = static_cast<double>(m_FrameCounter) / m_ElapsedSeconds;
+        auto fps{static_cast<double>(m_FrameCounter) / m_ElapsedSeconds};
         OutputDebugStringA(std::format("FPS: {:.1f}\n", fps).c_str());
 
         m_FrameCounter = 0;
@@ -99,7 +99,7 @@ LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPA
     switch (message) {
     case WM_SYSKEYDOWN:
     case WM_KEYDOWN: {
-        bool alt = (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+        bool alt{(::GetAsyncKeyState(VK_MENU) & 0x8000) != 0};
 
         switch (wParam) {
         case 'V':
@@ -129,7 +129,7 @@ int CALLBACK wWinMain(HINSTANCE hInstance, [[maybe_unused]] HINSTANCE hPrevInsta
                       [[maybe_unused]] int nCmdShow) {
     Application app{};
     app.OnInit(hInstance);
-    int result = app.Run();
+    int result{app.Run()};
     app.OnDestroy();
     return result;
 }

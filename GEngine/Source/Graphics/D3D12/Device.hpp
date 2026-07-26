@@ -5,7 +5,6 @@ namespace GEngine {
 class Device {
   public:
     explicit Device(IDXGIAdapter4* adapter);
-    ~Device() = default;
 
     Device(const Device&) = delete;
     Device& operator=(const Device&) = delete;

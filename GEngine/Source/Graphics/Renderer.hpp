@@ -13,7 +13,7 @@ class Renderer {
     struct FrameResource {
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CommandAllocator;
         std::unique_ptr<CommandList> CommandList;
-        uint64_t FenceValue = 0;
+        uint64_t FenceValue{};
     };
 
     Renderer() = default;
@@ -32,8 +32,8 @@ class Renderer {
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
 
     // Settings
-    bool VSync = true;
-    bool TearingSupported = false;
+    bool VSync{true};
+    bool TearingSupported{};
 
   private:
     void UpdateRenderTargetViews();
@@ -46,7 +46,7 @@ class Renderer {
     FrameResource m_FrameResources[SwapChain::NumFrames]{};
 
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVDescriptorHeap;
-    UINT m_RTVDescriptorSize = 0;
+    UINT m_RTVDescriptorSize{};
 };
 
 } // namespace GEngine
