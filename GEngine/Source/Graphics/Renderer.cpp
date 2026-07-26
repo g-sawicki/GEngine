@@ -126,57 +126,8 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
         m_PipelineState = std::make_unique<PipelineState>(*m_Device, psoDesc);
     }
 
-    // Vertex buffer
-    {
-        const D3D12_HEAP_PROPERTIES heapProps{
-            .Type = D3D12_HEAP_TYPE_UPLOAD,
-        };
-
-        const D3D12_RESOURCE_DESC desc{
-            .Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
-            .Width = static_cast<UINT64>(s_Vertices.size() * sizeof(Vertex)),
-            .Height = 1,
-            .DepthOrArraySize = 1,
-            .MipLevels = 1,
-            .SampleDesc = {.Count = 1},
-            .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-        };
-
-        ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-                                                               D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-                                                               IID_PPV_ARGS(&m_VertexBuffer)));
-
-        void* data{};
-        m_VertexBuffer->Map(0, nullptr, &data);
-        std::memcpy(data, s_Vertices.data(), s_Vertices.size() * sizeof(Vertex));
-        m_VertexBuffer->Unmap(0, nullptr);
-    }
-
-    // Index buffer
-    {
-        const D3D12_HEAP_PROPERTIES heapProps{
-            .Type = D3D12_HEAP_TYPE_UPLOAD,
-        };
-
-        const D3D12_RESOURCE_DESC desc{
-            .Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
-            .Width = static_cast<UINT64>(s_Indices.size() * sizeof(uint16_t)),
-            .Height = 1,
-            .DepthOrArraySize = 1,
-            .MipLevels = 1,
-            .SampleDesc = {.Count = 1},
-            .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-        };
-
-        ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-                                                               D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-                                                               IID_PPV_ARGS(&m_IndexBuffer)));
-
-        void* data{};
-        m_IndexBuffer->Map(0, nullptr, &data);
-        std::memcpy(data, s_Indices.data(), s_Indices.size() * sizeof(uint16_t));
-        m_IndexBuffer->Unmap(0, nullptr);
-    }
+    m_VertexBuffer = std::make_unique<Buffer>(*m_Device, s_Vertices.size() * sizeof(Vertex), s_Vertices.data());
+    m_IndexBuffer = std::make_unique<Buffer>(*m_Device, s_Indices.size() * sizeof(uint16_t), s_Indices.data());
 }
 
 void Renderer::Destroy() {
@@ -195,8 +146,8 @@ void Renderer::Destroy() {
     m_RTVDescriptorHeap.Reset();
     m_PipelineState.reset();
     m_RootSignature.reset();
-    m_VertexBuffer.Reset();
-    m_IndexBuffer.Reset();
+    m_VertexBuffer.reset();
+    m_IndexBuffer.reset();
     m_Device.reset();
 
 #if defined(_DEBUG)
@@ -269,19 +220,9 @@ void Renderer::Render() {
         cmdList->RSSetScissorRects(1, &scissorRect);
         cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-        D3D12_VERTEX_BUFFER_VIEW vbv{
-            .BufferLocation = m_VertexBuffer->GetGPUVirtualAddress(),
-            .SizeInBytes = static_cast<UINT>(s_Vertices.size() * sizeof(Vertex)),
-            .StrideInBytes = sizeof(Vertex),
-        };
+        auto vbv{m_VertexBuffer->GetVBV(sizeof(Vertex))};
         cmdList->IASetVertexBuffers(0, 1, &vbv);
-
-        D3D12_INDEX_BUFFER_VIEW ibv{
-            .BufferLocation = m_IndexBuffer->GetGPUVirtualAddress(),
-            .SizeInBytes = static_cast<UINT>(s_Indices.size() * sizeof(uint16_t)),
-            .Format = DXGI_FORMAT_R16_UINT,
-        };
+        auto ibv{m_IndexBuffer->GetIBV()};
         cmdList->IASetIndexBuffer(&ibv);
 
         cmdList->DrawIndexedInstanced(static_cast<UINT>(s_Indices.size()), 1, 0, 0, 0);

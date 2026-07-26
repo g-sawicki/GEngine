@@ -7,6 +7,8 @@ compile_shader("default.hlsl" "VSMain" "vs_6_5" "default_vs.h")
 compile_shader("default.hlsl" "PSMain" "ps_6_5" "default_ps.h")
 
 target_sources(${PROJECT_NAME} PRIVATE
+    "Source/Graphics/D3D12/Buffer.cpp"
+    "Source/Graphics/D3D12/Buffer.hpp"
     "Source/Graphics/D3D12/CommandList.cpp"
     "Source/Graphics/D3D12/CommandList.hpp"
     "Source/Graphics/D3D12/CommandQueue.cpp"

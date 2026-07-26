@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/CommandQueue.hpp"
 #include "Graphics/D3D12/Device.hpp"
@@ -58,8 +59,8 @@ class Renderer {
     std::unique_ptr<RootSignature> m_RootSignature;
     std::unique_ptr<PipelineState> m_PipelineState;
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> m_VertexBuffer;
-    Microsoft::WRL::ComPtr<ID3D12Resource> m_IndexBuffer;
+    std::unique_ptr<Buffer> m_VertexBuffer;
+    std::unique_ptr<Buffer> m_IndexBuffer;
 
     static constexpr std::array<Vertex, 4> s_Vertices{{
         {{0.5f, 0.5f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
