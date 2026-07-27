@@ -1,6 +1,7 @@
 ﻿#include "PCH.hpp"
 
 #include "Graphics/Renderer.hpp"
+#include "Scene/CameraController.hpp"
 #include "Window.hpp"
 
 using namespace GEngine;
@@ -20,13 +21,20 @@ class Application {
   private:
     std::unique_ptr<Window> m_Window;
     Renderer m_Renderer;
+    CameraController m_CameraController{
+        {.FovDegrees = 70.0f, .AspectRatio = 1280.0f / 720.0f, .NearZ = 0.1f, .FarZ = 1000.0f}, {0.0f, 0.0f, -5.0f}};
 
     bool m_UseWarp{};
 
     // Timing
     uint64_t m_FrameCounter{0};
     double m_ElapsedSeconds{0.0};
-    std::chrono::high_resolution_clock::time_point m_T0{std::chrono::high_resolution_clock::now()};
+    std::chrono::high_resolution_clock::time_point m_PrevTime{std::chrono::high_resolution_clock::now()};
+    float m_DeltaTime{};
+
+    // Mouse tracking
+    POINT m_PrevCursorPos{};
+    bool m_MouseCaptured{};
 };
 
 void Application::OnInit(HINSTANCE hInstance) {
@@ -68,14 +76,19 @@ int Application::Run() {
 
 void Application::OnResize(uint32_t width, uint32_t height) {
     m_Renderer.OnResize(width, height);
+    const float aspectRatio = static_cast<float>(std::max(1u, width)) / static_cast<float>(std::max(1u, height));
+    m_CameraController.GetCamera().SetAspectRatio(aspectRatio);
 }
 
 void Application::OnUpdate() {
+    // Delta time
+    auto now{std::chrono::high_resolution_clock::now()};
+    m_DeltaTime = std::min(std::chrono::duration<float>(now - m_PrevTime).count(), 0.25f);
+    m_PrevTime = now;
+
+    // FPS counter
     ++m_FrameCounter;
-    auto t1{std::chrono::high_resolution_clock::now()};
-    auto deltaTime{t1 - m_T0};
-    m_T0 = t1;
-    m_ElapsedSeconds += std::chrono::duration<double>(deltaTime).count();
+    m_ElapsedSeconds += m_DeltaTime;
     if (m_ElapsedSeconds > 1.0) {
         auto fps{static_cast<double>(m_FrameCounter) / m_ElapsedSeconds};
         OutputDebugStringA(std::format("FPS: {:.1f}\n", fps).c_str());
@@ -83,10 +96,46 @@ void Application::OnUpdate() {
         m_FrameCounter = 0;
         m_ElapsedSeconds = 0.0;
     }
+
+    // Build camera input from keyboard and mouse.
+    CameraInput input;
+    input.MoveForward = (::GetAsyncKeyState('W') & 0x8000) != 0;
+    input.MoveBack = (::GetAsyncKeyState('S') & 0x8000) != 0;
+    input.MoveRight = (::GetAsyncKeyState('D') & 0x8000) != 0;
+    input.MoveLeft = (::GetAsyncKeyState('A') & 0x8000) != 0;
+    input.MoveUp = (::GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
+    input.MoveDown = (::GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+
+    // Mouse delta: right-click toggles mouse look.
+    {
+        bool rightDown{(::GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0};
+
+        if (rightDown && !m_MouseCaptured) {
+            m_MouseCaptured = true;
+            ::GetCursorPos(&m_PrevCursorPos);
+            ::ShowCursor(FALSE);
+        } else if (!rightDown && m_MouseCaptured) {
+            m_MouseCaptured = false;
+            ::ShowCursor(TRUE);
+        }
+
+        if (m_MouseCaptured) {
+            POINT cursorPos;
+            ::GetCursorPos(&cursorPos);
+            input.MouseDeltaX = static_cast<float>(cursorPos.x - m_PrevCursorPos.x);
+            input.MouseDeltaY = static_cast<float>(cursorPos.y - m_PrevCursorPos.y);
+            ::SetCursorPos(m_PrevCursorPos.x, m_PrevCursorPos.y);
+        }
+    }
+
+    m_CameraController.Update(m_DeltaTime, input);
 }
 
 void Application::OnRender() {
-    m_Renderer.Render();
+    const auto& camera{m_CameraController.GetCamera()};
+    const DirectX::XMMATRIX view{camera.GetViewMatrix()};
+    const DirectX::XMMATRIX proj{camera.GetProjectionMatrix()};
+    m_Renderer.Render(DirectX::XMMatrixMultiply(view, proj));
 
     // Check for device removal after present
     if (m_Renderer.IsDeviceRemoved()) {
@@ -107,6 +156,8 @@ LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPA
             return 0;
         case VK_ESCAPE:
             m_Window->Quit();
+            return 0;
+        case VK_RBUTTON:
             return 0;
         case VK_RETURN:
             if (alt)

@@ -27,6 +27,8 @@ class Buffer {
                 .Format = format};
     }
 
+    void Write(const void* data, UINT64 size);
+
   private:
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
     UINT64 m_Size{};

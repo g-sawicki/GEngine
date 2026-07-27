@@ -34,7 +34,7 @@ class Renderer {
     void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp);
     void Destroy();
 
-    void Render();
+    void Render(DirectX::XMMATRIX viewProjection);
     void OnResize(uint32_t width, uint32_t height);
 
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
@@ -61,6 +61,7 @@ class Renderer {
 
     std::unique_ptr<Buffer> m_VertexBuffer;
     std::unique_ptr<Buffer> m_IndexBuffer;
+    std::unique_ptr<Buffer> m_CameraConstantBuffer;
 
     static constexpr std::array<Vertex, 4> s_Vertices{{
         {{0.5f, 0.5f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},

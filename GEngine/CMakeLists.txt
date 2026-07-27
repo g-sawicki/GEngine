@@ -28,6 +28,11 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/Renderer.cpp"
     "Source/Graphics/Renderer.hpp"
 
+    "Source/Scene/Camera.cpp"
+    "Source/Scene/Camera.hpp"
+    "Source/Scene/CameraController.cpp"
+    "Source/Scene/CameraController.hpp"
+
     "Source/main.cpp"
     "Source/PCH.hpp"
     "Source/Window.cpp"

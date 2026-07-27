@@ -10,10 +10,15 @@ struct PSInput
     float4 color : COLOR;
 };
 
+cbuffer CameraConstants : register(b0)
+{
+    float4x4 ViewProjection;
+};
+
 PSInput VSMain(VSInput input)
 {
     PSInput output;
-    output.position = input.position;
+    output.position = mul(input.position, ViewProjection);
     output.color = input.color;
     return output;
 }

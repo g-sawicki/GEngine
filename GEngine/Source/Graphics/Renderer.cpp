@@ -95,8 +95,14 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 
     m_Fence = std::make_unique<Fence>(*m_Device);
 
+    CD3DX12_ROOT_PARAMETER rootParams[1];
+    rootParams[0].InitAsConstantBufferView(0);
+
     CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
+    rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
+    rootSigDesc.pParameters = rootParams;
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
     m_RootSignature = std::make_unique<RootSignature>(*m_Device, rootSigDesc);
 
     // Pipeline state object
@@ -128,6 +134,8 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 
     m_VertexBuffer = std::make_unique<Buffer>(*m_Device, s_Vertices.size() * sizeof(Vertex), s_Vertices.data());
     m_IndexBuffer = std::make_unique<Buffer>(*m_Device, s_Indices.size() * sizeof(uint16_t), s_Indices.data());
+
+    m_CameraConstantBuffer = std::make_unique<Buffer>(*m_Device, 256); // 64B ViewProjection + padding
 }
 
 void Renderer::Destroy() {
@@ -148,6 +156,7 @@ void Renderer::Destroy() {
     m_RootSignature.reset();
     m_VertexBuffer.reset();
     m_IndexBuffer.reset();
+    m_CameraConstantBuffer.reset();
     m_Device.reset();
 
 #if defined(_DEBUG)
@@ -181,12 +190,19 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
     UpdateRenderTargetViews();
 }
 
-void Renderer::Render() {
+void Renderer::Render(const DirectX::XMMATRIX viewProjection) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
 
     // Ensure the GPU has finished with this frame's resources before reusing them.
     m_Fence->WaitForValue(frame.FenceValue);
+
+    // Upload the camera matrix to the constant buffer.
+    {
+        DirectX::XMFLOAT4X4 vpTransposed;
+        DirectX::XMStoreFloat4x4(&vpTransposed, DirectX::XMMatrixTranspose(viewProjection));
+        m_CameraConstantBuffer->Write(&vpTransposed, sizeof(vpTransposed));
+    }
 
     ID3D12Resource* backBuffer{m_SwapChain->GetCurrentBackBuffer()};
 
@@ -215,6 +231,7 @@ void Renderer::Render() {
                                static_cast<LONG>(m_SwapChain->GetHeight())};
 
         cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
+        cmdList->SetGraphicsRootConstantBufferView(0, m_CameraConstantBuffer->GetGPUVirtualAddress());
         cmdList->SetPipelineState(m_PipelineState->Get());
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);

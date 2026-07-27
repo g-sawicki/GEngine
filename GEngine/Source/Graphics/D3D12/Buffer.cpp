@@ -6,15 +6,6 @@
 
 namespace GEngine {
 
-static void UploadData(ID3D12Resource* resource, const void* data, UINT64 size) {
-    if (!data)
-        return;
-    void* mapped{};
-    resource->Map(0, nullptr, &mapped);
-    std::memcpy(mapped, data, size);
-    resource->Unmap(0, nullptr);
-}
-
 Buffer::Buffer(Device& device, UINT64 size, const void* initialData) {
     const D3D12_HEAP_PROPERTIES heapProps{.Type = D3D12_HEAP_TYPE_UPLOAD};
     const D3D12_RESOURCE_DESC desc{
@@ -31,8 +22,9 @@ Buffer::Buffer(Device& device, UINT64 size, const void* initialData) {
                                                         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
                                                         IID_PPV_ARGS(&m_Resource)));
 
-    UploadData(m_Resource.Get(), initialData, size);
     m_Size = size;
+    if (initialData)
+        Write(initialData, size);
 }
 
 Buffer::Buffer(Device& device, const D3D12_HEAP_PROPERTIES& heapProps, const D3D12_RESOURCE_DESC& desc,
@@ -41,8 +33,17 @@ Buffer::Buffer(Device& device, const D3D12_HEAP_PROPERTIES& heapProps, const D3D
                                                         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
                                                         IID_PPV_ARGS(&m_Resource)));
 
-    UploadData(m_Resource.Get(), initialData, desc.Width);
     m_Size = desc.Width;
+    if (initialData)
+        Write(initialData, desc.Width);
+}
+
+void Buffer::Write(const void* data, const UINT64 size) {
+    assert(size <= m_Size);
+    void* mapped{};
+    m_Resource->Map(0, nullptr, &mapped);
+    std::memcpy(mapped, data, size);
+    m_Resource->Unmap(0, nullptr);
 }
 
 } // namespace GEngine
