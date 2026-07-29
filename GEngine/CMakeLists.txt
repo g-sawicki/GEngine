@@ -32,8 +32,13 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/D3D12/SwapChain.cpp"
     "Source/Graphics/D3D12/SwapChain.hpp"
 
+    "Source/Graphics/Vertex.hpp"
     "Source/Graphics/Renderer.cpp"
     "Source/Graphics/Renderer.hpp"
+
+    "Source/Rendering/Mesh.hpp"
+    "Source/Rendering/MeshFactory.cpp"
+    "Source/Rendering/MeshFactory.hpp"
 
     "Source/Scene/Camera.cpp"
     "Source/Scene/Camera.hpp"

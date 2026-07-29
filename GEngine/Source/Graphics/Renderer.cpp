@@ -3,6 +3,7 @@
 #include "Graphics/Renderer.hpp"
 
 #include "Graphics/D3D12/Common.hpp"
+#include "Rendering/MeshFactory.hpp"
 #include "default_ps.h"
 #include "default_vs.h"
 
@@ -132,8 +133,12 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
         m_PipelineState = std::make_unique<PipelineState>(*m_Device, psoDesc);
     }
 
-    m_VertexBuffer = std::make_unique<Buffer>(*m_Device, s_Vertices.size() * sizeof(Vertex), s_Vertices.data());
-    m_IndexBuffer = std::make_unique<Buffer>(*m_Device, s_Indices.size() * sizeof(uint16_t), s_Indices.data());
+    const Mesh& mesh{MeshFactory::Cube()};
+    m_VertexStride = sizeof(mesh.vertices[0]);
+    m_VertexBuffer = std::make_unique<Buffer>(*m_Device, mesh.vertices.size() * m_VertexStride, mesh.vertices.data());
+    m_IndexBuffer =
+        std::make_unique<Buffer>(*m_Device, mesh.indices.size() * sizeof(mesh.indices[0]), mesh.indices.data());
+    m_IndexCount = static_cast<UINT>(mesh.indices.size());
 
     m_CameraConstantBuffer = std::make_unique<Buffer>(*m_Device, 256); // 64B ViewProjection + padding
 }
@@ -233,12 +238,12 @@ void Renderer::Render(const ViewInfo& viewInfo) {
         cmdList->RSSetScissorRects(1, &scissorRect);
         cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        auto vbv{m_VertexBuffer->GetVBV(sizeof(Vertex))};
+        auto vbv{m_VertexBuffer->GetVBV(m_VertexStride)};
         cmdList->IASetVertexBuffers(0, 1, &vbv);
         auto ibv{m_IndexBuffer->GetIBV()};
         cmdList->IASetIndexBuffer(&ibv);
 
-        cmdList->DrawIndexedInstanced(static_cast<UINT>(s_Indices.size()), 1, 0, 0, 0);
+        cmdList->DrawIndexedInstanced(m_IndexCount, 1, 0, 0, 0);
     }
 
     // Present

@@ -11,11 +11,6 @@
 
 namespace GEngine {
 
-struct Vertex {
-    float position[4];
-    float color[4];
-};
-
 struct ViewInfo {
     DirectX::XMFLOAT4X4 ViewProjection;
 };
@@ -64,18 +59,12 @@ class Renderer {
 
     std::unique_ptr<Buffer> m_VertexBuffer;
     std::unique_ptr<Buffer> m_IndexBuffer;
+    UINT m_VertexStride{};
+    UINT m_IndexCount{};
     std::unique_ptr<Buffer> m_CameraConstantBuffer;
 
     bool m_VSync{true};
     bool m_TearingSupported{};
-
-    static constexpr std::array<Vertex, 4> s_Vertices{{
-        {{0.5f, 0.5f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-        {{-0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},
-        {{0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f}},
-    }};
-    static constexpr std::array<uint16_t, 6> s_Indices{2, 1, 0, 3, 2, 0};
 };
 
 } // namespace GEngine
