@@ -71,7 +71,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 #endif
     ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
 
-    TearingSupported = SwapChain::CheckTearingSupport(dxgiFactory.Get());
+    m_TearingSupported = SwapChain::CheckTearingSupport(dxgiFactory.Get());
 
     ComPtr<IDXGIAdapter4> dxgiAdapter4{GetAdapter(dxgiFactory.Get(), useWarp)};
 
@@ -125,7 +125,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
             .InputLayout = {inputLayout, static_cast<UINT>(std::size(inputLayout))},
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = {DXGI_FORMAT_R8G8B8A8_UNORM},
+            .RTVFormats = {SwapChain::BackBufferFormat},
             .SampleDesc = {.Count = 1, .Quality = 0},
         };
 
@@ -190,19 +190,15 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
     UpdateRenderTargetViews();
 }
 
-void Renderer::Render(const DirectX::XMMATRIX viewProjection) {
+void Renderer::Render(const ViewInfo& viewInfo) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
 
     // Ensure the GPU has finished with this frame's resources before reusing them.
     m_Fence->WaitForValue(frame.FenceValue);
 
-    // Upload the camera matrix to the constant buffer.
-    {
-        DirectX::XMFLOAT4X4 vpTransposed;
-        DirectX::XMStoreFloat4x4(&vpTransposed, DirectX::XMMatrixTranspose(viewProjection));
-        m_CameraConstantBuffer->Write(&vpTransposed, sizeof(vpTransposed));
-    }
+    // Upload the view-projection matrix.
+    m_CameraConstantBuffer->Write(&viewInfo.ViewProjection, sizeof(viewInfo.ViewProjection));
 
     ID3D12Resource* backBuffer{m_SwapChain->GetCurrentBackBuffer()};
 
@@ -255,8 +251,8 @@ void Renderer::Render(const DirectX::XMMATRIX viewProjection) {
         ID3D12CommandList* const ppCommandLists[]{cmdList};
         m_CommandQueue->ExecuteCommandLists(ppCommandLists);
 
-        UINT syncInterval{VSync || !TearingSupported ? 1u : 0u};
-        UINT presentFlags{!VSync && TearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0u};
+        UINT syncInterval{m_VSync || !m_TearingSupported ? 1u : 0u};
+        UINT presentFlags{!m_VSync && m_TearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0u};
         ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
 
         frame.FenceValue = m_Fence->Signal(m_CommandQueue->GetHandle());

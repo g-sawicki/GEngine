@@ -8,6 +8,7 @@ class SwapChain {
   public:
     static bool CheckTearingSupport(IDXGIFactory5* factory);
     static constexpr uint32_t NumFrames{3u};
+    static constexpr DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
   public:
     SwapChain(IDXGIFactory5* factory, HWND hWnd, CommandQueue& commandQueue, uint32_t width, uint32_t height,

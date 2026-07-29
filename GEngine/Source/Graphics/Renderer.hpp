@@ -16,6 +16,10 @@ struct Vertex {
     float color[4];
 };
 
+struct ViewInfo {
+    DirectX::XMFLOAT4X4 ViewProjection;
+};
+
 class Renderer {
   public:
     struct FrameResource {
@@ -34,14 +38,13 @@ class Renderer {
     void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp);
     void Destroy();
 
-    void Render(DirectX::XMMATRIX viewProjection);
+    void Render(const ViewInfo& viewInfo);
     void OnResize(uint32_t width, uint32_t height);
 
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
 
-    // Settings
-    bool VSync{true};
-    bool TearingSupported{};
+    void SetVSync(bool enabled) noexcept { m_VSync = enabled; }
+    [[nodiscard]] bool IsVSyncEnabled() const noexcept { return m_VSync; }
 
   private:
     void UpdateRenderTargetViews();
@@ -62,6 +65,9 @@ class Renderer {
     std::unique_ptr<Buffer> m_VertexBuffer;
     std::unique_ptr<Buffer> m_IndexBuffer;
     std::unique_ptr<Buffer> m_CameraConstantBuffer;
+
+    bool m_VSync{true};
+    bool m_TearingSupported{};
 
     static constexpr std::array<Vertex, 4> s_Vertices{{
         {{0.5f, 0.5f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},

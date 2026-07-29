@@ -17,7 +17,7 @@ struct CameraInput {
 
 class CameraController {
   public:
-    CameraController(const PerspectiveDesc& desc, const DirectX::XMFLOAT3& position = {});
+    explicit CameraController(Camera& camera) noexcept : m_Camera(&camera) {}
 
     CameraController(const CameraController&) = delete;
     CameraController& operator=(const CameraController&) = delete;
@@ -27,16 +27,13 @@ class CameraController {
     /// Call each frame with the accumulated input for this frame.
     void Update(float deltaTime, const CameraInput& input);
 
-    [[nodiscard]] const Camera& GetCamera() const noexcept { return m_Camera; }
-    [[nodiscard]] Camera& GetCamera() noexcept { return m_Camera; }
-
     [[nodiscard]] float GetMoveSpeed() const noexcept { return m_MoveSpeed; }
     [[nodiscard]] float GetMouseSensitivity() const noexcept { return m_MouseSensitivity; }
     void SetMoveSpeed(float speed) noexcept { m_MoveSpeed = speed; }
     void SetMouseSensitivity(float sensitivity) noexcept { m_MouseSensitivity = sensitivity; }
 
   private:
-    Camera m_Camera;
+    Camera* m_Camera;
     float m_MoveSpeed{5.0f};
     float m_MouseSensitivity{0.002f};
 };

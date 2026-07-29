@@ -6,12 +6,9 @@
 
 namespace GEngine {
 
-CameraController::CameraController(const PerspectiveDesc& desc, const DirectX::XMFLOAT3& position)
-    : m_Camera{desc, position} {}
-
 void CameraController::Update(const float deltaTime, const CameraInput& input) {
     if (input.MouseDeltaX != 0.0f || input.MouseDeltaY != 0.0f) {
-        m_Camera.Rotate(-input.MouseDeltaY * m_MouseSensitivity, input.MouseDeltaX * m_MouseSensitivity);
+        m_Camera->Rotate(-input.MouseDeltaY * m_MouseSensitivity, input.MouseDeltaX * m_MouseSensitivity);
     }
 
     float forward{static_cast<float>(input.MoveForward) - static_cast<float>(input.MoveBack)};
@@ -27,7 +24,7 @@ void CameraController::Update(const float deltaTime, const CameraInput& input) {
     }
 
     const float moveDelta{m_MoveSpeed * deltaTime};
-    m_Camera.Translate(forward * moveDelta, right * moveDelta, up * moveDelta);
+    m_Camera->Translate(forward * moveDelta, right * moveDelta, up * moveDelta);
 }
 
 } // namespace GEngine

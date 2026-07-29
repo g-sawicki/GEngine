@@ -21,7 +21,7 @@ SwapChain::SwapChain(IDXGIFactory5* factory, HWND hWnd, CommandQueue& commandQue
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc{
         .Width = width,
         .Height = height,
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .Format = BackBufferFormat,
         .Stereo = FALSE,
         .SampleDesc = {.Count = 1, .Quality = 0},
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,

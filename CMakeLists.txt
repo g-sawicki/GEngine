@@ -14,3 +14,4 @@ endif()
 
 add_subdirectory(External)
 add_subdirectory(GEngine)
+add_subdirectory(Samples/Playground)
