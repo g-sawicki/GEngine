@@ -95,11 +95,8 @@ void Application::Render() {
     if (!camera)
         return;
 
-    const DirectX::XMMATRIX viewProj{DirectX::XMMatrixMultiply(camera->GetViewMatrix(), camera->GetProjectionMatrix())};
-    ViewInfo viewInfo;
-    DirectX::XMStoreFloat4x4(&viewInfo.ViewProjection, DirectX::XMMatrixTranspose(viewProj));
-
-    m_Renderer.Render(viewInfo);
+    const SceneInfo sceneInfo = m_World.GetSceneInfo();
+    m_Renderer.Render(sceneInfo);
 }
 
 LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPARAM wParam,

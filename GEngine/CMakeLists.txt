@@ -44,6 +44,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Scene/Camera.hpp"
     "Source/Scene/CameraController.cpp"
     "Source/Scene/CameraController.hpp"
+    "Source/Scene/Light.hpp"
 
     "Source/PCH.hpp"
     "Source/Window.cpp"

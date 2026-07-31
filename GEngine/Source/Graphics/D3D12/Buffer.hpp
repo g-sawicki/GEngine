@@ -7,8 +7,7 @@ namespace GEngine {
 class Buffer {
   public:
     Buffer(Device& device, UINT64 size, const void* initialData = nullptr);
-    Buffer(Device& device, const D3D12_HEAP_PROPERTIES& heapProps, const D3D12_RESOURCE_DESC& desc,
-           const void* initialData = nullptr);
+    Buffer(Device& device, const D3D12_HEAP_PROPERTIES& heapProps, const D3D12_RESOURCE_DESC& desc);
 
     [[nodiscard]] ID3D12Resource* Get() const noexcept { return m_Resource.Get(); }
     [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const noexcept {

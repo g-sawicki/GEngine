@@ -95,6 +95,10 @@ DirectX::XMMATRIX Camera::GetProjectionMatrix() const {
     return DirectX::XMLoadFloat4x4(&m_ProjectionMatrix);
 }
 
+DirectX::XMMATRIX Camera::GetViewProjectionMatrix() const {
+    return DirectX::XMMatrixMultiply(GetViewMatrix(), GetProjectionMatrix());
+}
+
 void Camera::UpdateViewMatrix() const {
     const DirectX::XMVECTOR position = DirectX::XMLoadFloat3(&m_Position);
     DirectX::XMVECTOR forward, up;
@@ -127,7 +131,11 @@ DirectX::XMFLOAT3 Camera::GetForward() const noexcept {
 }
 
 DirectX::XMFLOAT3 Camera::GetRight() const noexcept {
-    return DirectX::XMFLOAT3{std::cos(m_Yaw), 0.0f, -std::sin(m_Yaw)};
+    const float cosPitch = std::cos(m_Pitch);
+    DirectX::XMVECTOR right = DirectX::XMVectorSet(cosPitch * std::cos(m_Yaw), 0.0f, -cosPitch * std::sin(m_Yaw), 0.0f);
+    DirectX::XMFLOAT3 result;
+    DirectX::XMStoreFloat3(&result, DirectX::XMVector3Normalize(right));
+    return result;
 }
 
 DirectX::XMFLOAT3 Camera::GetUp() const noexcept {
@@ -136,7 +144,7 @@ DirectX::XMFLOAT3 Camera::GetUp() const noexcept {
     const DirectX::XMVECTOR forward = DirectX::XMLoadFloat3(&fwd);
     const DirectX::XMVECTOR right = DirectX::XMLoadFloat3(&r);
     DirectX::XMFLOAT3 up;
-    DirectX::XMStoreFloat3(&up, DirectX::XMVector3Cross(forward, right));
+    DirectX::XMStoreFloat3(&up, DirectX::XMVector3Normalize(DirectX::XMVector3Cross(forward, right)));
     return up;
 }
 

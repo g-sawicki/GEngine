@@ -27,15 +27,11 @@ Buffer::Buffer(Device& device, UINT64 size, const void* initialData) {
         Write(initialData, size);
 }
 
-Buffer::Buffer(Device& device, const D3D12_HEAP_PROPERTIES& heapProps, const D3D12_RESOURCE_DESC& desc,
-               const void* initialData) {
-    ThrowIfFailed(device.Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-                                                        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-                                                        IID_PPV_ARGS(&m_Resource)));
+Buffer::Buffer(Device& device, const D3D12_HEAP_PROPERTIES& heapProps, const D3D12_RESOURCE_DESC& desc) {
+    ThrowIfFailed(device.Get()->CreateCommittedResource(
+        &heapProps, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_Resource)));
 
     m_Size = desc.Width;
-    if (initialData)
-        Write(initialData, desc.Width);
 }
 
 void Buffer::Write(const void* data, const UINT64 size) {

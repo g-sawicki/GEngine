@@ -21,6 +21,7 @@
 #include <format>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <source_location>
 #include <span>
 #include <stdexcept>

@@ -111,6 +111,8 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
         D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
              D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+            {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
             {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
              D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         };
@@ -140,7 +142,10 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
         std::make_unique<Buffer>(*m_Device, mesh.indices.size() * sizeof(mesh.indices[0]), mesh.indices.data());
     m_IndexCount = static_cast<UINT>(mesh.indices.size());
 
-    m_CameraConstantBuffer = std::make_unique<Buffer>(*m_Device, 256); // 64B ViewProjection + padding
+    static constexpr UINT64 kSceneInfoCBSize =
+        (sizeof(SceneInfo) + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1) &
+        ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1ULL);
+    m_SceneInfoConstantBuffer = std::make_unique<Buffer>(*m_Device, kSceneInfoCBSize);
 }
 
 void Renderer::Destroy() {
@@ -161,7 +166,7 @@ void Renderer::Destroy() {
     m_RootSignature.reset();
     m_VertexBuffer.reset();
     m_IndexBuffer.reset();
-    m_CameraConstantBuffer.reset();
+    m_SceneInfoConstantBuffer.reset();
     m_Device.reset();
 
 #if defined(_DEBUG)
@@ -195,15 +200,14 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
     UpdateRenderTargetViews();
 }
 
-void Renderer::Render(const ViewInfo& viewInfo) {
+void Renderer::Render(const SceneInfo& sceneInfo) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
 
     // Ensure the GPU has finished with this frame's resources before reusing them.
     m_Fence->WaitForValue(frame.FenceValue);
 
-    // Upload the view-projection matrix.
-    m_CameraConstantBuffer->Write(&viewInfo.ViewProjection, sizeof(viewInfo.ViewProjection));
+    m_SceneInfoConstantBuffer->Write(&sceneInfo, sizeof(sceneInfo));
 
     ID3D12Resource* backBuffer{m_SwapChain->GetCurrentBackBuffer()};
 
@@ -232,7 +236,7 @@ void Renderer::Render(const ViewInfo& viewInfo) {
                                static_cast<LONG>(m_SwapChain->GetHeight())};
 
         cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
-        cmdList->SetGraphicsRootConstantBufferView(0, m_CameraConstantBuffer->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootConstantBufferView(0, m_SceneInfoConstantBuffer->GetGPUVirtualAddress());
         cmdList->SetPipelineState(m_PipelineState->Get());
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);

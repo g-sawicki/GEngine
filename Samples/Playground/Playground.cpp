@@ -1,11 +1,23 @@
 #include "Playground.hpp"
 
+#include "Scene/Light.hpp"
+
 #include <cmath>
 
 void Playground::OnInit() {
-    auto& camera = GetWorld().CreateCamera(
+    auto& world = GetWorld();
+
+    auto& camera = world.CreateCamera(
         {.FovDegrees = 70.0f, .AspectRatio = 1280.0f / 720.0f, .NearZ = 0.1f, .FarZ = 1000.0f}, {0.0f, 0.0f, -5.0f});
     m_CameraController = std::make_unique<GEngine::CameraController>(camera);
+
+    GEngine::DirectionalLight directionalLight{
+        .Intensity = 1.0f,
+        .Color = {1.0f, 1.0f, 1.0f},
+    };
+    DirectX::XMStoreFloat3(&directionalLight.Direction,
+                           DirectX::XMVector3Normalize(DirectX::XMVectorSet(2.0f, -1.0f, 4.0f, 0.0f)));
+    world.SetDirectionalLight(directionalLight);
 }
 
 void Playground::OnUpdate(float deltaTime) {

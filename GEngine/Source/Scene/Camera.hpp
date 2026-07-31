@@ -33,6 +33,7 @@ class Camera {
 
     [[nodiscard]] DirectX::XMMATRIX GetViewMatrix() const;
     [[nodiscard]] DirectX::XMMATRIX GetProjectionMatrix() const;
+    [[nodiscard]] DirectX::XMMATRIX GetViewProjectionMatrix() const;
     [[nodiscard]] const DirectX::XMFLOAT3& GetPosition() const noexcept { return m_Position; }
     [[nodiscard]] float GetPitch() const noexcept { return m_Pitch; }
     [[nodiscard]] float GetYaw() const noexcept { return m_Yaw; }
