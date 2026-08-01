@@ -29,6 +29,54 @@ void Device::EnableDebugLayer() {
 #endif
 }
 
+ComPtr<IDXGIFactory6> Device::CreateDXGIFactory() {
+    ComPtr<IDXGIFactory6> dxgiFactory;
+    UINT createFactoryFlags{};
+#if defined(_DEBUG)
+    createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+    ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+    return dxgiFactory;
+}
+
+ComPtr<IDXGIAdapter4> Device::GetAdapter(IDXGIFactory6* dxgiFactory, bool useWarp) {
+    if (useWarp) {
+        ComPtr<IDXGIAdapter4> result;
+        ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&result)));
+        return result;
+    }
+
+    // DXGI 1.6+: prefer the high-performance discrete GPU
+    ComPtr<IDXGIAdapter1> adapter;
+    if (SUCCEEDED(
+            dxgiFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)))) {
+        DXGI_ADAPTER_DESC1 desc;
+        ThrowIfFailed(adapter->GetDesc1(&desc));
+        if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
+            SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), nullptr))) {
+            ComPtr<IDXGIAdapter4> result;
+            ThrowIfFailed(adapter.As(&result));
+            return result;
+        }
+    }
+
+    // Fallback: manually enumerate and pick the adapter with the most video memory
+    SIZE_T maxDedicatedVideoMemory{};
+    ComPtr<IDXGIAdapter4> selectedAdapter;
+    for (UINT i{}; dxgiFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+        DXGI_ADAPTER_DESC1 desc;
+        ThrowIfFailed(adapter->GetDesc1(&desc));
+        if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
+            SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), nullptr)) &&
+            desc.DedicatedVideoMemory > maxDedicatedVideoMemory) {
+            maxDedicatedVideoMemory = desc.DedicatedVideoMemory;
+            ThrowIfFailed(adapter.As(&selectedAdapter));
+        }
+    }
+
+    return selectedAdapter;
+}
+
 Device::Device(IDXGIAdapter4* adapter) {
     ThrowIfFailed(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
 

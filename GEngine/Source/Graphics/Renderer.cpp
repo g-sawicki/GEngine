@@ -11,44 +11,6 @@ using namespace Microsoft::WRL;
 
 namespace GEngine {
 
-static ComPtr<IDXGIAdapter4> GetAdapter(IDXGIFactory6* dxgiFactory, bool useWarp) {
-    if (useWarp) {
-        ComPtr<IDXGIAdapter4> result;
-        ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&result)));
-        return result;
-    }
-
-    // DXGI 1.6+: prefer the high-performance discrete GPU
-    ComPtr<IDXGIAdapter1> adapter;
-    if (SUCCEEDED(
-            dxgiFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)))) {
-        DXGI_ADAPTER_DESC1 desc;
-        ThrowIfFailed(adapter->GetDesc1(&desc));
-        if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
-            SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), nullptr))) {
-            ComPtr<IDXGIAdapter4> result;
-            ThrowIfFailed(adapter.As(&result));
-            return result;
-        }
-    }
-
-    // Fallback: manually enumerate and pick the adapter with the most video memory
-    SIZE_T maxDedicatedVideoMemory{};
-    ComPtr<IDXGIAdapter4> selectedAdapter;
-    for (UINT i{}; dxgiFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
-        DXGI_ADAPTER_DESC1 desc;
-        ThrowIfFailed(adapter->GetDesc1(&desc));
-        if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
-            SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), nullptr)) &&
-            desc.DedicatedVideoMemory > maxDedicatedVideoMemory) {
-            maxDedicatedVideoMemory = desc.DedicatedVideoMemory;
-            ThrowIfFailed(adapter.As(&selectedAdapter));
-        }
-    }
-
-    return selectedAdapter;
-}
-
 static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device2* device, D3D12_DESCRIPTOR_HEAP_TYPE type,
                                                          uint32_t numDescriptors) {
     D3D12_DESCRIPTOR_HEAP_DESC desc{
@@ -64,19 +26,12 @@ static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device2* device, 
 
 void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
     Device::EnableDebugLayer();
-
-    ComPtr<IDXGIFactory6> dxgiFactory;
-    UINT createFactoryFlags{};
-#if defined(_DEBUG)
-    createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-    ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+    ComPtr<IDXGIFactory6> dxgiFactory = Device::CreateDXGIFactory();
+    ComPtr<IDXGIAdapter4> dxgiAdapter4{Device::GetAdapter(dxgiFactory.Get(), useWarp)};
+    m_Device = std::make_unique<Device>(dxgiAdapter4.Get());
 
     m_TearingSupported = SwapChain::CheckTearingSupport(dxgiFactory.Get());
 
-    ComPtr<IDXGIAdapter4> dxgiAdapter4{GetAdapter(dxgiFactory.Get(), useWarp)};
-
-    m_Device = std::make_unique<Device>(dxgiAdapter4.Get());
     m_CommandQueue = std::make_unique<CommandQueue>(*m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
 
     m_SwapChain =
