@@ -1,6 +1,7 @@
 #include "PCH.hpp"
 
 #include "Application.hpp"
+#include "CommandLine.hpp"
 
 namespace GEngine {
 
@@ -9,19 +10,10 @@ Application::Application(const Specification& specification) : m_Specification(s
 int Application::Run() {
     const HINSTANCE hInstance{::GetModuleHandle(nullptr)};
 
-    // Parse command line arguments.
-    {
-        int argc;
-        wchar_t** argv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
-
-        for (int i{}; i < argc; ++i) {
-            if (::wcscmp(argv[i], L"-warp") == 0 || ::wcscmp(argv[i], L"--warp") == 0) {
-                m_UseWarp = true;
-            }
-        }
-
-        ::LocalFree(argv);
-    }
+    std::vector<CommandLine::Argument> args = {
+        {&m_UseWarp, L"--warp"},
+    };
+    CommandLine::Parse(args);
 
     // Create the window.
     m_Window =
