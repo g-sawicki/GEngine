@@ -7,6 +7,8 @@ compile_shader("default.hlsl" "VSMain" "vs_6_5" "default_vs.h")
 compile_shader("default.hlsl" "PSMain" "ps_6_5" "default_ps.h")
 
 target_sources(${PROJECT_NAME} PRIVATE
+    "Source/Core/Utility/Image.cpp"
+    
     "Source/Core/Application.cpp"
     "Source/Core/Application.hpp"
     "Source/Core/Input.cpp"
@@ -66,7 +68,7 @@ endif()
 
 target_precompile_headers(${PROJECT_NAME} PUBLIC "Source/PCH.hpp")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid Microsoft::DirectX-Headers)
+target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid Microsoft::DirectX-Headers stb)
 
 if(WIN32)
     target_link_options(${PROJECT_NAME} INTERFACE /ENTRY:mainCRTStartup)

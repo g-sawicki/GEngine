@@ -18,6 +18,7 @@
 #include <cassert>
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <format>
 #include <functional>
 #include <memory>
@@ -26,3 +27,4 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <vector>
