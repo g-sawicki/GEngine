@@ -58,12 +58,14 @@ int Application::Run() {
     return result;
 }
 
+void Application::OnInit() {}
+
+void Application::OnRender() {}
+
+void Application::OnResize([[maybe_unused]] uint32_t width, [[maybe_unused]] uint32_t height) {}
+
 void Application::OnDestroy() {
     m_Renderer.Destroy();
-}
-
-void Application::OnInit() {
-    // Default: nothing. Override in derived classes.
 }
 
 void Application::HandleResize(uint32_t width, uint32_t height) {
@@ -78,16 +80,13 @@ void Application::HandleResize(uint32_t width, uint32_t height) {
     OnResize(width, height);
 }
 
-void Application::OnResize([[maybe_unused]] uint32_t width, [[maybe_unused]] uint32_t height) {
-    // Default: nothing. Override in derived classes to react.
-}
-
 void Application::Render() {
     const Camera* camera{m_World.GetActiveCamera()};
     if (!camera)
         return;
 
     const SceneInfo sceneInfo = m_World.GetSceneInfo();
+    OnRender();
     m_Renderer.Render(sceneInfo);
 }
 

@@ -1,5 +1,6 @@
 #include "Playground.hpp"
 
+#include "Rendering/MeshFactory.hpp"
 #include "Scene/Light.hpp"
 
 #include <cmath>
@@ -18,10 +19,16 @@ void Playground::OnInit() {
     DirectX::XMStoreFloat3(&directionalLight.Direction,
                            DirectX::XMVector3Normalize(DirectX::XMVectorSet(2.0f, -1.0f, 4.0f, 0.0f)));
     world.SetDirectionalLight(directionalLight);
+
+    m_Cube = GetRenderer().CreateMeshBuffer(GEngine::MeshFactory::Cube());
 }
 
 void Playground::OnUpdate(float deltaTime) {
     UpdateCamera(deltaTime);
+}
+
+void Playground::OnRender() {
+    GetRenderer().DrawMesh(*m_Cube);
 }
 
 void Playground::UpdateCamera(float deltaTime) {

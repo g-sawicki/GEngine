@@ -3,13 +3,11 @@
 #include "Graphics/Renderer.hpp"
 
 #include "Graphics/D3D12/Common.hpp"
-#include "Rendering/MeshFactory.hpp"
-#include "default_ps.h"
-#include "default_vs.h"
-
-using namespace Microsoft::WRL;
+#include "Rendering/MeshBuffer.hpp"
 
 namespace GEngine {
+
+using namespace Microsoft::WRL;
 
 static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device2* device, D3D12_DESCRIPTOR_HEAP_TYPE type,
                                                          uint32_t numDescriptors) {
@@ -47,60 +45,16 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
                                                               IID_PPV_ARGS(&m_FrameResources[i].CommandAllocator)));
         m_FrameResources[i].CommandList = std::make_unique<CommandList>(
             *m_Device, m_FrameResources[i].CommandAllocator.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+        static constexpr UINT64 kSceneInfoCBSize =
+            (sizeof(SceneInfo) + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1) &
+            ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1ULL);
+        m_FrameResources[i].SceneInfoConstantBuffer = std::make_unique<Buffer>(*m_Device, kSceneInfoCBSize);
     }
 
     m_Fence = std::make_unique<Fence>(*m_Device);
 
-    CD3DX12_ROOT_PARAMETER rootParams[1];
-    rootParams[0].InitAsConstantBufferView(0);
-
-    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
-    rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
-    rootSigDesc.pParameters = rootParams;
-    rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    m_RootSignature = std::make_unique<RootSignature>(*m_Device, rootSigDesc);
-
-    // Pipeline state object
-    {
-        D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-            {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
-             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-            {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
-             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-            {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
-             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        };
-
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{
-            .pRootSignature = m_RootSignature->Get(),
-            .VS = {g_VSMain, sizeof(g_VSMain)},
-            .PS = {g_PSMain, sizeof(g_PSMain)},
-            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
-            .SampleMask = UINT_MAX,
-            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
-            .InputLayout = {inputLayout, static_cast<UINT>(std::size(inputLayout))},
-            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-            .NumRenderTargets = 1,
-            .RTVFormats = {SwapChain::BackBufferFormat},
-            .SampleDesc = {.Count = 1, .Quality = 0},
-        };
-
-        m_PipelineState = std::make_unique<PipelineState>(*m_Device, psoDesc);
-    }
-
-    const Mesh& mesh{MeshFactory::Cube()};
-    m_VertexStride = sizeof(mesh.vertices[0]);
-    m_VertexBuffer = std::make_unique<Buffer>(*m_Device, mesh.vertices.size() * m_VertexStride, mesh.vertices.data());
-    m_IndexBuffer =
-        std::make_unique<Buffer>(*m_Device, mesh.indices.size() * sizeof(mesh.indices[0]), mesh.indices.data());
-    m_IndexCount = static_cast<UINT>(mesh.indices.size());
-
-    static constexpr UINT64 kSceneInfoCBSize =
-        (sizeof(SceneInfo) + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1) &
-        ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1ULL);
-    m_SceneInfoConstantBuffer = std::make_unique<Buffer>(*m_Device, kSceneInfoCBSize);
+    m_ForwardLighting = std::make_unique<RenderPass::ForwardLighting>(*m_Device, SwapChain::BackBufferFormat);
 }
 
 void Renderer::Destroy() {
@@ -112,16 +66,13 @@ void Renderer::Destroy() {
     for (auto& frame : m_FrameResources) {
         frame.CommandList.reset();
         frame.CommandAllocator.Reset();
+        frame.SceneInfoConstantBuffer.reset();
     }
     m_Fence.reset();
     m_SwapChain.reset();
     m_CommandQueue.reset();
     m_RTVDescriptorHeap.Reset();
-    m_PipelineState.reset();
-    m_RootSignature.reset();
-    m_VertexBuffer.reset();
-    m_IndexBuffer.reset();
-    m_SceneInfoConstantBuffer.reset();
+    m_ForwardLighting.reset();
     m_Device.reset();
 
 #if defined(_DEBUG)
@@ -133,6 +84,14 @@ void Renderer::Destroy() {
         }
     }
 #endif
+}
+
+std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
+    return std::make_unique<MeshBuffer>(*m_Device, mesh);
+}
+
+void Renderer::DrawMesh(const MeshBuffer& mesh) {
+    m_RenderItems.push_back({.Mesh = &mesh});
 }
 
 void Renderer::UpdateRenderTargetViews() {
@@ -162,8 +121,6 @@ void Renderer::Render(const SceneInfo& sceneInfo) {
     // Ensure the GPU has finished with this frame's resources before reusing them.
     m_Fence->WaitForValue(frame.FenceValue);
 
-    m_SceneInfoConstantBuffer->Write(&sceneInfo, sizeof(sceneInfo));
-
     ID3D12Resource* backBuffer{m_SwapChain->GetCurrentBackBuffer()};
 
     frame.CommandList->Reset(frame.CommandAllocator.Get());
@@ -189,20 +146,11 @@ void Renderer::Render(const SceneInfo& sceneInfo) {
             0.0f, 1.0f};
         D3D12_RECT scissorRect{0, 0, static_cast<LONG>(m_SwapChain->GetWidth()),
                                static_cast<LONG>(m_SwapChain->GetHeight())};
-
-        cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
-        cmdList->SetGraphicsRootConstantBufferView(0, m_SceneInfoConstantBuffer->GetGPUVirtualAddress());
-        cmdList->SetPipelineState(m_PipelineState->Get());
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);
-        cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
-        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        auto vbv{m_VertexBuffer->GetVBV(m_VertexStride)};
-        cmdList->IASetVertexBuffers(0, 1, &vbv);
-        auto ibv{m_IndexBuffer->GetIBV()};
-        cmdList->IASetIndexBuffer(&ibv);
 
-        cmdList->DrawIndexedInstanced(m_IndexCount, 1, 0, 0, 0);
+        m_ForwardLighting->OnRender(*frame.CommandList, rtv, sceneInfo, *frame.SceneInfoConstantBuffer, m_RenderItems);
+        m_RenderItems.clear();
     }
 
     // Present

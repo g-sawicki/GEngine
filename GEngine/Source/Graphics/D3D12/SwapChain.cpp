@@ -4,9 +4,9 @@
 
 #include "Common.hpp"
 
-using namespace Microsoft::WRL;
-
 namespace GEngine {
+
+using namespace Microsoft::WRL;
 
 bool SwapChain::CheckTearingSupport(IDXGIFactory5* factory) {
     BOOL allowTearing{FALSE};

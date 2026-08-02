@@ -17,14 +17,21 @@ class Application {
     Application(const Specification& specification);
     virtual ~Application() = default;
 
+    Application(const Application&) = delete;
+    Application& operator=(const Application&) = delete;
+    Application(Application&&) = delete;
+    Application& operator=(Application&&) = delete;
+
     int Run();
 
     [[nodiscard]] World& GetWorld() noexcept { return m_World; }
     [[nodiscard]] const World& GetWorld() const noexcept { return m_World; }
+    [[nodiscard]] Renderer& GetRenderer() noexcept { return m_Renderer; }
 
   protected:
     virtual void OnInit();
     virtual void OnUpdate(float deltaTime) = 0;
+    virtual void OnRender();
     virtual void OnResize(uint32_t width, uint32_t height);
 
   private:

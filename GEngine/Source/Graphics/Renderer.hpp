@@ -10,6 +10,9 @@
 #include "Graphics/D3D12/PipelineState.hpp"
 #include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/SwapChain.hpp"
+#include "Rendering/MeshBuffer.hpp"
+#include "Rendering/RenderItem.hpp"
+#include "Rendering/RenderPass/ForwardLighting.hpp"
 
 namespace GEngine {
 
@@ -18,6 +21,7 @@ class Renderer {
     struct FrameResource {
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CommandAllocator;
         std::unique_ptr<CommandList> CommandList;
+        std::unique_ptr<Buffer> SceneInfoConstantBuffer;
         uint64_t FenceValue{};
     };
 
@@ -33,6 +37,9 @@ class Renderer {
 
     void Render(const SceneInfo& sceneInfo);
     void OnResize(uint32_t width, uint32_t height);
+
+    std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
+    void DrawMesh(const MeshBuffer& mesh);
 
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
 
@@ -52,14 +59,8 @@ class Renderer {
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVDescriptorHeap;
     UINT m_RTVDescriptorSize{};
 
-    std::unique_ptr<RootSignature> m_RootSignature;
-    std::unique_ptr<PipelineState> m_PipelineState;
-
-    std::unique_ptr<Buffer> m_VertexBuffer;
-    std::unique_ptr<Buffer> m_IndexBuffer;
-    UINT m_VertexStride{};
-    UINT m_IndexCount{};
-    std::unique_ptr<Buffer> m_SceneInfoConstantBuffer;
+    std::unique_ptr<RenderPass::ForwardLighting> m_ForwardLighting;
+    std::vector<RenderItem> m_RenderItems;
 
     bool m_VSync{true};
     bool m_TearingSupported{};

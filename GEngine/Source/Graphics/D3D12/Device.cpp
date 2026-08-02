@@ -4,9 +4,9 @@
 
 #include "Common.hpp"
 
-using namespace Microsoft::WRL;
-
 namespace GEngine {
+
+using namespace Microsoft::WRL;
 
 void Device::EnableDebugLayer() {
 #if defined(_DEBUG)

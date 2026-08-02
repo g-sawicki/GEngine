@@ -38,9 +38,15 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/Renderer.cpp"
     "Source/Graphics/Renderer.hpp"
 
+    "Source/Rendering/RenderPass/ForwardLighting.cpp"
+    "Source/Rendering/RenderPass/ForwardLighting.hpp"
+
     "Source/Rendering/Mesh.hpp"
+    "Source/Rendering/MeshBuffer.cpp"
+    "Source/Rendering/MeshBuffer.hpp"
     "Source/Rendering/MeshFactory.cpp"
     "Source/Rendering/MeshFactory.hpp"
+    "Source/Rendering/RenderItem.hpp"
 
     "Source/Scene/Camera.cpp"
     "Source/Scene/Camera.hpp"
