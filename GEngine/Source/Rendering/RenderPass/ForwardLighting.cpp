@@ -11,8 +11,9 @@ namespace GEngine::RenderPass {
 
 ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat)
     : m_RenderTargetFormat(renderTargetFormat) {
-    CD3DX12_ROOT_PARAMETER rootParams[1];
+    CD3DX12_ROOT_PARAMETER rootParams[2];
     rootParams[0].InitAsConstantBufferView(0);
+    rootParams[1].InitAsConstantBufferView(1);
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
@@ -61,8 +62,8 @@ void ForwardLighting::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HA
     cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
 
     for (const auto& item : renderItems) {
-        if (item.Mesh)
-            item.Mesh->Draw(commandList);
+        cmdList->SetGraphicsRootConstantBufferView(1, item.ObjectCB->GetGPUVirtualAddress());
+        item.Mesh->Draw(commandList);
     }
 }
 

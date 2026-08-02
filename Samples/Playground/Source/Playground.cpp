@@ -1,9 +1,12 @@
 #include "Playground.hpp"
 
+#include "Core/Utility/MersenneTwister.hpp"
 #include "Rendering/MeshFactory.hpp"
 #include "Scene/Light.hpp"
 
 #include <cmath>
+
+using namespace DirectX;
 
 void Playground::OnInit() {
     auto& world = GetWorld();
@@ -16,11 +19,24 @@ void Playground::OnInit() {
         .Intensity = 1.0f,
         .Color = {1.0f, 1.0f, 1.0f},
     };
-    DirectX::XMStoreFloat3(&directionalLight.Direction,
-                           DirectX::XMVector3Normalize(DirectX::XMVectorSet(2.0f, -1.0f, 4.0f, 0.0f)));
+    XMStoreFloat3(&directionalLight.Direction, XMVector3Normalize(XMVectorSet(2.0f, -1.0f, 4.0f, 0.0f)));
     world.SetDirectionalLight(directionalLight);
 
-    m_Cube = GetRenderer().CreateMeshBuffer(GEngine::MeshFactory::Cube());
+    m_CubeMesh = GetRenderer().CreateMeshBuffer(GEngine::MeshFactory::Cube());
+
+    // Spawn 10 cubes at random positions.
+    GEngine::MersenneTwister::Seed(42);
+    for (uint32_t i{}; i < 10; ++i) {
+        const float x{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
+        const float y{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
+        const float z{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
+
+        auto cb = GetRenderer().CreateConstantBuffer(sizeof(XMFLOAT4X4));
+        XMFLOAT4X4 worldMatrix;
+        XMStoreFloat4x4(&worldMatrix, XMMatrixTranslation(x, y, z));
+        cb->Write(&worldMatrix, sizeof(worldMatrix));
+        m_CubeObjectCBs.push_back(std::move(cb));
+    }
 }
 
 void Playground::OnUpdate(float deltaTime) {
@@ -28,7 +44,8 @@ void Playground::OnUpdate(float deltaTime) {
 }
 
 void Playground::OnRender() {
-    GetRenderer().DrawMesh(*m_Cube);
+    for (auto& cb : m_CubeObjectCBs)
+        GetRenderer().DrawMesh(*m_CubeMesh, *cb);
 }
 
 void Playground::UpdateCamera(float deltaTime) {

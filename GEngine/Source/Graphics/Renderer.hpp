@@ -39,7 +39,8 @@ class Renderer {
     void OnResize(uint32_t width, uint32_t height);
 
     std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
-    void DrawMesh(const MeshBuffer& mesh);
+    std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
+    void DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB);
 
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
 

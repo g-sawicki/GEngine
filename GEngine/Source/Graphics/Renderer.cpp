@@ -90,8 +90,14 @@ std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
     return std::make_unique<MeshBuffer>(*m_Device, mesh);
 }
 
-void Renderer::DrawMesh(const MeshBuffer& mesh) {
-    m_RenderItems.push_back({.Mesh = &mesh});
+std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
+    static constexpr UINT64 kAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    const UINT64 alignedSize = (size + kAlignment - 1) & ~(kAlignment - 1ULL);
+    return std::make_unique<Buffer>(*m_Device, alignedSize);
+}
+
+void Renderer::DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB) {
+    m_RenderItems.push_back({.Mesh = &mesh, .ObjectCB = &objectCB});
 }
 
 void Renderer::UpdateRenderTargetViews() {

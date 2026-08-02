@@ -16,22 +16,30 @@ struct PSInput
 
 cbuffer SceneInfo : register(b0)
 {
-    float4x4 viewProjection;
+    row_major float4x4 viewProjection;
     DirectionalLight directionalLight;
+};
+
+cbuffer ObjectConstants : register(b1)
+{
+    row_major float4x4 world;
 };
 
 PSInput VSMain(VSInput input)
 {
     PSInput output;
-    output.position = mul(input.position, viewProjection);
-    output.normal = input.normal;
+    float4 worldPos = mul(input.position, world);
+    output.position = mul(worldPos, viewProjection);
+    output.normal = mul(input.normal, (float3x3)world);
     output.color = input.color;
     return output;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float intensity = dot(input.normal, -directionalLight.direction) * directionalLight.intensity;
+    float3 N = normalize(input.normal);
+    float3 L = normalize(-directionalLight.direction);
+    float intensity = saturate(dot(N, L)) * directionalLight.intensity;
     float3 color = input.color.xyz * (directionalLight.color * intensity);
     return float4(color, input.color.w);
 }

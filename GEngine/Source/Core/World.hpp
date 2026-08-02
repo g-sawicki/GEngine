@@ -11,6 +11,7 @@ struct SceneInfo {
     DirectX::XMFLOAT4X4 ViewProjection;
     DirectionalLight DirectionalLight;
 };
+static_assert(sizeof(SceneInfo) == 92);
 
 class World {
   public:
@@ -28,8 +29,7 @@ class World {
     SceneInfo GetSceneInfo() const noexcept {
         assert(m_ActiveCamera);
         DirectX::XMFLOAT4X4 viewProjection{};
-        DirectX::XMStoreFloat4x4(&viewProjection,
-                                 DirectX::XMMatrixTranspose(m_ActiveCamera->GetViewProjectionMatrix()));
+        DirectX::XMStoreFloat4x4(&viewProjection, m_ActiveCamera->GetViewProjectionMatrix());
         return SceneInfo{
             .ViewProjection = viewProjection,
             .DirectionalLight = m_DirectionalLight,

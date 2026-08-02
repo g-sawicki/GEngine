@@ -5,6 +5,8 @@
 #include "Rendering/MeshBuffer.hpp"
 #include "Scene/CameraController.hpp"
 
+#include <vector>
+
 class Playground : public GEngine::Application {
   public:
     using Application::Application;
@@ -17,7 +19,8 @@ class Playground : public GEngine::Application {
     void UpdateCamera(float deltaTime);
 
     std::unique_ptr<GEngine::CameraController> m_CameraController;
-    std::unique_ptr<GEngine::MeshBuffer> m_Cube;
+    std::unique_ptr<GEngine::MeshBuffer> m_CubeMesh;
+    std::vector<std::unique_ptr<GEngine::Buffer>> m_CubeObjectCBs;
 
     // Mouse tracking
     POINT m_PrevCursorPos{};
