@@ -49,6 +49,7 @@ class Renderer {
 
   private:
     void UpdateRenderTargetViews();
+    void CreateDepthBuffer(uint32_t width, uint32_t height);
 
     std::unique_ptr<Device> m_Device;
     std::unique_ptr<CommandQueue> m_CommandQueue;
@@ -59,6 +60,12 @@ class Renderer {
 
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVDescriptorHeap;
     UINT m_RTVDescriptorSize{};
+
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DSVDescriptorHeap;
+    UINT m_DSVDescriptorSize{};
+
+    static constexpr DXGI_FORMAT s_DepthStencilFormat{DXGI_FORMAT_D32_FLOAT};
+    Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthStencilBuffer;
 
     std::unique_ptr<RenderPass::ForwardLighting> m_ForwardLighting;
     std::vector<RenderItem> m_RenderItems;

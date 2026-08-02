@@ -9,8 +9,8 @@
 
 namespace GEngine::RenderPass {
 
-ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat)
-    : m_RenderTargetFormat(renderTargetFormat) {
+ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat)
+    : m_RenderTargetFormat(renderTargetFormat), m_DepthStencilFormat(depthStencilFormat) {
     CD3DX12_ROOT_PARAMETER rootParams[2];
     rootParams[0].InitAsConstantBufferView(0);
     rootParams[1].InitAsConstantBufferView(1);
@@ -43,6 +43,7 @@ ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat)
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
         .RTVFormats = {m_RenderTargetFormat},
+        .DSVFormat = m_DepthStencilFormat,
         .SampleDesc = {.Count = 1, .Quality = 0},
     };
 
@@ -51,7 +52,8 @@ ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat)
 
 ForwardLighting::~ForwardLighting() = default;
 
-void ForwardLighting::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const SceneInfo& sceneInfo,
+void ForwardLighting::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv,
+                               D3D12_CPU_DESCRIPTOR_HANDLE dsv, const SceneInfo& sceneInfo,
                                Buffer& sceneInfoConstantBuffer, std::span<const RenderItem> renderItems) {
     sceneInfoConstantBuffer.Write(&sceneInfo, sizeof(sceneInfo));
 
@@ -59,7 +61,7 @@ void ForwardLighting::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HA
     cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
     cmdList->SetPipelineState(m_PipelineState->Get());
     cmdList->SetGraphicsRootConstantBufferView(0, sceneInfoConstantBuffer.GetGPUVirtualAddress());
-    cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+    cmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
     for (const auto& item : renderItems) {
         cmdList->SetGraphicsRootConstantBufferView(1, item.ObjectCB->GetGPUVirtualAddress());

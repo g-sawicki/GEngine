@@ -38,6 +38,11 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
     m_RTVDescriptorHeap = CreateDescriptorHeap(m_Device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, SwapChain::NumFrames);
     m_RTVDescriptorSize = m_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
+    m_DSVDescriptorHeap = CreateDescriptorHeap(m_Device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+    m_DSVDescriptorSize = m_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+    CreateDepthBuffer(width, height);
+
     UpdateRenderTargetViews();
 
     for (uint32_t i{}; i < SwapChain::NumFrames; ++i) {
@@ -54,7 +59,8 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 
     m_Fence = std::make_unique<Fence>(*m_Device);
 
-    m_ForwardLighting = std::make_unique<RenderPass::ForwardLighting>(*m_Device, SwapChain::BackBufferFormat);
+    m_ForwardLighting =
+        std::make_unique<RenderPass::ForwardLighting>(*m_Device, SwapChain::BackBufferFormat, s_DepthStencilFormat);
 }
 
 void Renderer::Destroy() {
@@ -72,6 +78,8 @@ void Renderer::Destroy() {
     m_SwapChain.reset();
     m_CommandQueue.reset();
     m_RTVDescriptorHeap.Reset();
+    m_DepthStencilBuffer.Reset();
+    m_DSVDescriptorHeap.Reset();
     m_ForwardLighting.reset();
     m_Device.reset();
 
@@ -108,6 +116,9 @@ void Renderer::UpdateRenderTargetViews() {
         m_Device->Get()->CreateRenderTargetView(backBuffer, nullptr, rtvHandle);
         rtvHandle.Offset(m_RTVDescriptorSize);
     }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle{m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart()};
+    m_Device->Get()->CreateDepthStencilView(m_DepthStencilBuffer.Get(), nullptr, dsvHandle);
 }
 
 void Renderer::OnResize(uint32_t width, uint32_t height) {
@@ -117,7 +128,25 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
     m_Fence->Flush(m_CommandQueue->GetHandle());
     m_SwapChain->OnResize(width, height);
 
+    m_DepthStencilBuffer.Reset();
+    CreateDepthBuffer(width, height);
+
     UpdateRenderTargetViews();
+}
+
+void Renderer::CreateDepthBuffer(uint32_t width, uint32_t height) {
+    D3D12_CLEAR_VALUE clearValue{
+        .Format = s_DepthStencilFormat,
+        .DepthStencil = {.Depth = 1.0f, .Stencil = 0},
+    };
+
+    const CD3DX12_HEAP_PROPERTIES heapProps{D3D12_HEAP_TYPE_DEFAULT};
+    const CD3DX12_RESOURCE_DESC desc{CD3DX12_RESOURCE_DESC::Tex2D(s_DepthStencilFormat, width, height, 1, 1, 1, 0,
+                                                                  D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)};
+
+    ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
+                                                           D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue,
+                                                           IID_PPV_ARGS(&m_DepthStencilBuffer)));
 }
 
 void Renderer::Render(const SceneInfo& sceneInfo) {
@@ -135,6 +164,8 @@ void Renderer::Render(const SceneInfo& sceneInfo) {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), currentIdx,
                                       m_RTVDescriptorSize);
 
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsv(m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
     // Clear the render target.
     {
         CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
@@ -143,6 +174,7 @@ void Renderer::Render(const SceneInfo& sceneInfo) {
         cmdList->ResourceBarrier(1, &barrier);
         static constexpr FLOAT clearColor[]{0.4f, 0.6f, 0.9f, 1.0f};
         cmdList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+        cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     }
 
     // Draw
@@ -155,7 +187,8 @@ void Renderer::Render(const SceneInfo& sceneInfo) {
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);
 
-        m_ForwardLighting->OnRender(*frame.CommandList, rtv, sceneInfo, *frame.SceneInfoConstantBuffer, m_RenderItems);
+        m_ForwardLighting->OnRender(*frame.CommandList, rtv, dsv, sceneInfo, *frame.SceneInfoConstantBuffer,
+                                    m_RenderItems);
         m_RenderItems.clear();
     }
 
