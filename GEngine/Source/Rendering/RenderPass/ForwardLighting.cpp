@@ -11,13 +11,32 @@ namespace GEngine::RenderPass {
 
 ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat)
     : m_RenderTargetFormat(renderTargetFormat), m_DepthStencilFormat(depthStencilFormat) {
-    CD3DX12_ROOT_PARAMETER rootParams[2];
-    rootParams[0].InitAsConstantBufferView(0);
-    rootParams[1].InitAsConstantBufferView(1);
+    CD3DX12_ROOT_PARAMETER rootParams[3]{};
+    rootParams[0].InitAsConstantBufferView(0); // b0: SceneInfo
+    rootParams[1].InitAsConstantBufferView(1); // b1: ObjectConstants
+
+    CD3DX12_DESCRIPTOR_RANGE textureRanges[2]{};
+    textureRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: diffuse
+    textureRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1: specular
+
+    rootParams[2].InitAsDescriptorTable(2, textureRanges);
+
+    D3D12_STATIC_SAMPLER_DESC staticSampler{
+        .Filter = D3D12_FILTER_ANISOTROPIC,
+        .AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        .AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        .AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        .MaxAnisotropy = 16,
+        .ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS,
+        .ShaderRegister = 0,
+        .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+    };
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
     rootSigDesc.pParameters = rootParams;
+    rootSigDesc.NumStaticSamplers = 1;
+    rootSigDesc.pStaticSamplers = &staticSampler;
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     m_RootSignature = std::make_unique<RootSignature>(device, rootSigDesc);
@@ -27,7 +46,7 @@ ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
@@ -65,6 +84,7 @@ void ForwardLighting::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HA
 
     for (const auto& item : renderItems) {
         cmdList->SetGraphicsRootConstantBufferView(1, item.ObjectCB->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootDescriptorTable(2, item.MaterialSRV);
         item.Mesh->Draw(commandList);
     }
 }

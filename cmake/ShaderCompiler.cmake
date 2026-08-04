@@ -18,10 +18,16 @@ function(compile_shader SHADER_FILE ENTRY_POINT PROFILE OUTPUT_HEADER)
     get_filename_component(HEADER_DIR "${SHADER_OUT}" DIRECTORY)
     file(MAKE_DIRECTORY "${HEADER_DIR}")
 
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        set(DXC_DEBUG_FLAGS /Od /Zi)
+    else()
+        set(DXC_DEBUG_FLAGS /O3 /Qstrip_reflect)
+    endif()
+
     add_custom_command(
         OUTPUT "${SHADER_OUT}"
         COMMAND "${DXC_EXE}" "${SHADER_SRC}" /E "${ENTRY_POINT}" /T "${PROFILE}"
-                /Fh "${SHADER_OUT}" /O3 /Qstrip_reflect /WX
+                /Fh "${SHADER_OUT}" ${DXC_DEBUG_FLAGS} /WX
         DEPENDS "${SHADER_SRC}"
         COMMENT "Compiling ${PROFILE}: ${SHADER_FILE} (${ENTRY_POINT})"
     )

@@ -22,7 +22,13 @@ void Playground::OnInit() {
     XMStoreFloat3(&directionalLight.Direction, XMVector3Normalize(XMVectorSet(2.0f, -1.0f, 4.0f, 0.0f)));
     world.SetDirectionalLight(directionalLight);
 
-    m_CubeMesh = GetRenderer().CreateMeshBuffer(GEngine::MeshFactory::Cube());
+    GEngine::Image containerDiffuseMap{"Assets\\Textures\\Container\\container2.png"};
+    GEngine::Image containerSpecularMap{"Assets\\Textures\\Container\\container2_specular.png"};
+
+    auto& renderer = GetRenderer();
+    m_ContainerDiffuseTex = renderer.CreateTexture(containerDiffuseMap);
+    m_ContainerSpecularTex = renderer.CreateTexture(containerSpecularMap);
+    m_CubeMesh = renderer.CreateMeshBuffer(GEngine::MeshFactory::Cube());
 
     // Spawn 10 cubes at random positions.
     GEngine::MersenneTwister::Seed(42);
@@ -31,7 +37,7 @@ void Playground::OnInit() {
         const float y{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
         const float z{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
 
-        auto cb = GetRenderer().CreateConstantBuffer(sizeof(XMFLOAT4X4));
+        auto cb = renderer.CreateConstantBuffer(sizeof(XMFLOAT4X4));
         XMFLOAT4X4 worldMatrix;
         XMStoreFloat4x4(&worldMatrix, XMMatrixTranslation(x, y, z));
         cb->Write(&worldMatrix, sizeof(worldMatrix));
@@ -45,7 +51,7 @@ void Playground::OnUpdate(float deltaTime) {
 
 void Playground::OnRender() {
     for (auto& cb : m_CubeObjectCBs)
-        GetRenderer().DrawMesh(*m_CubeMesh, *cb);
+        GetRenderer().DrawMesh(*m_CubeMesh, *cb, m_ContainerDiffuseTex->GetSRV());
 }
 
 void Playground::UpdateCamera(float deltaTime) {

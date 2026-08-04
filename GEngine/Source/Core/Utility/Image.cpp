@@ -41,9 +41,24 @@ Image::Image(const std::filesystem::path& path) {
     }
     m_Width = static_cast<uint32_t>(width);
     m_Height = static_cast<uint32_t>(height);
+    m_Channels = kChannels;
     m_Data = std::vector<uint8_t>(static_cast<uint8_t*>(data),
-                                  static_cast<uint8_t*>(data) + (m_Width * m_Height * kChannels));
+                                  static_cast<uint8_t*>(data) + (m_Width * m_Height * m_Channels));
     stbi_image_free(data);
+}
+
+DXGI_FORMAT Image::GetDXGIFormat() const noexcept {
+    switch (m_Channels) {
+    case 1:
+        return DXGI_FORMAT_R8_UNORM;
+    case 2:
+        return DXGI_FORMAT_R8G8_UNORM;
+    case 4:
+        return DXGI_FORMAT_R8G8B8A8_UNORM;
+    default:
+        // Unsupported channel count; fall back to RGBA8.
+        return DXGI_FORMAT_R8G8B8A8_UNORM;
+    }
 }
 
 } // namespace GEngine

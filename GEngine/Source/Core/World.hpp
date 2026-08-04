@@ -9,9 +9,11 @@ namespace GEngine {
 
 struct SceneInfo {
     DirectX::XMFLOAT4X4 ViewProjection;
+    DirectX::XMFLOAT3 CameraPosition;
+    uint32_t Padding0{};
     DirectionalLight DirectionalLight;
 };
-static_assert(sizeof(SceneInfo) == 92);
+static_assert(sizeof(SceneInfo) == 108);
 
 class World {
   public:
@@ -32,6 +34,7 @@ class World {
         DirectX::XMStoreFloat4x4(&viewProjection, m_ActiveCamera->GetViewProjectionMatrix());
         return SceneInfo{
             .ViewProjection = viewProjection,
+            .CameraPosition = m_ActiveCamera->GetPosition(),
             .DirectionalLight = m_DirectionalLight,
         };
     }

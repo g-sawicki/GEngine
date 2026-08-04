@@ -9,11 +9,13 @@ namespace GEngine {
 
 using namespace Microsoft::WRL;
 
-static ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device2* device, D3D12_DESCRIPTOR_HEAP_TYPE type,
-                                                         uint32_t numDescriptors) {
+static ComPtr<ID3D12DescriptorHeap>
+CreateDescriptorHeap(ID3D12Device2* device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors,
+                     D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE) {
     D3D12_DESCRIPTOR_HEAP_DESC desc{
         .Type = type,
         .NumDescriptors = numDescriptors,
+        .Flags = flags,
     };
 
     ComPtr<ID3D12DescriptorHeap> descriptorHeap;
@@ -40,6 +42,11 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 
     m_DSVDescriptorHeap = CreateDescriptorHeap(m_Device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
     m_DSVDescriptorSize = m_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+    m_TextureSRVHeap = CreateDescriptorHeap(m_Device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kMaxTextures,
+                                            D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    m_TextureSRVDescriptorSize =
+        m_Device->Get()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     CreateDepthBuffer(width, height);
 
@@ -104,8 +111,14 @@ std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
     return std::make_unique<Buffer>(*m_Device, alignedSize);
 }
 
-void Renderer::DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB) {
-    m_RenderItems.push_back({.Mesh = &mesh, .ObjectCB = &objectCB});
+void Renderer::DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GPU_DESCRIPTOR_HANDLE materialSRV) {
+    m_RenderItems.push_back({.Mesh = &mesh, .ObjectCB = &objectCB, .MaterialSRV = materialSRV});
+}
+
+std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
+    assert(m_NextTextureSRVIndex < kMaxTextures);
+    return std::make_unique<Texture>(*m_Device, *m_CommandQueue, m_TextureSRVHeap.Get(), m_TextureSRVDescriptorSize,
+                                     m_NextTextureSRVIndex++, image);
 }
 
 void Renderer::UpdateRenderTargetViews() {
@@ -186,6 +199,9 @@ void Renderer::Render(const SceneInfo& sceneInfo) {
                                static_cast<LONG>(m_SwapChain->GetHeight())};
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);
+
+        ID3D12DescriptorHeap* heaps[] = {m_TextureSRVHeap.Get()};
+        cmdList->SetDescriptorHeaps(static_cast<UINT>(std::size(heaps)), heaps);
 
         m_ForwardLighting->OnRender(*frame.CommandList, rtv, dsv, sceneInfo, *frame.SceneInfoConstantBuffer,
                                     m_RenderItems);

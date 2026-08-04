@@ -2,6 +2,7 @@
 
 #include "Core/World.hpp"
 
+#include "Core/Utility/Image.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/CommandQueue.hpp"
@@ -10,6 +11,7 @@
 #include "Graphics/D3D12/PipelineState.hpp"
 #include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/SwapChain.hpp"
+#include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/MeshBuffer.hpp"
 #include "Rendering/RenderItem.hpp"
 #include "Rendering/RenderPass/ForwardLighting.hpp"
@@ -40,7 +42,8 @@ class Renderer {
 
     std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
     std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
-    void DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB);
+    std::unique_ptr<Texture> CreateTexture(const Image& image);
+    void DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GPU_DESCRIPTOR_HANDLE materialSRV);
 
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
 
@@ -63,6 +66,11 @@ class Renderer {
 
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DSVDescriptorHeap;
     UINT m_DSVDescriptorSize{};
+
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_TextureSRVHeap;
+    UINT m_TextureSRVDescriptorSize{};
+    UINT m_NextTextureSRVIndex{};
+    static constexpr UINT kMaxTextures = 256;
 
     static constexpr DXGI_FORMAT s_DepthStencilFormat{DXGI_FORMAT_D32_FLOAT};
     Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthStencilBuffer;

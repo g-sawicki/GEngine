@@ -2,6 +2,7 @@
 
 #include "Core/Application.hpp"
 #include "Core/Input.hpp"
+#include "Core/Utility/Image.hpp"
 #include "Rendering/MeshBuffer.hpp"
 #include "Scene/CameraController.hpp"
 
@@ -21,6 +22,9 @@ class Playground : public GEngine::Application {
     std::unique_ptr<GEngine::CameraController> m_CameraController;
     std::unique_ptr<GEngine::MeshBuffer> m_CubeMesh;
     std::vector<std::unique_ptr<GEngine::Buffer>> m_CubeObjectCBs;
+
+    std::unique_ptr<GEngine::Texture> m_ContainerDiffuseTex;
+    std::unique_ptr<GEngine::Texture> m_ContainerSpecularTex;
 
     // Mouse tracking
     POINT m_PrevCursorPos{};
