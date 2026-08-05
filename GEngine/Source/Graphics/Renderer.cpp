@@ -67,7 +67,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
     m_Fence = std::make_unique<Fence>(*m_Device);
 
     m_ForwardLighting =
-        std::make_unique<RenderPass::ForwardLighting>(*m_Device, SwapChain::BackBufferFormat, s_DepthStencilFormat);
+        std::make_unique<RenderPass::ForwardLightingPass>(*m_Device, SwapChain::BackBufferFormat, s_DepthStencilFormat);
 }
 
 void Renderer::Destroy() {
@@ -116,7 +116,8 @@ void Renderer::DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GP
 }
 
 std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
-    assert(m_NextTextureSRVIndex < kMaxTextures);
+    if (m_NextTextureSRVIndex >= kMaxTextures)
+        throw std::runtime_error("Exceeded maximum number of textures.");
     return std::make_unique<Texture>(*m_Device, *m_CommandQueue, m_TextureSRVHeap.Get(), m_TextureSRVDescriptorSize,
                                      m_NextTextureSRVIndex++, image);
 }

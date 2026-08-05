@@ -43,8 +43,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Platform/Windows/Window.cpp"
     "Source/Platform/Windows/Window.hpp"
 
-    "Source/Rendering/RenderPass/ForwardLighting.cpp"
-    "Source/Rendering/RenderPass/ForwardLighting.hpp"
+    "Source/Rendering/RenderPass/ForwardLightingPass.cpp"
+    "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
 
     "Source/Rendering/Mesh.hpp"
     "Source/Rendering/MeshBuffer.cpp"

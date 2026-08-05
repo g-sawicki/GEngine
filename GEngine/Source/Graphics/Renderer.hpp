@@ -14,7 +14,7 @@
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/MeshBuffer.hpp"
 #include "Rendering/RenderItem.hpp"
-#include "Rendering/RenderPass/ForwardLighting.hpp"
+#include "Rendering/RenderPass/ForwardLightingPass.hpp"
 
 namespace GEngine {
 
@@ -75,7 +75,7 @@ class Renderer {
     static constexpr DXGI_FORMAT s_DepthStencilFormat{DXGI_FORMAT_D32_FLOAT};
     Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthStencilBuffer;
 
-    std::unique_ptr<RenderPass::ForwardLighting> m_ForwardLighting;
+    std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLighting;
     std::vector<RenderItem> m_RenderItems;
 
     bool m_VSync{true};

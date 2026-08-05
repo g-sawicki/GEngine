@@ -10,15 +10,15 @@
 
 namespace GEngine::RenderPass {
 
-class ForwardLighting {
+class ForwardLightingPass {
   public:
-    ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat);
-    ~ForwardLighting();
+    ForwardLightingPass(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat);
+    ~ForwardLightingPass();
 
-    ForwardLighting(const ForwardLighting&) = delete;
-    ForwardLighting& operator=(const ForwardLighting&) = delete;
-    ForwardLighting(ForwardLighting&&) = delete;
-    ForwardLighting& operator=(ForwardLighting&&) = delete;
+    ForwardLightingPass(const ForwardLightingPass&) = delete;
+    ForwardLightingPass& operator=(const ForwardLightingPass&) = delete;
+    ForwardLightingPass(ForwardLightingPass&&) = delete;
+    ForwardLightingPass& operator=(ForwardLightingPass&&) = delete;
 
     void OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv,
                   const SceneInfo& sceneInfo, Buffer& sceneInfoConstantBuffer, std::span<const RenderItem> renderItems);

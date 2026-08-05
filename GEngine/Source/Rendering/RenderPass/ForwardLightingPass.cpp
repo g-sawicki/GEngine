@@ -1,6 +1,6 @@
 #include "PCH.hpp"
 
-#include "ForwardLighting.hpp"
+#include "ForwardLightingPass.hpp"
 
 #include "Rendering/MeshBuffer.hpp"
 
@@ -9,7 +9,7 @@
 
 namespace GEngine::RenderPass {
 
-ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat)
+ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat)
     : m_RenderTargetFormat(renderTargetFormat), m_DepthStencilFormat(depthStencilFormat) {
     CD3DX12_ROOT_PARAMETER rootParams[3]{};
     rootParams[0].InitAsConstantBufferView(0); // b0: SceneInfo
@@ -69,11 +69,11 @@ ForwardLighting::ForwardLighting(Device& device, DXGI_FORMAT renderTargetFormat,
     m_PipelineState = std::make_unique<PipelineState>(device, psoDesc);
 }
 
-ForwardLighting::~ForwardLighting() = default;
+ForwardLightingPass::~ForwardLightingPass() = default;
 
-void ForwardLighting::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv,
-                               D3D12_CPU_DESCRIPTOR_HANDLE dsv, const SceneInfo& sceneInfo,
-                               Buffer& sceneInfoConstantBuffer, std::span<const RenderItem> renderItems) {
+void ForwardLightingPass::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv,
+                                   D3D12_CPU_DESCRIPTOR_HANDLE dsv, const SceneInfo& sceneInfo,
+                                   Buffer& sceneInfoConstantBuffer, std::span<const RenderItem> renderItems) {
     sceneInfoConstantBuffer.Write(&sceneInfo, sizeof(sceneInfo));
 
     auto* cmdList = commandList.GetHandle();
