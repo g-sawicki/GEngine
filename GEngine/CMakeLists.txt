@@ -40,6 +40,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/Renderer.cpp"
     "Source/Graphics/Renderer.hpp"
 
+    "Source/Platform/Windows/Window.cpp"
+    "Source/Platform/Windows/Window.hpp"
+
     "Source/Rendering/RenderPass/ForwardLighting.cpp"
     "Source/Rendering/RenderPass/ForwardLighting.hpp"
 
@@ -57,8 +60,6 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Scene/Light.hpp"
 
     "Source/PCH.hpp"
-    "Source/Window.cpp"
-    "Source/Window.hpp"
 
     "${SHADER_GEN_DIR}/default_vs.h"
     "${SHADER_GEN_DIR}/default_ps.h"

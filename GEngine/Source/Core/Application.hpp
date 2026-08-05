@@ -2,7 +2,7 @@
 
 #include "Core/World.hpp"
 #include "Graphics/Renderer.hpp"
-#include "Window.hpp"
+#include "Platform/Windows/Window.hpp"
 
 namespace GEngine {
 
