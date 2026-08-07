@@ -21,7 +21,8 @@ class ForwardLightingPass {
     ForwardLightingPass& operator=(ForwardLightingPass&&) = delete;
 
     void OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv,
-                  const SceneInfo& sceneInfo, Buffer& sceneInfoConstantBuffer, std::span<const RenderItem> renderItems);
+                  Buffer& sceneInfoConstantBuffer, Buffer& lightDataConstantBuffer,
+                  D3D12_GPU_DESCRIPTOR_HANDLE shadowMapSRV, std::span<const RenderItem> renderItems);
 
   private:
     std::unique_ptr<RootSignature> m_RootSignature;

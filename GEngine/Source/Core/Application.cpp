@@ -86,8 +86,9 @@ void Application::Render() {
         return;
 
     const SceneInfo sceneInfo = m_World.GetSceneInfo();
+    const LightData lightData = m_World.GetLightData();
     OnRender();
-    m_Renderer.Render(sceneInfo);
+    m_Renderer.Render(sceneInfo, lightData);
 }
 
 LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPARAM wParam,

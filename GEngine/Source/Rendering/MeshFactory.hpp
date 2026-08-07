@@ -5,5 +5,6 @@
 namespace GEngine::MeshFactory {
 
 const Mesh& Cube();
+const Mesh& Plane();
 
 }

@@ -52,4 +52,19 @@ const Mesh& Cube() {
     return cube;
 }
 
+const Mesh& Plane() {
+    static constexpr Vertex vertices[] = {
+        {{-0.5f, 0.0f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}},
+        {{0.5f, 0.0f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
+        {{0.5f, 0.0f, 0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{-0.5f, 0.0f, 0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    };
+
+    static constexpr uint16_t indices[]{0, 2, 1, 2, 0, 3};
+
+    static const Mesh plane{.vertices = std::vector<Vertex>(std::begin(vertices), std::end(vertices)),
+                            .indices = std::vector<uint16_t>(std::begin(indices), std::end(indices))};
+    return plane;
+}
+
 } // namespace GEngine::MeshFactory

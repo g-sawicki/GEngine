@@ -28,6 +28,9 @@ class World {
     }
     [[nodiscard]] const DirectionalLight& GetDirectionalLight() const noexcept { return m_DirectionalLight; }
 
+    void SetShadowConfig(const ShadowConfig& shadowConfig) noexcept { m_ShadowConfig = shadowConfig; }
+    [[nodiscard]] const ShadowConfig& GetShadowConfig() const noexcept { return m_ShadowConfig; }
+
     SceneInfo GetSceneInfo() const noexcept {
         assert(m_ActiveCamera);
         DirectX::XMFLOAT4X4 viewProjection{};
@@ -39,9 +42,14 @@ class World {
         };
     }
 
+    LightData GetLightData() const noexcept;
+
   private:
+    DirectX::XMMATRIX ComputeLightViewProjection(const Camera& camera) const;
+
     std::unique_ptr<Camera> m_ActiveCamera;
     DirectionalLight m_DirectionalLight;
+    ShadowConfig m_ShadowConfig;
 };
 
 } // namespace GEngine

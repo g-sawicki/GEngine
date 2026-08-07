@@ -12,15 +12,24 @@ void Playground::OnInit() {
     auto& world = GetWorld();
 
     auto& camera = world.CreateCamera(
-        {.FovDegrees = 70.0f, .AspectRatio = 1280.0f / 720.0f, .NearZ = 0.1f, .FarZ = 1000.0f}, {0.0f, 0.0f, -5.0f});
+        {.FovDegrees = 70.0f, .AspectRatio = 1280.0f / 720.0f, .NearZ = 0.1f, .FarZ = 1000.0f}, {0.0f, 6.0f, -12.0f});
+    camera.SetRotation(DirectX::XMConvertToRadians(-25.0f), 0.0f);
     m_CameraController = std::make_unique<GEngine::CameraController>(camera);
 
     GEngine::DirectionalLight directionalLight{
         .Intensity = 1.0f,
         .Color = {1.0f, 1.0f, 1.0f},
     };
-    XMStoreFloat3(&directionalLight.Direction, XMVector3Normalize(XMVectorSet(2.0f, -1.0f, 4.0f, 0.0f)));
+    XMStoreFloat3(&directionalLight.Direction, XMVector3Normalize(XMVectorSet(1.0f, -4.0f, 2.0f, 0.0f)));
     world.SetDirectionalLight(directionalLight);
+
+    world.SetShadowConfig({
+        .Enabled = true,
+        .MapSize = 1024,
+        .Bias = 0.005f,
+        .SlopeScaleBias = 2.0f,
+        .NormalOffsetScale = 1.0f,
+    });
 
     GEngine::Image containerDiffuseMap{"Assets\\Textures\\Container\\container2.png"};
     GEngine::Image containerSpecularMap{"Assets\\Textures\\Container\\container2_specular.png"};
@@ -29,12 +38,18 @@ void Playground::OnInit() {
     m_ContainerDiffuseTex = renderer.CreateTexture(containerDiffuseMap);
     m_ContainerSpecularTex = renderer.CreateTexture(containerSpecularMap);
     m_CubeMesh = renderer.CreateMeshBuffer(GEngine::MeshFactory::Cube());
+    m_PlaneMesh = renderer.CreateMeshBuffer(GEngine::MeshFactory::Plane());
+
+    m_PlaneObjectCB = renderer.CreateConstantBuffer(sizeof(XMFLOAT4X4));
+    XMFLOAT4X4 planeWorld;
+    XMStoreFloat4x4(&planeWorld, XMMatrixScaling(50.0f, 1.0f, 50.0f));
+    m_PlaneObjectCB->Write(&planeWorld, sizeof(planeWorld));
 
     // Spawn 10 cubes at random positions.
     GEngine::MersenneTwister::Seed(42);
     for (uint32_t i{}; i < 10; ++i) {
         const float x{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
-        const float y{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
+        const float y{GEngine::MersenneTwister::GetRandom<float>(0.5f, 10.0f)};
         const float z{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
 
         auto cb = renderer.CreateConstantBuffer(sizeof(XMFLOAT4X4));
@@ -50,6 +65,8 @@ void Playground::OnUpdate(float deltaTime) {
 }
 
 void Playground::OnRender() {
+    GetRenderer().DrawMesh(*m_PlaneMesh, *m_PlaneObjectCB, m_ContainerDiffuseTex->GetSRV());
+
     for (auto& cb : m_CubeObjectCBs)
         GetRenderer().DrawMesh(*m_CubeMesh, *cb, m_ContainerDiffuseTex->GetSRV());
 }

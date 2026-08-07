@@ -15,6 +15,7 @@
 #include "Rendering/MeshBuffer.hpp"
 #include "Rendering/RenderItem.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
+#include "Rendering/RenderPass/ShadowPass.hpp"
 
 namespace GEngine {
 
@@ -24,6 +25,7 @@ class Renderer {
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CommandAllocator;
         std::unique_ptr<CommandList> CommandList;
         std::unique_ptr<Buffer> SceneInfoConstantBuffer;
+        std::unique_ptr<Buffer> LightDataConstantBuffer;
         uint64_t FenceValue{};
     };
 
@@ -37,7 +39,7 @@ class Renderer {
     void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp);
     void Destroy();
 
-    void Render(const SceneInfo& sceneInfo);
+    void Render(const SceneInfo& sceneInfo, const LightData& lightData);
     void OnResize(uint32_t width, uint32_t height);
 
     std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
@@ -52,7 +54,8 @@ class Renderer {
 
   private:
     void UpdateRenderTargetViews();
-    void CreateDepthBuffer(uint32_t width, uint32_t height);
+    void CreateShadowMapSRV();
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthBuffer(uint32_t width, uint32_t height);
 
     std::unique_ptr<Device> m_Device;
     std::unique_ptr<CommandQueue> m_CommandQueue;
@@ -71,11 +74,19 @@ class Renderer {
     UINT m_TextureSRVDescriptorSize{};
     UINT m_NextTextureSRVIndex{};
     static constexpr UINT kMaxTextures = 256;
+    static constexpr UINT kShadowMapSRVIndex = kMaxTextures;
 
+    static constexpr DXGI_FORMAT s_DepthStencilResourceFormat{DXGI_FORMAT_R32_TYPELESS};
     static constexpr DXGI_FORMAT s_DepthStencilFormat{DXGI_FORMAT_D32_FLOAT};
     Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthStencilBuffer;
 
+    static constexpr uint32_t s_ShadowMapSize{1024};
+    Microsoft::WRL::ComPtr<ID3D12Resource> m_ShadowMapBuffer;
+    D3D12_GPU_DESCRIPTOR_HANDLE m_ShadowMapSRV{};
+    D3D12_RESOURCE_STATES m_ShadowMapState{D3D12_RESOURCE_STATE_DEPTH_WRITE};
+
     std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLighting;
+    std::unique_ptr<RenderPass::ShadowPass> m_ShadowPass;
     std::vector<RenderItem> m_RenderItems;
 
     bool m_VSync{true};

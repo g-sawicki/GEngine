@@ -12,3 +12,13 @@ struct PointLight {
     float  attenuationLinear;
     float  attenuationQuadratic;
 };
+
+struct LightData
+{
+    row_major float4x4 lightViewProjection;
+    float shadowMapTexelSize;
+    float shadowBias;
+    float shadowSlopeScaleBias;
+    float normalOffsetScale;
+    uint  shadowEnabled;
+};

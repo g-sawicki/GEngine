@@ -5,6 +5,8 @@ include("${CMAKE_SOURCE_DIR}/cmake/ShaderCompiler.cmake")
 set(SHADER_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/Assets/Shaders")
 compile_shader("default.hlsl" "VSMain" "vs_6_5" "default_vs.h")
 compile_shader("default.hlsl" "PSMain" "ps_6_5" "default_ps.h")
+compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_5" "shadow_pass_vs.h")
+compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_5" "shadow_pass_ps.h")
 
 target_sources(${PROJECT_NAME} PRIVATE
     "Source/Core/Utility/Image.cpp"
@@ -45,6 +47,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 
     "Source/Rendering/RenderPass/ForwardLightingPass.cpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
+    "Source/Rendering/RenderPass/ShadowPass.cpp"
+    "Source/Rendering/RenderPass/ShadowPass.hpp"
 
     "Source/Rendering/Mesh.hpp"
     "Source/Rendering/MeshBuffer.cpp"
@@ -63,6 +67,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 
     "${SHADER_GEN_DIR}/default_vs.h"
     "${SHADER_GEN_DIR}/default_ps.h"
+    "${SHADER_GEN_DIR}/shadow_pass_vs.h"
+    "${SHADER_GEN_DIR}/shadow_pass_ps.h"
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${SHADER_GEN_DIR}")
