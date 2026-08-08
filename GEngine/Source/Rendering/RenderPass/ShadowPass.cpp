@@ -57,6 +57,8 @@ void ShadowPass::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE 
     cmdList->SetGraphicsRootConstantBufferView(0, lightDataConstantBuffer.GetGPUVirtualAddress());
 
     for (const auto& item : renderItems) {
+        if (!item.ShadowCaster)
+            continue;
         cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
         item.Mesh->Draw(commandList);
     }

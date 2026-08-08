@@ -45,7 +45,8 @@ class Renderer {
     std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
     std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
     std::unique_ptr<Texture> CreateTexture(const Image& image);
-    void DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GPU_DESCRIPTOR_HANDLE materialSRV);
+    void DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GPU_DESCRIPTOR_HANDLE materialSRV,
+                  bool shadowCaster = true);
 
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
 

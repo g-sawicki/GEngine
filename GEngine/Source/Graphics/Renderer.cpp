@@ -134,9 +134,18 @@ std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
     return std::make_unique<Buffer>(*m_Device, alignedSize);
 }
 
-void Renderer::DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GPU_DESCRIPTOR_HANDLE diffuseSRV) {
-    m_RenderItems.push_back(
-        {.Mesh = &mesh, .TransformCB = &objectCB, .Material = {.DiffuseSRV = diffuseSRV, .SpecularSRV = {}}});
+void Renderer::DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GPU_DESCRIPTOR_HANDLE diffuseSRV,
+                        bool shadowCaster) {
+    m_RenderItems.push_back({
+        .Mesh = &mesh,
+        .TransformCB = &objectCB,
+        .Material =
+            {
+                .DiffuseSRV = diffuseSRV,
+                .SpecularSRV = {},
+            },
+        .ShadowCaster = shadowCaster,
+    });
 }
 
 std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {

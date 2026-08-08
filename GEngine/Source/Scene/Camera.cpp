@@ -6,9 +6,13 @@
 
 namespace GEngine {
 
-Camera::Camera(const PerspectiveDesc& desc, const DirectX::XMFLOAT3& position)
-    : m_Position{position}, m_Fov{desc.FovDegrees}, m_AspectRatio{desc.AspectRatio}, m_NearZ{desc.NearZ},
-      m_FarZ{desc.FarZ} {}
+Camera::Camera(const PerspectiveDesc& desc)
+    : m_ProjectionType{ProjectionType::Perspective}, m_Fov{desc.FovDegrees}, m_AspectRatio{desc.AspectRatio},
+      m_NearZ{desc.NearZ}, m_FarZ{desc.FarZ} {}
+
+Camera::Camera(const OrthographicDesc& desc)
+    : m_ProjectionType{ProjectionType::Orthographic}, m_OrthoWidth{desc.Width}, m_OrthoHeight{desc.Height},
+      m_NearZ{desc.NearZ}, m_FarZ{desc.FarZ} {}
 
 void Camera::SetPosition(const DirectX::XMFLOAT3& position) {
     m_Position = position;
@@ -18,6 +22,31 @@ void Camera::SetPosition(const DirectX::XMFLOAT3& position) {
 void Camera::SetRotation(const float pitch, const float yaw) {
     m_Pitch = pitch;
     m_Yaw = yaw;
+    m_ViewDirty = true;
+}
+
+void Camera::SetLookAt(const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& target) {
+    m_Position = position;
+
+    const DirectX::XMVECTOR eye = DirectX::XMLoadFloat3(&position);
+    const DirectX::XMVECTOR focus = DirectX::XMLoadFloat3(&target);
+    const DirectX::XMVECTOR delta = DirectX::XMVectorSubtract(focus, eye);
+
+    DirectX::XMFLOAT4 lengthSqValue;
+    DirectX::XMStoreFloat4(&lengthSqValue, DirectX::XMVector3LengthSq(delta));
+
+    if (lengthSqValue.x <= 1e-6f) {
+        m_ViewDirty = true;
+        return;
+    }
+
+    const DirectX::XMVECTOR forward = DirectX::XMVectorScale(delta, 1.0f / std::sqrt(lengthSqValue.x));
+
+    DirectX::XMFLOAT3 forwardValue;
+    DirectX::XMStoreFloat3(&forwardValue, forward);
+    m_Pitch = std::asin(forwardValue.y);
+    m_Yaw = std::atan2(forwardValue.x, forwardValue.z);
+
     m_ViewDirty = true;
 }
 
@@ -64,6 +93,12 @@ void Camera::SetAspectRatio(const float aspectRatio) {
 
 void Camera::SetFov(const float fovDegrees) {
     m_Fov = fovDegrees;
+    m_ProjectionDirty = true;
+}
+
+void Camera::SetOrthographicSize(const float width, const float height) {
+    m_OrthoWidth = width;
+    m_OrthoHeight = height;
     m_ProjectionDirty = true;
 }
 
@@ -115,12 +150,28 @@ void Camera::ComputeLocalAxes(DirectX::XMVECTOR& outForward, DirectX::XMVECTOR& 
     const float cosPitch = std::cos(m_Pitch);
 
     outForward = DirectX::XMVectorSet(cosPitch * sinYaw, sinPitch, cosPitch * cosYaw, 0.0f);
+
+    // Pick a world-up reference that is never parallel to the view direction, so the
+    // right/up basis stays well-defined even for near-vertical views (e.g. a light
+    // shining straight down into the shadow camera).
     const DirectX::XMVECTOR worldUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-    outRight = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(worldUp, outForward));
+    const DirectX::XMVECTOR worldZ = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+    DirectX::XMFLOAT4 upDot;
+    DirectX::XMStoreFloat4(&upDot, DirectX::XMVector3Dot(worldUp, outForward));
+    const DirectX::XMVECTOR upReference = std::fabs(upDot.x) > 0.9999f ? worldZ : worldUp;
+
+    outRight = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(upReference, outForward));
     outUp = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(outForward, outRight));
 }
 
 void Camera::UpdateProjectionMatrix() const {
+    if (m_ProjectionType == ProjectionType::Orthographic) {
+        DirectX::XMStoreFloat4x4(&m_ProjectionMatrix,
+                                 DirectX::XMMatrixOrthographicLH(m_OrthoWidth, m_OrthoHeight, m_NearZ, m_FarZ));
+        return;
+    }
+
     DirectX::XMStoreFloat4x4(&m_ProjectionMatrix, DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(m_Fov),
                                                                                     m_AspectRatio, m_NearZ, m_FarZ));
 }

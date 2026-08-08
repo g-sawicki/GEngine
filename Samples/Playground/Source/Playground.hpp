@@ -18,12 +18,15 @@ class Playground : public GEngine::Application {
 
   private:
     void UpdateCamera(float deltaTime);
+    void UpdateShadowCubePosition();
 
     std::unique_ptr<GEngine::CameraController> m_CameraController;
     std::unique_ptr<GEngine::MeshBuffer> m_CubeMesh;
     std::unique_ptr<GEngine::MeshBuffer> m_PlaneMesh;
     std::vector<std::unique_ptr<GEngine::Buffer>> m_CubeObjectCBs;
     std::unique_ptr<GEngine::Buffer> m_PlaneObjectCB;
+
+    std::unique_ptr<GEngine::Buffer> m_CameraCubeObjectCB;
 
     std::unique_ptr<GEngine::Texture> m_ContainerDiffuseTex;
     std::unique_ptr<GEngine::Texture> m_ContainerSpecularTex;

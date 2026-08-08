@@ -29,6 +29,8 @@ void Playground::OnInit() {
         .Bias = 0.005f,
         .SlopeScaleBias = 2.0f,
         .NormalOffsetScale = 1.0f,
+        .NearZ = 0.1f,
+        .FarZ = 100.0f,
     });
 
     GEngine::Image containerDiffuseMap{"Assets\\Textures\\Container\\container2.png"};
@@ -58,6 +60,8 @@ void Playground::OnInit() {
         cb->Write(&worldMatrix, sizeof(worldMatrix));
         m_CubeObjectCBs.push_back(std::move(cb));
     }
+
+    m_CameraCubeObjectCB = renderer.CreateConstantBuffer(sizeof(XMFLOAT4X4));
 }
 
 void Playground::OnUpdate(float deltaTime) {
@@ -65,10 +69,14 @@ void Playground::OnUpdate(float deltaTime) {
 }
 
 void Playground::OnRender() {
-    GetRenderer().DrawMesh(*m_PlaneMesh, *m_PlaneObjectCB, m_ContainerDiffuseTex->GetSRV());
+    auto& renderer = GetRenderer();
+    renderer.DrawMesh(*m_PlaneMesh, *m_PlaneObjectCB, m_ContainerDiffuseTex->GetSRV());
 
     for (auto& cb : m_CubeObjectCBs)
-        GetRenderer().DrawMesh(*m_CubeMesh, *cb, m_ContainerDiffuseTex->GetSRV());
+        renderer.DrawMesh(*m_CubeMesh, *cb, m_ContainerDiffuseTex->GetSRV());
+
+    UpdateShadowCubePosition();
+    renderer.DrawMesh(*m_CubeMesh, *m_CameraCubeObjectCB, m_ContainerDiffuseTex->GetSRV(), false);
 }
 
 void Playground::UpdateCamera(float deltaTime) {
@@ -103,4 +111,15 @@ void Playground::UpdateCamera(float deltaTime) {
     }
 
     m_CameraController->Update(deltaTime, input);
+}
+
+void Playground::UpdateShadowCubePosition() {
+    auto& shadowCamera = GetWorld().GetShadowCamera();
+    if (!shadowCamera)
+        return;
+
+    XMVECTOR shadowCameraPosition = DirectX::XMLoadFloat3(&shadowCamera->GetPosition());
+    XMFLOAT4X4 worldMatrix;
+    XMStoreFloat4x4(&worldMatrix, XMMatrixTranslationFromVector(shadowCameraPosition));
+    m_CameraCubeObjectCB->Write(&worldMatrix, sizeof(worldMatrix));
 }

@@ -9,9 +9,22 @@ struct PerspectiveDesc {
     float FarZ;
 };
 
+struct OrthographicDesc {
+    float Width;
+    float Height;
+    float NearZ;
+    float FarZ;
+};
+
+enum class ProjectionType {
+    Perspective,
+    Orthographic,
+};
+
 class Camera {
   public:
-    Camera(const PerspectiveDesc& desc, const DirectX::XMFLOAT3& position = {});
+    Camera(const PerspectiveDesc& desc);
+    Camera(const OrthographicDesc& desc);
 
     Camera(const Camera&) = delete;
     Camera& operator=(const Camera&) = delete;
@@ -20,6 +33,7 @@ class Camera {
 
     void SetPosition(const DirectX::XMFLOAT3& position);
     void SetRotation(float pitch, float yaw);
+    void SetLookAt(const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& target);
 
     /// Move in local space: forward, right, up.
     void Translate(float forwardDelta, float rightDelta, float upDelta);
@@ -28,6 +42,7 @@ class Camera {
 
     void SetAspectRatio(float aspectRatio);
     void SetFov(float fovDegrees);
+    void SetOrthographicSize(float width, float height);
     void SetNearZ(float nearZ);
     void SetFarZ(float farZ);
 
@@ -53,12 +68,16 @@ class Camera {
     mutable DirectX::XMFLOAT4X4 m_ViewMatrix{};
     mutable DirectX::XMFLOAT4X4 m_ProjectionMatrix{};
 
+    ProjectionType m_ProjectionType{ProjectionType::Perspective};
+
     DirectX::XMFLOAT3 m_Position{};
     float m_Pitch{};
     float m_Yaw{};
 
     float m_Fov{};
     float m_AspectRatio{};
+    float m_OrthoWidth{};
+    float m_OrthoHeight{};
     float m_NearZ{};
     float m_FarZ{};
 

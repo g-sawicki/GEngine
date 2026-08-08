@@ -30,6 +30,7 @@ class World {
 
     void SetShadowConfig(const ShadowConfig& shadowConfig) noexcept { m_ShadowConfig = shadowConfig; }
     [[nodiscard]] const ShadowConfig& GetShadowConfig() const noexcept { return m_ShadowConfig; }
+    [[nodiscard]] const std::optional<Camera>& GetShadowCamera() const noexcept { return m_ShadowCamera; }
 
     SceneInfo GetSceneInfo() const noexcept {
         assert(m_ActiveCamera);
@@ -42,13 +43,13 @@ class World {
         };
     }
 
+    void UpdateShadowCamera();
     LightData GetLightData() const noexcept;
 
   private:
-    DirectX::XMMATRIX ComputeLightViewProjection(const Camera& camera) const;
-
     std::unique_ptr<Camera> m_ActiveCamera;
     DirectionalLight m_DirectionalLight;
+    std::optional<Camera> m_ShadowCamera;
     ShadowConfig m_ShadowConfig;
 };
 

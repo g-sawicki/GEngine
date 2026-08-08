@@ -31,6 +31,8 @@ struct ShadowConfig {
     float Bias{0.005f};
     float SlopeScaleBias{2.0f};
     float NormalOffsetScale{1.0f};
+    float NearZ{0.1f};
+    float FarZ{100.0f};
 };
 
 struct LightData {

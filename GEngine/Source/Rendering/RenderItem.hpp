@@ -15,7 +15,8 @@ struct Material {
 struct RenderItem {
     const MeshBuffer* Mesh{};
     const Buffer* TransformCB{};
-    const Material Material;
+    const Material Material{};
+    const bool ShadowCaster{true};
 };
 
 } // namespace GEngine

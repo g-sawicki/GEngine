@@ -85,6 +85,10 @@ void Application::Render() {
     if (!camera)
         return;
 
+    // Update the shadow camera after the gameplay camera has moved this frame, so the
+    // shadow frustum tracks the camera without a one-frame lag.
+    m_World.UpdateShadowCamera();
+
     const SceneInfo sceneInfo = m_World.GetSceneInfo();
     const LightData lightData = m_World.GetLightData();
     OnRender();
