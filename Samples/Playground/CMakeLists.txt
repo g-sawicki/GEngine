@@ -15,11 +15,3 @@ add_custom_command(TARGET Playground POST_BUILD
         "$<TARGET_FILE_DIR:Playground>/Assets"
     COMMENT "Copying Playground assets to build directory..."
 )
-
-# Copy runtime DLLs next to the executable.
-add_custom_command(TARGET Playground POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        -t "$<TARGET_FILE_DIR:Playground>"
-        $<TARGET_RUNTIME_DLLS:Playground>
-    COMMENT "Copying runtime DLLs to build directory..."
-)
