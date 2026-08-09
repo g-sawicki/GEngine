@@ -20,7 +20,8 @@ std::expected<Model, std::string> ModelLoader::Load(const std::filesystem::path&
 
     const aiScene* pScene =
         importer.ReadFile(filepath.string(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_FlipUVs |
-                                                 aiProcess_JoinIdenticalVertices | aiProcess_GenSmoothNormals);
+                                                 aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices |
+                                                 aiProcess_GenSmoothNormals);
     if (pScene == nullptr)
         return std::unexpected(std::string(importer.GetErrorString()));
 
@@ -86,6 +87,11 @@ ModelLoader::LoadedMesh ModelLoader::ProcessMesh(aiMesh* mesh, const aiScene* sc
             vertex.Normal = {normal.x, normal.y, normal.z};
         }
 
+        if (mesh->mTangents) {
+            aiVector3D tangent = mesh->mTangents[i];
+            vertex.Tangent = {tangent.x, tangent.y, tangent.z};
+        }
+
         if (mesh->mTextureCoords[0]) {
             vertex.UV = {static_cast<float>(mesh->mTextureCoords[0][i].x),
                          static_cast<float>(mesh->mTextureCoords[0][i].y)};
@@ -114,6 +120,7 @@ Material ModelLoader::LoadMaterial(const aiMaterial* material, const aiScene* sc
         mat.Diffuse = LoadTexture(material, aiTextureType_DIFFUSE, scene, modelDirectory);
 
     mat.Specular = LoadTexture(material, aiTextureType_SPECULAR, scene, modelDirectory);
+    mat.Normal = LoadTexture(material, aiTextureType_NORMALS, scene, modelDirectory);
     return mat;
 }
 

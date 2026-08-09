@@ -109,6 +109,7 @@ void Renderer::Destroy() {
     m_DepthStencilBuffer.Reset();
     m_ShadowMapBuffer.Reset();
     m_DSVDescriptorHeap.Reset();
+    m_TextureSRVHeap.Reset();
     m_ForwardLighting.reset();
     m_ShadowPass.reset();
     m_Device.reset();
@@ -145,10 +146,15 @@ void Renderer::EnsureDefaultMaterial() {
     if (m_DefaultDiffuse)
         return;
     static constexpr uint8_t kWhitePixel[]{255, 255, 255, 255};
+    static constexpr uint8_t kBluePixel[]{0, 0, 255, 255};
     const Image white = Image::FromRawRGBA(kWhitePixel, 1, 1);
+    const Image blue = Image::FromRawRGBA(kBluePixel, 1, 1);
     m_DefaultDiffuse = CreateTexture(white);
     m_DefaultSpecular = CreateTexture(white);
-    m_DefaultMaterial = {.DiffuseSRV = m_DefaultDiffuse->GetSRV(), .SpecularSRV = m_DefaultSpecular->GetSRV()};
+    m_DefaultNormal = CreateTexture(blue);
+    m_DefaultMaterial = {.DiffuseSRV = m_DefaultDiffuse->GetSRV(),
+                         .SpecularSRV = m_DefaultSpecular->GetSRV(),
+                         .NormalSRV = m_DefaultNormal->GetSRV()};
 }
 
 const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& model) {
@@ -167,14 +173,18 @@ const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& mode
     for (const auto& material : model.Materials) {
         auto diffuse = material.Diffuse.has_value() ? CreateTexture(*material.Diffuse) : nullptr;
         auto specular = material.Specular.has_value() ? CreateTexture(*material.Specular) : nullptr;
+        auto normal = material.Normal.has_value() ? CreateTexture(*material.Normal) : nullptr;
         resources.Materials.push_back({
             .DiffuseSRV = diffuse ? diffuse->GetSRV() : m_DefaultMaterial.DiffuseSRV,
             .SpecularSRV = specular ? specular->GetSRV() : m_DefaultMaterial.SpecularSRV,
+            .NormalSRV = normal ? normal->GetSRV() : m_DefaultMaterial.NormalSRV,
         });
         if (diffuse)
             resources.Textures.push_back(std::move(diffuse));
         if (specular)
             resources.Textures.push_back(std::move(specular));
+        if (normal)
+            resources.Textures.push_back(std::move(normal));
     }
     return it->second;
 }

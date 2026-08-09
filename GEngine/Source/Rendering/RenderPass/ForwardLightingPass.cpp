@@ -11,21 +11,24 @@ namespace GEngine::RenderPass {
 
 ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat)
     : m_RenderTargetFormat(renderTargetFormat), m_DepthStencilFormat(depthStencilFormat) {
-    CD3DX12_ROOT_PARAMETER rootParams[6]{};
+    CD3DX12_ROOT_PARAMETER rootParams[7]{};
     rootParams[0].InitAsConstantBufferView(0); // b0: SceneInfo
     rootParams[1].InitAsConstantBufferView(1); // b1: ObjectConstants
     rootParams[2].InitAsConstantBufferView(2); // b2: LightData
 
-    CD3DX12_DESCRIPTOR_RANGE diffuseRange{};
-    diffuseRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: diffuse
-    CD3DX12_DESCRIPTOR_RANGE specularRange{};
-    specularRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1: specular
+    CD3DX12_DESCRIPTOR_RANGE diffuseMapRange{};
+    diffuseMapRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: diffuse
+    CD3DX12_DESCRIPTOR_RANGE specularMapRange{};
+    specularMapRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1: specular
+    CD3DX12_DESCRIPTOR_RANGE normalMapRange{};
+    normalMapRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); // t2: specular
     CD3DX12_DESCRIPTOR_RANGE shadowMapRange{};
-    shadowMapRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); // t2: shadow map
+    shadowMapRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3); // t3: shadow map
 
-    rootParams[3].InitAsDescriptorTable(1, &diffuseRange);
-    rootParams[4].InitAsDescriptorTable(1, &specularRange);
-    rootParams[5].InitAsDescriptorTable(1, &shadowMapRange);
+    rootParams[3].InitAsDescriptorTable(1, &diffuseMapRange);
+    rootParams[4].InitAsDescriptorTable(1, &specularMapRange);
+    rootParams[5].InitAsDescriptorTable(1, &normalMapRange);
+    rootParams[6].InitAsDescriptorTable(1, &shadowMapRange);
 
     D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
     staticSamplers[0] = D3D12_STATIC_SAMPLER_DESC{
@@ -67,6 +70,8 @@ ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT renderTarge
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
@@ -104,12 +109,13 @@ void ForwardLightingPass::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTO
 
     cmdList->SetGraphicsRootConstantBufferView(0, sceneInfoConstantBuffer.GetGPUVirtualAddress());
     cmdList->SetGraphicsRootConstantBufferView(2, lightDataConstantBuffer.GetGPUVirtualAddress());
-    cmdList->SetGraphicsRootDescriptorTable(5, shadowMapSRV);
+    cmdList->SetGraphicsRootDescriptorTable(6, shadowMapSRV);
 
     for (const auto& item : renderItems) {
         cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
         cmdList->SetGraphicsRootDescriptorTable(3, item.Material.DiffuseSRV);
         cmdList->SetGraphicsRootDescriptorTable(4, item.Material.SpecularSRV);
+        cmdList->SetGraphicsRootDescriptorTable(5, item.Material.NormalSRV);
         item.Mesh->Draw(commandList);
     }
 }

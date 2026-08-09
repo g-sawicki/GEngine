@@ -4,16 +4,18 @@ struct VSInput
 {
     float4 position : POSITION;
     float3 normal : NORMAL;
+    float3 tangent : TANGENT;
     float2 uv : TEXCOORD;
 };
 
 struct PSInput
 {
     float4 position : SV_POSITION;
-    float3 normal : NORMAL;
     float2 uv : TEXCOORD;
     float3 worldPos : WORLDPOS;
     float4 worldPosLightSpace : WORLDPOS_LIGHTSPACE;
+    float3 tangent : TANGENT;
+    float3 normal : NORMAL;
 };
 
 cbuffer SceneInfo : register(b0)
@@ -36,19 +38,22 @@ cbuffer LightDataBuffer : register(b2)
 
 Texture2D diffuseMap : register(t0);
 Texture2D specularMap : register(t1);
-Texture2D shadowMap : register(t2);
+Texture2D normalMap : register(t2);
+Texture2D shadowMap : register(t3);
 SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 
 PSInput VSMain(VSInput input)
 {
-    PSInput output;
     float4 worldPos = mul(input.position, world);
+
+    PSInput output;
     output.position = mul(worldPos, viewProjection);
-    output.normal = mul(input.normal, (float3x3)world);
     output.uv = input.uv;
     output.worldPos = worldPos.xyz;
     output.worldPosLightSpace = mul(worldPos, lightData.lightViewProjection);
+    output.tangent = normalize(mul(float4(input.tangent, 0.0f), world).xyz);
+    output.normal = normalize(mul(float4(input.normal, 0.0f), world).xyz);
     return output;
 }
 
@@ -74,21 +79,29 @@ float ComputeShadow(float4 positionLightSpace) {
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
+    float4 diffuseTex = diffuseMap.Sample(texSampler, input.uv);
+    float4 specularTex = specularMap.Sample(texSampler, input.uv);
+    float4 normalTex = normalMap.Sample(texSampler, input.uv);
+
     float3 N = normalize(input.normal);
+    float3 T = normalize(input.tangent.xyz - dot(input.tangent.xyz, N) * N);
+    float3 B = cross(N, T);
+
+    float3x3 TBN = float3x3(T, B, N);
+    float3 worldNormal = normalize(mul(normalTex.xyz * 2.0f - 1.0f, TBN));
+
     float3 L = normalize(directionalLight.direction);
     float3 V = normalize(cameraPosition - input.worldPos);
     float3 directionalLightColor = directionalLight.color * directionalLight.intensity;
-    float NdotL = saturate(dot(N, -L));
-
-    float4 diffuseTex = diffuseMap.Sample(texSampler, input.uv);
-    float4 specularTex = specularMap.Sample(texSampler, input.uv);
+    float NdotL = saturate(dot(worldNormal, -L));
 
     float shadow = ComputeShadow(input.worldPosLightSpace);
 
     float3 ambient = 0.3f * diffuseTex.xyz * directionalLightColor;
     float3 diffuse = diffuseTex.xyz * NdotL * directionalLightColor;
 
-    float specFactor = (NdotL > 0.0f) ? pow(saturate(dot(V, reflect(L, N))), 16) : 0.0f;
+    float3 H = normalize(V - L);
+    float specFactor = (NdotL > 0.0f) ? pow(saturate(dot(N, H)), 64.0f) : 0.0f;
     float3 specular = specularTex.xyz * specFactor * directionalLightColor;
 
     float3 color = ambient + (diffuse + specular) * shadow;

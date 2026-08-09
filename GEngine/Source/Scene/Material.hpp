@@ -9,6 +9,7 @@ namespace GEngine {
 struct Material {
     std::optional<Image> Diffuse;
     std::optional<Image> Specular;
+    std::optional<Image> Normal;
 };
 
 } // namespace GEngine

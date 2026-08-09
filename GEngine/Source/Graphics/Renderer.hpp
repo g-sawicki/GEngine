@@ -106,6 +106,7 @@ class Renderer {
 
     std::unique_ptr<Texture> m_DefaultDiffuse;
     std::unique_ptr<Texture> m_DefaultSpecular;
+    std::unique_ptr<Texture> m_DefaultNormal;
     MaterialGPU m_DefaultMaterial{};
 
     bool m_VSync{true};
