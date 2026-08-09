@@ -20,7 +20,7 @@ class Buffer {
                 .SizeInBytes = static_cast<UINT>(m_Size),
                 .StrideInBytes = stride};
     }
-    [[nodiscard]] D3D12_INDEX_BUFFER_VIEW GetIBV(DXGI_FORMAT format = DXGI_FORMAT_R16_UINT) const noexcept {
+    [[nodiscard]] D3D12_INDEX_BUFFER_VIEW GetIBV(DXGI_FORMAT format = DXGI_FORMAT_R32_UINT) const noexcept {
         return {.BufferLocation = m_Resource->GetGPUVirtualAddress(),
                 .SizeInBytes = static_cast<UINT>(m_Size),
                 .Format = format};

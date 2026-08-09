@@ -124,28 +124,10 @@ void Renderer::Destroy() {
 #endif
 }
 
-std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
-    return std::make_unique<MeshBuffer>(*m_Device, mesh);
-}
-
 std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
     static constexpr UINT64 kAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     const UINT64 alignedSize = (size + kAlignment - 1) & ~(kAlignment - 1ULL);
     return std::make_unique<Buffer>(*m_Device, alignedSize);
-}
-
-void Renderer::DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GPU_DESCRIPTOR_HANDLE diffuseSRV,
-                        bool shadowCaster) {
-    m_RenderItems.push_back({
-        .Mesh = &mesh,
-        .TransformCB = &objectCB,
-        .Material =
-            {
-                .DiffuseSRV = diffuseSRV,
-                .SpecularSRV = {},
-            },
-        .ShadowCaster = shadowCaster,
-    });
 }
 
 std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
@@ -153,6 +135,48 @@ std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
         throw std::runtime_error("Exceeded maximum number of textures.");
     return std::make_unique<Texture>(*m_Device, *m_CommandQueue, m_TextureSRVHeap.Get(), m_TextureSRVDescriptorSize,
                                      m_NextTextureSRVIndex++, image);
+}
+
+std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
+    return std::make_unique<MeshBuffer>(*m_Device, mesh);
+}
+
+void Renderer::EnsureDefaultMaterial() {
+    if (m_DefaultDiffuse)
+        return;
+    static constexpr uint8_t kWhitePixel[]{255, 255, 255, 255};
+    const Image white = Image::FromRawRGBA(kWhitePixel, 1, 1);
+    m_DefaultDiffuse = CreateTexture(white);
+    m_DefaultSpecular = CreateTexture(white);
+    m_DefaultMaterial = {.DiffuseSRV = m_DefaultDiffuse->GetSRV(), .SpecularSRV = m_DefaultSpecular->GetSRV()};
+}
+
+const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& model) {
+    auto [it, inserted] = m_ModelCache.try_emplace(&model);
+    if (!inserted)
+        return it->second;
+
+    ModelResources& resources = it->second;
+    resources.Meshes.reserve(model.Meshes.size());
+    for (const auto& mesh : model.Meshes)
+        resources.Meshes.push_back(CreateMeshBuffer(mesh));
+
+    EnsureDefaultMaterial();
+    resources.Materials.reserve(model.Materials.size());
+    resources.Textures.reserve(model.Materials.size() * 2);
+    for (const auto& material : model.Materials) {
+        auto diffuse = material.Diffuse.has_value() ? CreateTexture(*material.Diffuse) : nullptr;
+        auto specular = material.Specular.has_value() ? CreateTexture(*material.Specular) : nullptr;
+        resources.Materials.push_back({
+            .DiffuseSRV = diffuse ? diffuse->GetSRV() : m_DefaultMaterial.DiffuseSRV,
+            .SpecularSRV = specular ? specular->GetSRV() : m_DefaultMaterial.SpecularSRV,
+        });
+        if (diffuse)
+            resources.Textures.push_back(std::move(diffuse));
+        if (specular)
+            resources.Textures.push_back(std::move(specular));
+    }
+    return it->second;
 }
 
 void Renderer::UpdateRenderTargetViews() {
@@ -221,7 +245,7 @@ ComPtr<ID3D12Resource> Renderer::CreateDepthBuffer(uint32_t width, uint32_t heig
     return depthBuffer;
 }
 
-void Renderer::Render(const SceneInfo& sceneInfo, const LightData& lightData) {
+void Renderer::Render(const World& world) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
 
@@ -238,6 +262,37 @@ void Renderer::Render(const SceneInfo& sceneInfo, const LightData& lightData) {
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE depthDsv(m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     CD3DX12_CPU_DESCRIPTOR_HANDLE shadowMapDSV(depthDsv, 1, m_DSVDescriptorSize);
+
+    // Build one RenderItem per entity mesh; GPU resources are uploaded on first use and cached per Model asset.
+    const auto& entities = world.GetEntityManager().GetEntities();
+    if (m_ObjectConstantBuffers.size() < entities.size())
+        m_ObjectConstantBuffers.resize(entities.size());
+    m_RenderItems.clear();
+    m_RenderItems.reserve(entities.size() * 2);
+    for (size_t i{}; i < entities.size(); ++i) {
+        const Entity& entity = entities[i];
+        if (!entity.Model)
+            continue;
+
+        if (!m_ObjectConstantBuffers[i])
+            m_ObjectConstantBuffers[i] = CreateConstantBuffer(sizeof(DirectX::XMFLOAT4X4));
+        const DirectX::XMFLOAT4X4& worldMatrix = entity.Transform.GetMatrix();
+        m_ObjectConstantBuffers[i]->Write(&worldMatrix, sizeof(worldMatrix));
+
+        const Model& model = *entity.Model;
+        const ModelResources& resources = EnsureModelResources(model);
+        for (size_t m{}; m < model.Meshes.size(); ++m) {
+            m_RenderItems.push_back({
+                .Mesh = resources.Meshes[m].get(),
+                .TransformCB = m_ObjectConstantBuffers[i].get(),
+                .Material = resources.Materials[model.Meshes[m].MaterialIndex],
+                .ShadowCaster = entity.CastsShadow,
+            });
+        }
+    }
+
+    const SceneInfo sceneInfo = world.GetSceneInfo();
+    const LightData lightData = world.GetLightData();
 
     frame.SceneInfoConstantBuffer->Write(&sceneInfo, sizeof(sceneInfo));
     frame.LightDataConstantBuffer->Write(&lightData, sizeof(lightData));

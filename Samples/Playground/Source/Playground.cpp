@@ -1,82 +1,69 @@
 #include "Playground.hpp"
 
+#include "Core/Input.hpp"
 #include "Core/Utility/MersenneTwister.hpp"
 #include "Rendering/MeshFactory.hpp"
 #include "Scene/Light.hpp"
+#include "Scene/Material.hpp"
+#include "Scene/Model.hpp"
+#include "Scene/Transform.hpp"
 
 #include <cmath>
 
 using namespace DirectX;
 
+Playground::Playground(Specification specification) : Application(specification) {
+    GEngine::Camera& camera = m_World.CreateCamera({
+        .FovDegrees = 70.0f,
+        .AspectRatio = static_cast<float>(specification.width) / static_cast<float>(specification.height),
+        .NearZ = 0.1f,
+        .FarZ = 1000.0f,
+    });
+    m_CameraController = GEngine::CameraController(&camera);
+}
+
 void Playground::OnInit() {
-    auto& world = GetWorld();
-
-    auto& camera = world.CreateCamera(
-        {.FovDegrees = 70.0f, .AspectRatio = 1280.0f / 720.0f, .NearZ = 0.1f, .FarZ = 1000.0f}, {0.0f, 6.0f, -12.0f});
-    camera.SetRotation(DirectX::XMConvertToRadians(-25.0f), 0.0f);
-    m_CameraController = std::make_unique<GEngine::CameraController>(camera);
-
-    GEngine::DirectionalLight directionalLight{
+    XMFLOAT3 lightDirection;
+    XMStoreFloat3(&lightDirection, XMVector3Normalize(XMVectorSet(1.0f, -4.0f, 2.0f, 0.0f)));
+    m_World.SetDirectionalLight({
+        .Direction = lightDirection,
         .Intensity = 1.0f,
         .Color = {1.0f, 1.0f, 1.0f},
-    };
-    XMStoreFloat3(&directionalLight.Direction, XMVector3Normalize(XMVectorSet(1.0f, -4.0f, 2.0f, 0.0f)));
-    world.SetDirectionalLight(directionalLight);
-
-    world.SetShadowConfig({
-        .Enabled = true,
-        .MapSize = 1024,
-        .Bias = 0.005f,
-        .SlopeScaleBias = 2.0f,
-        .NormalOffsetScale = 1.0f,
-        .NearZ = 0.1f,
-        .FarZ = 100.0f,
     });
 
-    GEngine::Image containerDiffuseMap{"Assets\\Textures\\Container\\container2.png"};
-    GEngine::Image containerSpecularMap{"Assets\\Textures\\Container\\container2_specular.png"};
+    const GEngine::Material containerMaterial{
+        .Diffuse = GEngine::Image{"Assets\\Textures\\Container\\container2.png"},
+        .Specular = GEngine::Image{"Assets\\Textures\\Container\\container2_specular.png"},
+    };
 
-    auto& renderer = GetRenderer();
-    m_ContainerDiffuseTex = renderer.CreateTexture(containerDiffuseMap);
-    m_ContainerSpecularTex = renderer.CreateTexture(containerSpecularMap);
-    m_CubeMesh = renderer.CreateMeshBuffer(GEngine::MeshFactory::Cube());
-    m_PlaneMesh = renderer.CreateMeshBuffer(GEngine::MeshFactory::Plane());
+    const auto cubeModel = m_World.AddModel(GEngine::MeshFactory::Cube(), containerMaterial);
+    const auto planeModel = m_World.AddModel(GEngine::MeshFactory::Plane(), containerMaterial);
+    const auto porscheModel = m_World.LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
 
-    m_PlaneObjectCB = renderer.CreateConstantBuffer(sizeof(XMFLOAT4X4));
-    XMFLOAT4X4 planeWorld;
-    XMStoreFloat4x4(&planeWorld, XMMatrixScaling(50.0f, 1.0f, 50.0f));
-    m_PlaneObjectCB->Write(&planeWorld, sizeof(planeWorld));
-
-    // Spawn 10 cubes at random positions.
-    GEngine::MersenneTwister::Seed(42);
+    // Cubes at random positions
+    using RNG = GEngine::MersenneTwister;
+    RNG::Seed(42);
     for (uint32_t i{}; i < 10; ++i) {
-        const float x{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
-        const float y{GEngine::MersenneTwister::GetRandom<float>(0.5f, 10.0f)};
-        const float z{GEngine::MersenneTwister::GetRandom<float>(-10.0f, 10.0f)};
-
-        auto cb = renderer.CreateConstantBuffer(sizeof(XMFLOAT4X4));
-        XMFLOAT4X4 worldMatrix;
-        XMStoreFloat4x4(&worldMatrix, XMMatrixTranslation(x, y, z));
-        cb->Write(&worldMatrix, sizeof(worldMatrix));
-        m_CubeObjectCBs.push_back(std::move(cb));
+        m_World.GetEntityManager().SpawnEntity(cubeModel, GEngine::Transform::FromPosition({
+                                                              RNG::GetRandom(-10.0f, 10.0f),
+                                                              RNG::GetRandom(0.5f, 10.0f),
+                                                              RNG::GetRandom(-10.0f, 10.0f),
+                                                          }));
     }
 
-    m_CameraCubeObjectCB = renderer.CreateConstantBuffer(sizeof(XMFLOAT4X4));
+    // Ground plane
+    m_World.GetEntityManager().SpawnEntity(planeModel, GEngine::Transform::FromScale({50.0f, 1.0f, 50.0f}));
+
+    // Porsche
+    m_World.GetEntityManager().SpawnEntity(porscheModel);
+
+    // Debug cube tracking the shadow camera eye
+    m_ShadowCube = m_World.GetEntityManager().SpawnEntity(cubeModel, {}, false);
 }
 
 void Playground::OnUpdate(float deltaTime) {
     UpdateCamera(deltaTime);
-}
-
-void Playground::OnRender() {
-    auto& renderer = GetRenderer();
-    renderer.DrawMesh(*m_PlaneMesh, *m_PlaneObjectCB, m_ContainerDiffuseTex->GetSRV());
-
-    for (auto& cb : m_CubeObjectCBs)
-        renderer.DrawMesh(*m_CubeMesh, *cb, m_ContainerDiffuseTex->GetSRV());
-
     UpdateShadowCubePosition();
-    renderer.DrawMesh(*m_CubeMesh, *m_CameraCubeObjectCB, m_ContainerDiffuseTex->GetSRV(), false);
 }
 
 void Playground::UpdateCamera(float deltaTime) {
@@ -110,16 +97,12 @@ void Playground::UpdateCamera(float deltaTime) {
         }
     }
 
-    m_CameraController->Update(deltaTime, input);
+    m_CameraController.Update(deltaTime, input);
 }
 
 void Playground::UpdateShadowCubePosition() {
-    auto& shadowCamera = GetWorld().GetShadowCamera();
+    const auto& shadowCamera = m_World.GetShadowCamera();
     if (!shadowCamera)
         return;
-
-    XMVECTOR shadowCameraPosition = DirectX::XMLoadFloat3(&shadowCamera->GetPosition());
-    XMFLOAT4X4 worldMatrix;
-    XMStoreFloat4x4(&worldMatrix, XMMatrixTranslationFromVector(shadowCameraPosition));
-    m_CameraCubeObjectCB->Write(&worldMatrix, sizeof(worldMatrix));
+    m_World.GetEntityManager().GetEntity(m_ShadowCube).Transform.Position = shadowCamera->GetPosition();
 }

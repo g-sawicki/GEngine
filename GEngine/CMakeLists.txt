@@ -61,7 +61,15 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Scene/Camera.hpp"
     "Source/Scene/CameraController.cpp"
     "Source/Scene/CameraController.hpp"
+    "Source/Scene/Entity.hpp"
+    "Source/Scene/EntityManager.cpp"
+    "Source/Scene/EntityManager.hpp"
     "Source/Scene/Light.hpp"
+    "Source/Scene/Material.hpp"
+    "Source/Scene/Model.hpp"
+    "Source/Scene/ModelLoader.cpp"
+    "Source/Scene/ModelLoader.hpp"
+    "Source/Scene/Transform.hpp"
 
     "Source/PCH.hpp"
 
@@ -83,7 +91,7 @@ endif()
 
 target_precompile_headers(${PROJECT_NAME} PUBLIC "Source/PCH.hpp")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid Microsoft::DirectX-Headers stb)
+target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid Microsoft::DirectX-Headers stb assimp)
 
 if(WIN32)
     target_link_options(${PROJECT_NAME} INTERFACE /ENTRY:mainCRTStartup)

@@ -8,8 +8,9 @@
 namespace GEngine {
 
 struct Mesh {
-    std::vector<Vertex> vertices;
-    std::vector<uint16_t> indices;
+    std::vector<Vertex> Vertices;
+    std::vector<uint32_t> Indices;
+    uint32_t MaterialIndex{};
 };
 
 } // namespace GEngine

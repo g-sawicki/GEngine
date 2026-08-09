@@ -11,20 +11,21 @@ namespace GEngine::RenderPass {
 
 ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat)
     : m_RenderTargetFormat(renderTargetFormat), m_DepthStencilFormat(depthStencilFormat) {
-    CD3DX12_ROOT_PARAMETER rootParams[5]{};
+    CD3DX12_ROOT_PARAMETER rootParams[6]{};
     rootParams[0].InitAsConstantBufferView(0); // b0: SceneInfo
     rootParams[1].InitAsConstantBufferView(1); // b1: ObjectConstants
     rootParams[2].InitAsConstantBufferView(2); // b2: LightData
 
-    CD3DX12_DESCRIPTOR_RANGE textureRanges[2]{};
-    textureRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: diffuse
-    textureRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1: specular
-
+    CD3DX12_DESCRIPTOR_RANGE diffuseRange{};
+    diffuseRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: diffuse
+    CD3DX12_DESCRIPTOR_RANGE specularRange{};
+    specularRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1: specular
     CD3DX12_DESCRIPTOR_RANGE shadowMapRange{};
     shadowMapRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2); // t2: shadow map
 
-    rootParams[3].InitAsDescriptorTable(2, textureRanges);
-    rootParams[4].InitAsDescriptorTable(1, &shadowMapRange);
+    rootParams[3].InitAsDescriptorTable(1, &diffuseRange);
+    rootParams[4].InitAsDescriptorTable(1, &specularRange);
+    rootParams[5].InitAsDescriptorTable(1, &shadowMapRange);
 
     D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
     staticSamplers[0] = D3D12_STATIC_SAMPLER_DESC{
@@ -103,11 +104,12 @@ void ForwardLightingPass::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTO
 
     cmdList->SetGraphicsRootConstantBufferView(0, sceneInfoConstantBuffer.GetGPUVirtualAddress());
     cmdList->SetGraphicsRootConstantBufferView(2, lightDataConstantBuffer.GetGPUVirtualAddress());
-    cmdList->SetGraphicsRootDescriptorTable(4, shadowMapSRV);
+    cmdList->SetGraphicsRootDescriptorTable(5, shadowMapSRV);
 
     for (const auto& item : renderItems) {
         cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
         cmdList->SetGraphicsRootDescriptorTable(3, item.Material.DiffuseSRV);
+        cmdList->SetGraphicsRootDescriptorTable(4, item.Material.SpecularSRV);
         item.Mesh->Draw(commandList);
     }
 }

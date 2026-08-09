@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <vector>
@@ -12,7 +13,11 @@ enum class ImageFormat { PNG, JPEG, BMP, TGA, GIF, HDR };
 
 class Image {
   public:
+    Image() = default;
     Image(const std::filesystem::path& path);
+    Image(const void* data, size_t size);
+
+    static Image FromRawRGBA(const void* data, uint32_t width, uint32_t height);
 
     [[nodiscard]] const std::vector<uint8_t>& GetData() const noexcept { return m_Data; }
     [[nodiscard]] uint32_t GetWidth() const noexcept { return m_Width; }

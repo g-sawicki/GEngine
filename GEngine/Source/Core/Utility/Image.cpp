@@ -7,9 +7,24 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <stdexcept>
 
 namespace GEngine {
+
+static ImageFormat SniffFormat(const uint8_t* data, size_t size) {
+    if (size >= 8 && data[0] == 0x89 && data[1] == 'P' && data[2] == 'N' && data[3] == 'G')
+        return ImageFormat::PNG;
+    if (size >= 3 && data[0] == 0xFF && data[1] == 0xD8)
+        return ImageFormat::JPEG;
+    if (size >= 2 && data[0] == 'B' && data[1] == 'M')
+        return ImageFormat::BMP;
+    if (size >= 4 && data[0] == 'G' && data[1] == 'I' && data[2] == 'F' && data[3] == '8')
+        return ImageFormat::GIF;
+    if (size >= 10 && std::memcmp(data, "#?RADIANCE", 10) == 0)
+        return ImageFormat::HDR;
+    return ImageFormat::PNG;
+}
 
 static ImageFormat DetermineImageFormat(const std::filesystem::path& path) {
     std::string extension = path.extension().string();
@@ -45,6 +60,36 @@ Image::Image(const std::filesystem::path& path) {
     m_Data = std::vector<uint8_t>(static_cast<uint8_t*>(data),
                                   static_cast<uint8_t*>(data) + (m_Width * m_Height * m_Channels));
     stbi_image_free(data);
+}
+
+Image::Image(const void* data, size_t size) {
+    const auto* bytes = static_cast<const uint8_t*>(data);
+    m_Format = SniffFormat(bytes, size);
+
+    static constexpr uint8_t kChannels = 4;
+    int width, height, channels;
+    void* decoded = stbi_load_from_memory(bytes, static_cast<int>(size), &width, &height, &channels, kChannels);
+    if (!decoded) {
+        throw std::runtime_error("Failed to decode in-memory image.");
+    }
+    m_Width = static_cast<uint32_t>(width);
+    m_Height = static_cast<uint32_t>(height);
+    m_Channels = kChannels;
+    m_Data =
+        std::vector<uint8_t>(static_cast<uint8_t*>(decoded),
+                             static_cast<uint8_t*>(decoded) + (static_cast<size_t>(m_Width) * m_Height * m_Channels));
+    stbi_image_free(decoded);
+}
+
+Image Image::FromRawRGBA(const void* data, uint32_t width, uint32_t height) {
+    const auto* bytes = static_cast<const uint8_t*>(data);
+    Image image;
+    image.m_Width = width;
+    image.m_Height = height;
+    image.m_Channels = 4;
+    image.m_Format = ImageFormat::PNG;
+    image.m_Data.assign(bytes, bytes + (static_cast<size_t>(width) * height * 4));
+    return image;
 }
 
 DXGI_FORMAT Image::GetDXGIFormat() const noexcept {

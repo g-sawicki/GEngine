@@ -17,6 +17,10 @@
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
 
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
 namespace GEngine {
 
 class Renderer {
@@ -39,14 +43,8 @@ class Renderer {
     void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp);
     void Destroy();
 
-    void Render(const SceneInfo& sceneInfo, const LightData& lightData);
+    void Render(const World& world);
     void OnResize(uint32_t width, uint32_t height);
-
-    std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
-    std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
-    std::unique_ptr<Texture> CreateTexture(const Image& image);
-    void DrawMesh(const MeshBuffer& mesh, const Buffer& objectCB, D3D12_GPU_DESCRIPTOR_HANDLE materialSRV,
-                  bool shadowCaster = true);
 
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
 
@@ -54,9 +52,22 @@ class Renderer {
     [[nodiscard]] bool IsVSyncEnabled() const noexcept { return m_VSync; }
 
   private:
+    struct ModelResources {
+        std::vector<std::unique_ptr<MeshBuffer>> Meshes;
+        std::vector<MaterialGPU> Materials;
+        std::vector<std::unique_ptr<Texture>> Textures;
+    };
+
     void UpdateRenderTargetViews();
     void CreateShadowMapSRV();
     Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthBuffer(uint32_t width, uint32_t height);
+
+    std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
+    std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
+    std::unique_ptr<Texture> CreateTexture(const Image& image);
+
+    void EnsureDefaultMaterial();
+    const ModelResources& EnsureModelResources(const Model& model);
 
     std::unique_ptr<Device> m_Device;
     std::unique_ptr<CommandQueue> m_CommandQueue;
@@ -88,7 +99,14 @@ class Renderer {
 
     std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLighting;
     std::unique_ptr<RenderPass::ShadowPass> m_ShadowPass;
+
     std::vector<RenderItem> m_RenderItems;
+    std::vector<std::unique_ptr<Buffer>> m_ObjectConstantBuffers;
+    std::unordered_map<const Model*, ModelResources> m_ModelCache;
+
+    std::unique_ptr<Texture> m_DefaultDiffuse;
+    std::unique_ptr<Texture> m_DefaultSpecular;
+    MaterialGPU m_DefaultMaterial{};
 
     bool m_VSync{true};
     bool m_TearingSupported{};

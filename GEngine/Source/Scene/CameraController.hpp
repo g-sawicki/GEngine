@@ -17,12 +17,8 @@ struct CameraInput {
 
 class CameraController {
   public:
-    explicit CameraController(Camera& camera) noexcept : m_Camera(&camera) {}
-
-    CameraController(const CameraController&) = delete;
-    CameraController& operator=(const CameraController&) = delete;
-    CameraController(CameraController&&) = delete;
-    CameraController& operator=(CameraController&&) = delete;
+    CameraController() = default;
+    explicit CameraController(Camera* camera) noexcept : m_Camera(camera) {}
 
     /// Call each frame with the accumulated input for this frame.
     void Update(float deltaTime, const CameraInput& input);
@@ -33,7 +29,7 @@ class CameraController {
     void SetMouseSensitivity(float sensitivity) noexcept { m_MouseSensitivity = sensitivity; }
 
   private:
-    Camera* m_Camera;
+    Camera* m_Camera{};
     float m_MoveSpeed{5.0f};
     float m_MouseSensitivity{0.002f};
 };

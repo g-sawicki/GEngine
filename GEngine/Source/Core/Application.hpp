@@ -24,15 +24,9 @@ class Application {
 
     int Run();
 
-    [[nodiscard]] World& GetWorld() noexcept { return m_World; }
-    [[nodiscard]] const World& GetWorld() const noexcept { return m_World; }
-    [[nodiscard]] Renderer& GetRenderer() noexcept { return m_Renderer; }
-
   protected:
     virtual void OnInit();
     virtual void OnUpdate(float deltaTime) = 0;
-    virtual void OnRender();
-    virtual void OnResize(uint32_t width, uint32_t height);
 
   private:
     void OnDestroy();
@@ -40,9 +34,12 @@ class Application {
     void HandleResize(uint32_t width, uint32_t height);
     LRESULT HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-    std::unique_ptr<Window> m_Window;
+  protected:
     Renderer m_Renderer;
     World m_World;
+
+  private:
+    std::unique_ptr<Window> m_Window;
 
     Specification m_Specification;
     bool m_UseWarp{};

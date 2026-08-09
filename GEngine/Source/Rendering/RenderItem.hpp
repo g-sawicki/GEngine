@@ -7,7 +7,7 @@ namespace GEngine {
 class Buffer;
 class MeshBuffer;
 
-struct Material {
+struct MaterialGPU {
     D3D12_GPU_DESCRIPTOR_HANDLE DiffuseSRV{};
     D3D12_GPU_DESCRIPTOR_HANDLE SpecularSRV{};
 };
@@ -15,8 +15,8 @@ struct Material {
 struct RenderItem {
     const MeshBuffer* Mesh{};
     const Buffer* TransformCB{};
-    const Material Material{};
-    const bool ShadowCaster{true};
+    MaterialGPU Material{};
+    bool ShadowCaster{true};
 };
 
 } // namespace GEngine

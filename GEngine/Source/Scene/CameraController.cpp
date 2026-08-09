@@ -7,6 +7,9 @@
 namespace GEngine {
 
 void CameraController::Update(const float deltaTime, const CameraInput& input) {
+    if (!m_Camera)
+        return;
+
     if (input.MouseDeltaX != 0.0f || input.MouseDeltaY != 0.0f) {
         m_Camera->Rotate(-input.MouseDeltaY * m_MouseSensitivity, input.MouseDeltaX * m_MouseSensitivity);
     }

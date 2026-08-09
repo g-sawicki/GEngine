@@ -2,19 +2,58 @@
 
 #include "World.hpp"
 
+#include "Scene/ModelLoader.hpp"
+
 #include <cfloat>
 #include <cmath>
+#include <stdexcept>
+#include <utility>
 
 namespace GEngine {
 
-Camera& World::CreateCamera(const PerspectiveDesc& desc, const DirectX::XMFLOAT3& position) {
-    m_ActiveCamera = std::make_unique<Camera>(desc);
-    m_ActiveCamera->SetPosition(position);
-    return *m_ActiveCamera;
+Camera& World::CreateCamera(const PerspectiveDesc& desc) {
+    m_Camera.emplace(desc);
+    return *m_Camera;
+}
+
+SceneInfo World::GetSceneInfo() const noexcept {
+    SceneInfo sceneInfo{};
+    if (m_Camera) {
+        DirectX::XMStoreFloat4x4(&sceneInfo.ViewProjection, m_Camera->GetViewProjectionMatrix());
+        sceneInfo.CameraPosition = m_Camera->GetPosition();
+    }
+    sceneInfo.DirectionalLight = m_DirectionalLight;
+    return sceneInfo;
+}
+
+std::shared_ptr<const Model> World::AddModel(Model model) {
+    auto shared = std::make_shared<const Model>(std::move(model));
+    m_ModelAssets.push_back(shared);
+    return shared;
+}
+
+std::shared_ptr<const Model> World::AddModel(const Mesh& mesh, const Material& material) {
+    Model model;
+    model.Meshes.push_back(mesh);
+    model.Materials.push_back(material);
+    return AddModel(std::move(model));
+}
+
+std::shared_ptr<const Material> World::AddMaterial(Material material) {
+    auto shared = std::make_shared<const Material>(std::move(material));
+    m_MaterialAssets.push_back(shared);
+    return shared;
+}
+
+std::shared_ptr<const Model> World::LoadModel(const std::filesystem::path& filepath) {
+    std::expected<Model, std::string> result = ModelLoader::Load(filepath);
+    if (!result)
+        throw std::runtime_error(result.error());
+    return AddModel(std::move(*result));
 }
 
 LightData World::GetLightData() const noexcept {
-    if (!m_ActiveCamera || !m_ShadowCamera)
+    if (!m_Camera || !m_ShadowCamera)
         return LightData{};
 
     LightData lightData{};
@@ -30,15 +69,15 @@ LightData World::GetLightData() const noexcept {
 }
 
 void World::UpdateShadowCamera() {
-    if (!m_ShadowConfig.Enabled || !m_ActiveCamera)
+    if (!m_ShadowConfig.Enabled || !m_Camera)
         return;
 
     constexpr float kFocusDistance = 10.0f;
     constexpr float kLightDistance = 20.0f;
     constexpr float kCoverageScale = 4.0f;
 
-    const DirectX::XMFLOAT3 cameraForwardValue = m_ActiveCamera->GetForward();
-    const DirectX::XMFLOAT3 cameraPositionValue = m_ActiveCamera->GetPosition();
+    const DirectX::XMFLOAT3 cameraForwardValue = m_Camera->GetForward();
+    const DirectX::XMFLOAT3 cameraPositionValue = m_Camera->GetPosition();
 
     const DirectX::XMVECTOR cameraForward = DirectX::XMLoadFloat3(&cameraForwardValue);
     const DirectX::XMVECTOR cameraPosition = DirectX::XMLoadFloat3(&cameraPositionValue);
@@ -51,7 +90,7 @@ void World::UpdateShadowCamera() {
 
     const DirectX::XMVECTOR forward = DirectX::XMVectorScale(lightDirection, 1.0f / std::sqrt(lightDirLengthSq.x));
 
-    const float distance = m_ActiveCamera->GetNearZ() + kFocusDistance;
+    const float distance = m_Camera->GetNearZ() + kFocusDistance;
     const float orthoSize = distance * kCoverageScale;
 
     if (!m_ShadowCamera) {

@@ -60,10 +60,6 @@ int Application::Run() {
 
 void Application::OnInit() {}
 
-void Application::OnRender() {}
-
-void Application::OnResize([[maybe_unused]] uint32_t width, [[maybe_unused]] uint32_t height) {}
-
 void Application::OnDestroy() {
     m_Renderer.Destroy();
 }
@@ -71,28 +67,13 @@ void Application::OnDestroy() {
 void Application::HandleResize(uint32_t width, uint32_t height) {
     m_Renderer.OnResize(width, height);
 
-    // Automatically keep the active camera's aspect ratio in sync with the viewport.
-    if (Camera* camera = m_World.GetActiveCamera()) {
-        const float aspectRatio = static_cast<float>(std::max(1u, width)) / static_cast<float>(std::max(1u, height));
-        camera->SetAspectRatio(aspectRatio);
-    }
-
-    OnResize(width, height);
+    const float aspectRatio = static_cast<float>(std::max(1u, width)) / static_cast<float>(std::max(1u, height));
+    m_World.GetActiveCamera().SetAspectRatio(aspectRatio);
 }
 
 void Application::Render() {
-    const Camera* camera{m_World.GetActiveCamera()};
-    if (!camera)
-        return;
-
-    // Update the shadow camera after the gameplay camera has moved this frame, so the
-    // shadow frustum tracks the camera without a one-frame lag.
     m_World.UpdateShadowCamera();
-
-    const SceneInfo sceneInfo = m_World.GetSceneInfo();
-    const LightData lightData = m_World.GetLightData();
-    OnRender();
-    m_Renderer.Render(sceneInfo, lightData);
+    m_Renderer.Render(m_World);
 }
 
 LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPARAM wParam,

@@ -47,8 +47,8 @@ const Mesh& Cube() {
         20, 21, 22, 22, 23, 20, // bottom
     };
 
-    static const Mesh cube{.vertices = std::vector<Vertex>(std::begin(vertices), std::end(vertices)),
-                           .indices = std::vector<uint16_t>(std::begin(indices), std::end(indices))};
+    static const Mesh cube{.Vertices = std::vector<Vertex>(std::begin(vertices), std::end(vertices)),
+                           .Indices = std::vector<uint32_t>(std::begin(indices), std::end(indices))};
     return cube;
 }
 
@@ -62,8 +62,8 @@ const Mesh& Plane() {
 
     static constexpr uint16_t indices[]{0, 2, 1, 2, 0, 3};
 
-    static const Mesh plane{.vertices = std::vector<Vertex>(std::begin(vertices), std::end(vertices)),
-                            .indices = std::vector<uint16_t>(std::begin(indices), std::end(indices))};
+    static const Mesh plane{.Vertices = std::vector<Vertex>(std::begin(vertices), std::end(vertices)),
+                            .Indices = std::vector<uint32_t>(std::begin(indices), std::end(indices))};
     return plane;
 }
 

@@ -5,11 +5,11 @@
 namespace GEngine {
 
 MeshBuffer::MeshBuffer(Device& device, const Mesh& mesh)
-    : m_VertexStride(static_cast<UINT>(sizeof(mesh.vertices[0]))),
-      m_IndexCount(static_cast<UINT>(mesh.indices.size())) {
-    m_VertexBuffer = std::make_unique<Buffer>(device, mesh.vertices.size() * m_VertexStride, mesh.vertices.data());
+    : m_VertexStride(static_cast<UINT>(sizeof(mesh.Vertices[0]))),
+      m_IndexCount(static_cast<UINT>(mesh.Indices.size())) {
+    m_VertexBuffer = std::make_unique<Buffer>(device, mesh.Vertices.size() * m_VertexStride, mesh.Vertices.data());
     m_IndexBuffer =
-        std::make_unique<Buffer>(device, mesh.indices.size() * sizeof(mesh.indices[0]), mesh.indices.data());
+        std::make_unique<Buffer>(device, mesh.Indices.size() * sizeof(mesh.Indices[0]), mesh.Indices.data());
 }
 
 void MeshBuffer::Draw(CommandList& commandList) const {
