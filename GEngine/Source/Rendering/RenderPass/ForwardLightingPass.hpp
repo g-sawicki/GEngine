@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Core/World.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/Device.hpp"

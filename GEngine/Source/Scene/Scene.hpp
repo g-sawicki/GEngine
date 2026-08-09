@@ -24,14 +24,14 @@ struct SceneInfo {
 };
 static_assert(sizeof(SceneInfo) == 108);
 
-class World {
+class Scene {
   public:
-    World() = default;
+    Scene() = default;
 
-    World(const World&) = delete;
-    World& operator=(const World&) = delete;
-    World(World&&) = delete;
-    World& operator=(World&&) = delete;
+    Scene(const Scene&) = delete;
+    Scene& operator=(const Scene&) = delete;
+    Scene(Scene&&) = delete;
+    Scene& operator=(Scene&&) = delete;
 
     Camera& CreateCamera(const PerspectiveDesc& desc);
     [[nodiscard]] Camera& GetActiveCamera() noexcept {

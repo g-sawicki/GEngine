@@ -68,12 +68,12 @@ void Application::HandleResize(uint32_t width, uint32_t height) {
     m_Renderer.OnResize(width, height);
 
     const float aspectRatio = static_cast<float>(std::max(1u, width)) / static_cast<float>(std::max(1u, height));
-    m_World.GetActiveCamera().SetAspectRatio(aspectRatio);
+    m_Scene.GetActiveCamera().SetAspectRatio(aspectRatio);
 }
 
 void Application::Render() {
-    m_World.UpdateShadowCamera();
-    m_Renderer.Render(m_World);
+    m_Scene.UpdateShadowCamera();
+    m_Renderer.Render(m_Scene);
 }
 
 LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPARAM wParam,

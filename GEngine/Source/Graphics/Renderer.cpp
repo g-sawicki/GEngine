@@ -245,7 +245,7 @@ ComPtr<ID3D12Resource> Renderer::CreateDepthBuffer(uint32_t width, uint32_t heig
     return depthBuffer;
 }
 
-void Renderer::Render(const World& world) {
+void Renderer::Render(const Scene& scene) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
 
@@ -264,7 +264,7 @@ void Renderer::Render(const World& world) {
     CD3DX12_CPU_DESCRIPTOR_HANDLE shadowMapDSV(depthDsv, 1, m_DSVDescriptorSize);
 
     // Build one RenderItem per entity mesh; GPU resources are uploaded on first use and cached per Model asset.
-    const auto& entities = world.GetEntityManager().GetEntities();
+    const auto& entities = scene.GetEntityManager().GetEntities();
     if (m_ObjectConstantBuffers.size() < entities.size())
         m_ObjectConstantBuffers.resize(entities.size());
     m_RenderItems.clear();
@@ -291,8 +291,8 @@ void Renderer::Render(const World& world) {
         }
     }
 
-    const SceneInfo sceneInfo = world.GetSceneInfo();
-    const LightData lightData = world.GetLightData();
+    const SceneInfo sceneInfo = scene.GetSceneInfo();
+    const LightData lightData = scene.GetLightData();
 
     frame.SceneInfoConstantBuffer->Write(&sceneInfo, sizeof(sceneInfo));
     frame.LightDataConstantBuffer->Write(&lightData, sizeof(lightData));

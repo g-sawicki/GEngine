@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/World.hpp"
 #include "Graphics/Renderer.hpp"
 #include "Platform/Windows/Window.hpp"
+#include "Scene/scene.hpp"
 
 namespace GEngine {
 
@@ -36,7 +36,7 @@ class Application {
 
   protected:
     Renderer m_Renderer;
-    World m_World;
+    Scene m_Scene;
 
   private:
     std::unique_ptr<Window> m_Window;

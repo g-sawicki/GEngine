@@ -13,7 +13,7 @@
 using namespace DirectX;
 
 Playground::Playground(Specification specification) : Application(specification) {
-    GEngine::Camera& camera = m_World.CreateCamera({
+    GEngine::Camera& camera = m_Scene.CreateCamera({
         .FovDegrees = 70.0f,
         .AspectRatio = static_cast<float>(specification.width) / static_cast<float>(specification.height),
         .NearZ = 0.1f,
@@ -25,7 +25,7 @@ Playground::Playground(Specification specification) : Application(specification)
 void Playground::OnInit() {
     XMFLOAT3 lightDirection;
     XMStoreFloat3(&lightDirection, XMVector3Normalize(XMVectorSet(1.0f, -4.0f, 2.0f, 0.0f)));
-    m_World.SetDirectionalLight({
+    m_Scene.SetDirectionalLight({
         .Direction = lightDirection,
         .Intensity = 1.0f,
         .Color = {1.0f, 1.0f, 1.0f},
@@ -36,15 +36,15 @@ void Playground::OnInit() {
         .Specular = GEngine::Image{"Assets\\Textures\\Container\\container2_specular.png"},
     };
 
-    const auto cubeModel = m_World.AddModel(GEngine::MeshFactory::Cube(), containerMaterial);
-    const auto planeModel = m_World.AddModel(GEngine::MeshFactory::Plane(), containerMaterial);
-    const auto porscheModel = m_World.LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
+    const auto cubeModel = m_Scene.AddModel(GEngine::MeshFactory::Cube(), containerMaterial);
+    const auto planeModel = m_Scene.AddModel(GEngine::MeshFactory::Plane(), containerMaterial);
+    const auto porscheModel = m_Scene.LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
 
     // Cubes at random positions
     using RNG = GEngine::MersenneTwister;
     RNG::Seed(42);
     for (uint32_t i{}; i < 10; ++i) {
-        m_World.GetEntityManager().SpawnEntity(cubeModel, GEngine::Transform::FromPosition({
+        m_Scene.GetEntityManager().SpawnEntity(cubeModel, GEngine::Transform::FromPosition({
                                                               RNG::GetRandom(-10.0f, 10.0f),
                                                               RNG::GetRandom(0.5f, 10.0f),
                                                               RNG::GetRandom(-10.0f, 10.0f),
@@ -52,13 +52,13 @@ void Playground::OnInit() {
     }
 
     // Ground plane
-    m_World.GetEntityManager().SpawnEntity(planeModel, GEngine::Transform::FromScale({50.0f, 1.0f, 50.0f}));
+    m_Scene.GetEntityManager().SpawnEntity(planeModel, GEngine::Transform::FromScale({50.0f, 1.0f, 50.0f}));
 
     // Porsche
-    m_World.GetEntityManager().SpawnEntity(porscheModel);
+    m_Scene.GetEntityManager().SpawnEntity(porscheModel);
 
     // Debug cube tracking the shadow camera eye
-    m_ShadowCube = m_World.GetEntityManager().SpawnEntity(cubeModel, {}, false);
+    m_ShadowCube = m_Scene.GetEntityManager().SpawnEntity(cubeModel, {}, false);
 }
 
 void Playground::OnUpdate(float deltaTime) {
@@ -101,8 +101,8 @@ void Playground::UpdateCamera(float deltaTime) {
 }
 
 void Playground::UpdateShadowCubePosition() {
-    const auto& shadowCamera = m_World.GetShadowCamera();
+    const auto& shadowCamera = m_Scene.GetShadowCamera();
     if (!shadowCamera)
         return;
-    m_World.GetEntityManager().GetEntity(m_ShadowCube).Transform.Position = shadowCamera->GetPosition();
+    m_Scene.GetEntityManager().GetEntity(m_ShadowCube).Transform.Position = shadowCamera->GetPosition();
 }

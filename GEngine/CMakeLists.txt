@@ -15,8 +15,6 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Core/Application.hpp"
     "Source/Core/Input.cpp"
     "Source/Core/Input.hpp"
-    "Source/Core/World.cpp"
-    "Source/Core/World.hpp"
 
     "Source/Graphics/D3D12/Buffer.cpp"
     "Source/Graphics/D3D12/Buffer.hpp"
@@ -69,6 +67,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Scene/Model.hpp"
     "Source/Scene/ModelLoader.cpp"
     "Source/Scene/ModelLoader.hpp"
+    "Source/Scene/Scene.cpp"
+    "Source/Scene/Scene.hpp"
     "Source/Scene/Transform.hpp"
 
     "Source/PCH.hpp"

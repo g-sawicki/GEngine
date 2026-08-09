@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/World.hpp"
+#include "Scene/Scene.hpp"
 
 #include "Core/Utility/Image.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
@@ -43,7 +43,7 @@ class Renderer {
     void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp);
     void Destroy();
 
-    void Render(const World& world);
+    void Render(const Scene& scene);
     void OnResize(uint32_t width, uint32_t height);
 
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }

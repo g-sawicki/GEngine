@@ -1,6 +1,6 @@
 #include "PCH.hpp"
 
-#include "World.hpp"
+#include "Scene.hpp"
 
 #include "Scene/ModelLoader.hpp"
 
@@ -11,12 +11,12 @@
 
 namespace GEngine {
 
-Camera& World::CreateCamera(const PerspectiveDesc& desc) {
+Camera& Scene::CreateCamera(const PerspectiveDesc& desc) {
     m_Camera.emplace(desc);
     return *m_Camera;
 }
 
-SceneInfo World::GetSceneInfo() const noexcept {
+SceneInfo Scene::GetSceneInfo() const noexcept {
     SceneInfo sceneInfo{};
     if (m_Camera) {
         DirectX::XMStoreFloat4x4(&sceneInfo.ViewProjection, m_Camera->GetViewProjectionMatrix());
@@ -26,33 +26,33 @@ SceneInfo World::GetSceneInfo() const noexcept {
     return sceneInfo;
 }
 
-std::shared_ptr<const Model> World::AddModel(Model model) {
+std::shared_ptr<const Model> Scene::AddModel(Model model) {
     auto shared = std::make_shared<const Model>(std::move(model));
     m_ModelAssets.push_back(shared);
     return shared;
 }
 
-std::shared_ptr<const Model> World::AddModel(const Mesh& mesh, const Material& material) {
+std::shared_ptr<const Model> Scene::AddModel(const Mesh& mesh, const Material& material) {
     Model model;
     model.Meshes.push_back(mesh);
     model.Materials.push_back(material);
     return AddModel(std::move(model));
 }
 
-std::shared_ptr<const Material> World::AddMaterial(Material material) {
+std::shared_ptr<const Material> Scene::AddMaterial(Material material) {
     auto shared = std::make_shared<const Material>(std::move(material));
     m_MaterialAssets.push_back(shared);
     return shared;
 }
 
-std::shared_ptr<const Model> World::LoadModel(const std::filesystem::path& filepath) {
+std::shared_ptr<const Model> Scene::LoadModel(const std::filesystem::path& filepath) {
     std::expected<Model, std::string> result = ModelLoader::Load(filepath);
     if (!result)
         throw std::runtime_error(result.error());
     return AddModel(std::move(*result));
 }
 
-LightData World::GetLightData() const noexcept {
+LightData Scene::GetLightData() const noexcept {
     if (!m_Camera || !m_ShadowCamera)
         return LightData{};
 
@@ -68,7 +68,7 @@ LightData World::GetLightData() const noexcept {
     return lightData;
 }
 
-void World::UpdateShadowCamera() {
+void Scene::UpdateShadowCamera() {
     if (!m_ShadowConfig.Enabled || !m_Camera)
         return;
 
