@@ -19,6 +19,7 @@ Playground::Playground(Specification specification) : Application(specification)
         .NearZ = 0.1f,
         .FarZ = 1000.0f,
     });
+    camera.SetPosition({20.0f, 6.0f, 20.0f});
     m_CameraController = GEngine::CameraController(&camera);
 }
 
@@ -39,6 +40,7 @@ void Playground::OnInit() {
     const auto cubeModel = m_Scene.AddModel(GEngine::MeshFactory::Cube(), containerMaterial);
     const auto planeModel = m_Scene.AddModel(GEngine::MeshFactory::Plane(), containerMaterial);
     const auto porscheModel = m_Scene.LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
+    const auto sponzaModel = m_Scene.LoadModel("Assets\\Models\\Sponza\\glTF\\Sponza.gltf");
 
     // Cubes at random positions
     using RNG = GEngine::MersenneTwister;
@@ -56,6 +58,9 @@ void Playground::OnInit() {
 
     // Porsche
     m_Scene.GetEntityManager().SpawnEntity(porscheModel);
+
+    // Sponza
+    m_Scene.GetEntityManager().SpawnEntity(sponzaModel, GEngine::Transform{.Position = {20.0f, 5.0f, 20.0f}});
 
     // Debug cube tracking the shadow camera eye
     m_ShadowCube = m_Scene.GetEntityManager().SpawnEntity(cubeModel, {}, false);
