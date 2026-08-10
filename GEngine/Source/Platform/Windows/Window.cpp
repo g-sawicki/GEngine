@@ -41,8 +41,9 @@ void Window::RegisterWindowClass(HINSTANCE hInstance) {
         .hIconSm = ::LoadIcon(hInstance, nullptr),
     };
 
-    ATOM atom{::RegisterClassExW(&windowClass)};
-    assert(atom > 0);
+    const ATOM atom{::RegisterClassExW(&windowClass)};
+    if (atom == 0)
+        throw std::runtime_error("Failed to register the window class");
     classRegistered = true;
 }
 
