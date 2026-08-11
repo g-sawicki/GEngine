@@ -19,7 +19,7 @@ std::expected<Model, std::string> ModelLoader::Load(const std::filesystem::path&
     Assimp::Importer importer;
 
     const aiScene* pScene =
-        importer.ReadFile(filepath.string(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_FlipUVs |
+        importer.ReadFile(filepath.string(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded |
                                                  aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
     if (pScene == nullptr)
         return std::unexpected(std::string(importer.GetErrorString()));

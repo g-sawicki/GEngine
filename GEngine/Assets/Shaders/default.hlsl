@@ -80,6 +80,8 @@ float ComputeShadow(float4 positionLightSpace) {
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 diffuseTex = diffuseMap.Sample(texSampler, input.uv);
+    if (diffuseTex.a < 0.01f)
+        discard;
     float4 specularTex = specularMap.Sample(texSampler, input.uv);
     float4 normalTex = normalMap.Sample(texSampler, input.uv);
 
