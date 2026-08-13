@@ -18,7 +18,8 @@ Texture::Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle de
     const auto width = static_cast<UINT64>(image.GetWidth());
     const auto height = static_cast<UINT>(image.GetHeight());
     const UINT64 srcRowPitch = image.GetRowPitch();
-    const UINT64 uploadSize = RoundUp<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(srcRowPitch) * height;
+    const UINT64 alignedRowPitch = RoundUp<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(srcRowPitch);
+    const UINT64 uploadSize = alignedRowPitch * height;
 
     // Create the default-heap texture resource.
     {
