@@ -4,6 +4,7 @@
 
 #include "CommandList.hpp"
 #include "CommandQueue.hpp"
+#include "Core/Utility/Common.hpp"
 #include "Core/Utility/Image.hpp"
 #include "D3D12Common.hpp"
 
@@ -17,11 +18,7 @@ Texture::Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle de
     const auto width = static_cast<UINT64>(image.GetWidth());
     const auto height = static_cast<UINT>(image.GetHeight());
     const UINT64 srcRowPitch = image.GetRowPitch();
-
-    // D3D12 requires row pitch in copy footprints to be aligned to 256 bytes.
-    static constexpr UINT64 kRowPitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
-    const UINT64 alignedRowPitch = (srcRowPitch + kRowPitchAlignment - 1) & ~(kRowPitchAlignment - 1);
-    const UINT64 uploadSize = alignedRowPitch * height;
+    const UINT64 uploadSize = RoundUp<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(srcRowPitch) * height;
 
     // Create the default-heap texture resource.
     {
