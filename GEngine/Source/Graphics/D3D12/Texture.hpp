@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DescriptorHeap.hpp"
 #include "Device.hpp"
 
 #include <cstdint>
@@ -12,8 +13,7 @@ class Image;
 
 class Texture {
   public:
-    Texture(Device& device, CommandQueue& commandQueue, ID3D12DescriptorHeap* srvHeap, UINT srvDescriptorSize,
-            UINT srvIndex, const Image& image);
+    Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle descriptorHandle, const Image& image);
     ~Texture() = default;
 
     Texture(const Texture&) = delete;

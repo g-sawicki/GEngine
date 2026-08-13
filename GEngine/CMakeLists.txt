@@ -10,9 +10,13 @@ compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_5" "shadow_pass_ps.h")
 
 target_sources(${PROJECT_NAME} PRIVATE
     "Source/Core/Utility/Image.cpp"
+    "Source/Core/Utility/Image.hpp"
+    "Source/Core/Utility/Common.hpp"
+    "Source/Core/Utility/MersenneTwister.hpp"
     
     "Source/Core/Application.cpp"
     "Source/Core/Application.hpp"
+    "Source/Core/CommandLine.hpp"
     "Source/Core/Input.cpp"
     "Source/Core/Input.hpp"
 
@@ -22,7 +26,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/D3D12/CommandList.hpp"
     "Source/Graphics/D3D12/CommandQueue.cpp"
     "Source/Graphics/D3D12/CommandQueue.hpp"
-    "Source/Graphics/D3D12/Common.hpp"
+    "Source/Graphics/D3D12/D3D12Common.hpp"
+    "Source/Graphics/D3D12/DescriptorHeap.cpp"
+    "Source/Graphics/D3D12/DescriptorHeap.hpp"
     "Source/Graphics/D3D12/Device.cpp"
     "Source/Graphics/D3D12/Device.hpp"
     "Source/Graphics/D3D12/Fence.cpp"

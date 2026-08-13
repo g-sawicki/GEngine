@@ -4,14 +4,16 @@
 
 #include "CommandList.hpp"
 #include "CommandQueue.hpp"
-#include "Common.hpp"
 #include "Core/Utility/Image.hpp"
+#include "D3D12Common.hpp"
 
 namespace GEngine {
 
-Texture::Texture(Device& device, CommandQueue& commandQueue, ID3D12DescriptorHeap* srvHeap, UINT srvDescriptorSize,
-                 UINT srvIndex, const Image& image)
+Texture::Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle descriptorHandle, const Image& image)
     : m_Format(image.GetDXGIFormat()) {
+    assert(descriptorHandle.cpuHandle.ptr != 0);
+    assert(descriptorHandle.gpuHandle.ptr != 0);
+
     const auto width = static_cast<UINT64>(image.GetWidth());
     const auto height = static_cast<UINT>(image.GetHeight());
     const UINT64 srcRowPitch = image.GetRowPitch();
@@ -33,23 +35,14 @@ Texture::Texture(Device& device, CommandQueue& commandQueue, ID3D12DescriptorHea
 
     // Create the SRV.
     {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle{srvHeap->GetCPUDescriptorHandleForHeapStart(),
-                                                static_cast<INT>(srvIndex), srvDescriptorSize};
-
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{
             .Format = m_Format,
             .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
             .Texture2D = {.MipLevels = 1},
         };
-        device.Get()->CreateShaderResourceView(m_Resource.Get(), &srvDesc, cpuHandle);
-    }
-
-    // Compute the GPU handle for binding.
-    {
-        CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle{srvHeap->GetGPUDescriptorHandleForHeapStart(),
-                                                static_cast<INT>(srvIndex), srvDescriptorSize};
-        m_SRV = gpuHandle;
+        device.Get()->CreateShaderResourceView(m_Resource.Get(), &srvDesc, descriptorHandle.cpuHandle);
+        m_SRV = descriptorHandle.gpuHandle;
     }
 
     // Create upload buffer and copy pixel data.

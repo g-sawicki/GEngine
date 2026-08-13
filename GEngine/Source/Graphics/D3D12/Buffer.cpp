@@ -2,7 +2,7 @@
 
 #include "Buffer.hpp"
 
-#include "Common.hpp"
+#include "D3D12Common.hpp"
 
 namespace GEngine {
 

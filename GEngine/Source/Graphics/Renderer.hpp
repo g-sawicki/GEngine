@@ -6,6 +6,7 @@
 #include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/CommandQueue.hpp"
+#include "Graphics/D3D12/DescriptorHeap.hpp"
 #include "Graphics/D3D12/Device.hpp"
 #include "Graphics/D3D12/Fence.hpp"
 #include "Graphics/D3D12/PipelineState.hpp"
@@ -76,17 +77,13 @@ class Renderer {
 
     FrameResource m_FrameResources[SwapChain::NumFrames]{};
 
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVDescriptorHeap;
-    UINT m_RTVDescriptorSize{};
+    DescriptorHeap m_RTVDescriptorHeap;
+    DescriptorHeap m_DSVDescriptorHeap;
+    DescriptorHeap m_CbvSrvUavDescriptorHeap;
 
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DSVDescriptorHeap;
-    UINT m_DSVDescriptorSize{};
-
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_TextureSRVHeap;
-    UINT m_TextureSRVDescriptorSize{};
-    UINT m_NextTextureSRVIndex{};
-    static constexpr UINT kMaxTextures = 256;
-    static constexpr UINT kShadowMapSRVIndex = kMaxTextures;
+    D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandles[SwapChain::NumFrames]{};
+    D3D12_CPU_DESCRIPTOR_HANDLE m_DepthStencilView{};
+    D3D12_CPU_DESCRIPTOR_HANDLE m_ShadowMapView{};
 
     static constexpr DXGI_FORMAT s_DepthStencilResourceFormat{DXGI_FORMAT_R32_TYPELESS};
     static constexpr DXGI_FORMAT s_DepthStencilFormat{DXGI_FORMAT_D32_FLOAT};
