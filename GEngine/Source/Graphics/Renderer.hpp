@@ -51,6 +51,7 @@ class Renderer {
 
     void SetVSync(bool enabled) noexcept { m_VSync = enabled; }
     [[nodiscard]] bool IsVSyncEnabled() const noexcept { return m_VSync; }
+    [[nodiscard]] bool IsTearingSupported() const noexcept { return m_TearingSupported; }
 
   private:
     struct ModelResources {
@@ -77,9 +78,9 @@ class Renderer {
 
     FrameResource m_FrameResources[SwapChain::NumFrames]{};
 
-    DescriptorHeap m_RTVDescriptorHeap;
-    DescriptorHeap m_DSVDescriptorHeap;
-    DescriptorHeap m_CbvSrvUavDescriptorHeap;
+    DescriptorHeap m_RTVDescriptorHeap{};
+    DescriptorHeap m_DSVDescriptorHeap{};
+    DescriptorHeap m_CbvSrvUavDescriptorHeap{};
 
     D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandles[SwapChain::NumFrames]{};
     D3D12_CPU_DESCRIPTOR_HANDLE m_DepthStencilView{};
@@ -106,7 +107,7 @@ class Renderer {
     std::unique_ptr<Texture> m_DefaultNormal;
     MaterialGPU m_DefaultMaterial{};
 
-    bool m_VSync{true};
+    bool m_VSync{false};
     bool m_TearingSupported{};
 };
 

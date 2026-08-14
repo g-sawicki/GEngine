@@ -2,12 +2,32 @@
 
 #include "Device.hpp"
 
+#include <memory>
+
 namespace GEngine {
+
+class CommandQueue;
+
+enum class BufferMiscFlags : uint32_t {
+    None = 0,
+    ConstantBuffer = 1 << 0,  // requires 256-byte alignment for CBV
+};
+
+[[nodiscard]] constexpr bool HasFlag(BufferMiscFlags flags, BufferMiscFlags flag) noexcept {
+    return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(flag)) != 0;
+}
+
+struct BufferDesc {
+    UINT64 Size{};
+    D3D12_HEAP_TYPE HeapType{D3D12_HEAP_TYPE_DEFAULT};
+    D3D12_RESOURCE_FLAGS Flags{D3D12_RESOURCE_FLAG_NONE};
+    BufferMiscFlags MiscFlags{BufferMiscFlags::None};
+};
 
 class Buffer {
   public:
-    Buffer(Device& device, UINT64 size, const void* initialData = nullptr);
-    Buffer(Device& device, const D3D12_HEAP_PROPERTIES& heapProps, const D3D12_RESOURCE_DESC& desc);
+    Buffer() = default;
+    Buffer(Device& device, CommandQueue& commandQueue, const BufferDesc& desc, const void* initialData = nullptr);
 
     [[nodiscard]] ID3D12Resource* Get() const noexcept { return m_Resource.Get(); }
     [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const noexcept {
@@ -31,6 +51,7 @@ class Buffer {
   private:
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
     UINT64 m_Size{};
+    D3D12_HEAP_TYPE m_HeapType{};
 };
 
 } // namespace GEngine

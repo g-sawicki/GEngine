@@ -54,13 +54,17 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
         m_FrameResources[i].CommandList = std::make_unique<CommandList>(
             *m_Device, m_FrameResources[i].CommandAllocator.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-        static constexpr UINT64 kSceneInfoCBSize =
-            RoundUp<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(sizeof(SceneInfo));
-        m_FrameResources[i].SceneInfoConstantBuffer = std::make_unique<Buffer>(*m_Device, kSceneInfoCBSize);
+        const BufferDesc sceneInfoCbDesc{.Size = sizeof(SceneInfo),
+                                         .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+                                         .MiscFlags = BufferMiscFlags::ConstantBuffer};
+        m_FrameResources[i].SceneInfoConstantBuffer =
+            std::make_unique<Buffer>(*m_Device, *m_CommandQueue, sceneInfoCbDesc);
 
-        static constexpr UINT64 kLightDataCBSize =
-            RoundUp<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(sizeof(LightData));
-        m_FrameResources[i].LightDataConstantBuffer = std::make_unique<Buffer>(*m_Device, kLightDataCBSize);
+        const BufferDesc lightDataCbDesc{.Size = sizeof(LightData),
+                                         .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+                                         .MiscFlags = BufferMiscFlags::ConstantBuffer};
+        m_FrameResources[i].LightDataConstantBuffer =
+            std::make_unique<Buffer>(*m_Device, *m_CommandQueue, lightDataCbDesc);
     }
 
     m_Fence = std::make_unique<Fence>(*m_Device);
@@ -106,8 +110,9 @@ void Renderer::Destroy() {
 }
 
 std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
-    const UINT64 alignedSize = RoundUp<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(size);
-    return std::make_unique<Buffer>(*m_Device, alignedSize);
+    const BufferDesc desc{
+        .Size = size, .HeapType = D3D12_HEAP_TYPE_UPLOAD, .MiscFlags = BufferMiscFlags::ConstantBuffer};
+    return std::make_unique<Buffer>(*m_Device, *m_CommandQueue, desc);
 }
 
 std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
@@ -116,7 +121,7 @@ std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
 }
 
 std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
-    return std::make_unique<MeshBuffer>(*m_Device, mesh);
+    return std::make_unique<MeshBuffer>(*m_Device, *m_CommandQueue, mesh);
 }
 
 void Renderer::EnsureDefaultMaterial() {
