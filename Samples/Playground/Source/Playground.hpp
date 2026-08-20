@@ -12,10 +12,8 @@ class Playground final : public GEngine::Application {
 
   private:
     void UpdateCamera(float deltaTime);
-    void UpdateShadowCubePosition();
 
     GEngine::CameraController m_CameraController{};
-    GEngine::EntityId m_ShadowCube{};
 
     // Mouse tracking
     POINT m_PrevCursorPos{};

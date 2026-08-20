@@ -63,6 +63,7 @@ class Renderer {
     void UpdateRenderTargetViews();
     void CreateShadowMapSRV();
     Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthBuffer(uint32_t width, uint32_t height);
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthBufferArray(uint32_t width, uint32_t height, uint32_t arraySize);
 
     std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
     std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
@@ -84,13 +85,13 @@ class Renderer {
 
     D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandles[SwapChain::NumFrames]{};
     D3D12_CPU_DESCRIPTOR_HANDLE m_DepthStencilView{};
-    D3D12_CPU_DESCRIPTOR_HANDLE m_ShadowMapView{};
+    D3D12_CPU_DESCRIPTOR_HANDLE m_ShadowMapViews[kMaxCascades]{};
 
     static constexpr DXGI_FORMAT s_DepthStencilResourceFormat{DXGI_FORMAT_R32_TYPELESS};
     static constexpr DXGI_FORMAT s_DepthStencilFormat{DXGI_FORMAT_D32_FLOAT};
     Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthStencilBuffer;
 
-    static constexpr uint32_t s_ShadowMapSize{1024};
+    static constexpr uint32_t s_ShadowMapSize{2048};
     Microsoft::WRL::ComPtr<ID3D12Resource> m_ShadowMapBuffer;
     D3D12_GPU_DESCRIPTOR_HANDLE m_ShadowMapSRV{};
     D3D12_RESOURCE_STATES m_ShadowMapState{D3D12_RESOURCE_STATE_DEPTH_WRITE};

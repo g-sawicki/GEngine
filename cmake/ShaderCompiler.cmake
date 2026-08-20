@@ -24,11 +24,19 @@ function(compile_shader SHADER_FILE ENTRY_POINT PROFILE OUTPUT_HEADER)
         set(DXC_DEBUG_FLAGS /O3 /Qstrip_reflect)
     endif()
 
+    set(SHADER_DEPS "${SHADER_SRC}")
+    file(READ "${SHADER_SRC}" SHADER_CONTENT)
+    string(REGEX MATCHALL "#include[ \t]*\"([^\"]+)\"" SHADER_INCLUDE_MATCHES "${SHADER_CONTENT}")
+    foreach(MATCH IN LISTS SHADER_INCLUDE_MATCHES)
+        string(REGEX REPLACE "#include[ \t]*\"([^\"]+)\"" "\\1" SHADER_INCLUDE_FILE "${MATCH}")
+        list(APPEND SHADER_DEPS "${CMAKE_CURRENT_SOURCE_DIR}/Assets/Shaders/${SHADER_INCLUDE_FILE}")
+    endforeach()
+
     add_custom_command(
         OUTPUT "${SHADER_OUT}"
         COMMAND "${DXC_EXE}" "${SHADER_SRC}" /E "${ENTRY_POINT}" /T "${PROFILE}"
                 /Fh "${SHADER_OUT}" ${DXC_DEBUG_FLAGS} /WX
-        DEPENDS "${SHADER_SRC}"
+        DEPENDS ${SHADER_DEPS}
         COMMENT "Compiling ${PROFILE}: ${SHADER_FILE} (${ENTRY_POINT})"
     )
 endfunction()

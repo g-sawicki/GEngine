@@ -54,21 +54,17 @@ void Playground::OnInit() {
     }
 
     // Ground plane
-    m_Scene.GetEntityManager().SpawnEntity(planeModel, GEngine::Transform::FromScale({50.0f, 1.0f, 50.0f}));
+    m_Scene.GetEntityManager().SpawnEntity(planeModel, GEngine::Transform::FromScale({10000.0f, 1.0f, 10000.0f}));
 
     // Porsche
     m_Scene.GetEntityManager().SpawnEntity(porscheModel);
 
     // Sponza
     m_Scene.GetEntityManager().SpawnEntity(sponzaModel, GEngine::Transform{.Position = {20.0f, 5.0f, 20.0f}});
-
-    // Debug cube tracking the shadow camera eye
-    m_ShadowCube = m_Scene.GetEntityManager().SpawnEntity(cubeModel, {}, false);
 }
 
 void Playground::OnUpdate(float deltaTime) {
     UpdateCamera(deltaTime);
-    UpdateShadowCubePosition();
 }
 
 void Playground::UpdateCamera(float deltaTime) {
@@ -103,11 +99,4 @@ void Playground::UpdateCamera(float deltaTime) {
     }
 
     m_CameraController.Update(deltaTime, input);
-}
-
-void Playground::UpdateShadowCubePosition() {
-    const auto& shadowCamera = m_Scene.GetShadowCamera();
-    if (!shadowCamera)
-        return;
-    m_Scene.GetEntityManager().GetEntity(m_ShadowCube).Transform.Position = shadowCamera->GetPosition();
 }

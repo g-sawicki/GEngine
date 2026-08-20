@@ -17,7 +17,7 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
     m_Device = std::make_unique<Device>(dxgiAdapter4.Get());
 
     m_RTVDescriptorHeap = DescriptorHeap(*m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, SwapChain::NumFrames);
-    m_DSVDescriptorHeap = DescriptorHeap(*m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 2);
+    m_DSVDescriptorHeap = DescriptorHeap(*m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1 + kMaxCascades);
     m_CbvSrvUavDescriptorHeap = DescriptorHeap(*m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024,
                                                D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
@@ -29,20 +29,23 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
         std::make_unique<SwapChain>(dxgiFactory.Get(), hwnd, *m_CommandQueue, width, height, SwapChain::NumFrames);
 
     m_DepthStencilBuffer = CreateDepthBuffer(width, height);
-    m_ShadowMapBuffer = CreateDepthBuffer(s_ShadowMapSize, s_ShadowMapSize);
+    m_ShadowMapBuffer = CreateDepthBufferArray(s_ShadowMapSize, s_ShadowMapSize, kMaxCascades);
 
     for (uint32_t i{}; i < SwapChain::NumFrames; ++i)
         m_RTVHandles[i] = m_RTVDescriptorHeap.Allocate().cpuHandle;
     m_DepthStencilView = m_DSVDescriptorHeap.Allocate().cpuHandle;
-    m_ShadowMapView = m_DSVDescriptorHeap.Allocate().cpuHandle;
+    for (uint32_t i{}; i < kMaxCascades; ++i)
+        m_ShadowMapViews[i] = m_DSVDescriptorHeap.Allocate().cpuHandle;
 
-    D3D12_DEPTH_STENCIL_VIEW_DESC shadowDsvDesc{
-        .Format = s_DepthStencilFormat,
-        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-        .Flags = D3D12_DSV_FLAG_NONE,
-        .Texture2D = {.MipSlice = 0},
-    };
-    m_Device->Get()->CreateDepthStencilView(m_ShadowMapBuffer.Get(), &shadowDsvDesc, m_ShadowMapView);
+    for (uint32_t i{}; i < kMaxCascades; ++i) {
+        D3D12_DEPTH_STENCIL_VIEW_DESC shadowDsvDesc{
+            .Format = s_DepthStencilFormat,
+            .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY,
+            .Flags = D3D12_DSV_FLAG_NONE,
+            .Texture2DArray = {.MipSlice = 0, .FirstArraySlice = i, .ArraySize = 1},
+        };
+        m_Device->Get()->CreateDepthStencilView(m_ShadowMapBuffer.Get(), &shadowDsvDesc, m_ShadowMapViews[i]);
+    }
 
     CreateShadowMapSRV();
 
@@ -117,7 +120,8 @@ std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
 
 std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
     DescriptorHandle handle = m_CbvSrvUavDescriptorHeap.Allocate();
-    return std::make_unique<Texture>(*m_Device, *m_CommandQueue, handle, image);
+    TextureDesc desc{image.GetWidth(), image.GetHeight(), image.GetDXGIFormat()};
+    return std::make_unique<Texture>(*m_Device, *m_CommandQueue, handle, desc, image);
 }
 
 std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
@@ -191,9 +195,9 @@ void Renderer::CreateShadowMapSRV() {
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{
         .Format = DXGI_FORMAT_R32_FLOAT,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY,
         .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2D = {.MipLevels = 1},
+        .Texture2DArray = {.MipLevels = 1, .FirstArraySlice = 0, .ArraySize = kMaxCascades},
     };
     m_Device->Get()->CreateShaderResourceView(m_ShadowMapBuffer.Get(), &srvDesc, handle.cpuHandle);
     m_ShadowMapSRV = handle.gpuHandle;
@@ -228,6 +232,24 @@ ComPtr<ID3D12Resource> Renderer::CreateDepthBuffer(uint32_t width, uint32_t heig
     return depthBuffer;
 }
 
+ComPtr<ID3D12Resource> Renderer::CreateDepthBufferArray(uint32_t width, uint32_t height, uint32_t arraySize) {
+    D3D12_CLEAR_VALUE clearValue{
+        .Format = s_DepthStencilFormat,
+        .DepthStencil = {.Depth = 1.0f, .Stencil = 0},
+    };
+
+    const CD3DX12_HEAP_PROPERTIES heapProps{D3D12_HEAP_TYPE_DEFAULT};
+    const CD3DX12_RESOURCE_DESC desc{
+        CD3DX12_RESOURCE_DESC::Tex2D(s_DepthStencilResourceFormat, static_cast<UINT>(width), static_cast<UINT>(height),
+                                     static_cast<UINT16>(arraySize), 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)};
+
+    ComPtr<ID3D12Resource> depthBuffer;
+    ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
+                                                           D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue,
+                                                           IID_PPV_ARGS(&depthBuffer)));
+    return depthBuffer;
+}
+
 void Renderer::Render(const Scene& scene) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
@@ -242,7 +264,6 @@ void Renderer::Render(const Scene& scene) {
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_RTVHandles[currentIdx];
     D3D12_CPU_DESCRIPTOR_HANDLE depthHandle = m_DepthStencilView;
-    D3D12_CPU_DESCRIPTOR_HANDLE shadowMapHandle = m_ShadowMapView;
 
     // Build one RenderItem per entity mesh; GPU resources are uploaded on first use and cached per Model asset.
     const auto& entities = scene.GetEntityManager().GetEntities();
@@ -290,15 +311,18 @@ void Renderer::Render(const Scene& scene) {
             m_ShadowMapState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
         }
 
-        cmdList->ClearDepthStencilView(shadowMapHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
         D3D12_VIEWPORT viewport{0,    0,   static_cast<FLOAT>(s_ShadowMapSize), static_cast<FLOAT>(s_ShadowMapSize),
                                 0.0f, 1.0f};
         D3D12_RECT scissorRect{0, 0, static_cast<UINT>(s_ShadowMapSize), static_cast<UINT>(s_ShadowMapSize)};
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);
 
-        m_ShadowPass->OnRender(*frame.CommandList, shadowMapHandle, *frame.LightDataConstantBuffer, m_RenderItems);
+        const uint32_t cascadeCount = std::min<uint32_t>(lightData.CascadeCount, kMaxCascades);
+        for (uint32_t cascade{}; cascade < cascadeCount; ++cascade) {
+            cmdList->ClearDepthStencilView(m_ShadowMapViews[cascade], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+            m_ShadowPass->OnRender(*frame.CommandList, m_ShadowMapViews[cascade], *frame.LightDataConstantBuffer,
+                                   cascade, m_RenderItems);
+        }
 
         // Make the shadow map sampleable for the forward pass.
         CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(
@@ -311,8 +335,8 @@ void Renderer::Render(const Scene& scene) {
     {
         CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
                                                                               D3D12_RESOURCE_STATE_RENDER_TARGET)};
-
         cmdList->ResourceBarrier(1, &barrier);
+
         static constexpr FLOAT clearColor[]{0.4f, 0.6f, 0.9f, 1.0f};
         cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
         cmdList->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);

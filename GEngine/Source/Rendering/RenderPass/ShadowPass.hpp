@@ -20,7 +20,7 @@ class ShadowPass {
     ShadowPass& operator=(ShadowPass&&) = delete;
 
     void OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE dsv, Buffer& lightDataConstantBuffer,
-                  std::span<const RenderItem> renderItems);
+                  uint32_t cascadeIndex, std::span<const RenderItem> renderItems);
 
   private:
     std::unique_ptr<RootSignature> m_RootSignature;

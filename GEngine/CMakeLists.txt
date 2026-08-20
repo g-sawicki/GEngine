@@ -54,6 +54,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/RenderPass/ShadowPass.cpp"
     "Source/Rendering/RenderPass/ShadowPass.hpp"
 
+    "Source/Rendering/CascadedShadowMaps.cpp"
+    "Source/Rendering/CascadedShadowMaps.hpp"
     "Source/Rendering/Mesh.hpp"
     "Source/Rendering/MeshBuffer.cpp"
     "Source/Rendering/MeshBuffer.hpp"

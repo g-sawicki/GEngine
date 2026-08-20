@@ -20,11 +20,16 @@ cbuffer ObjectConstants : register(b1)
     row_major float4x4 world;
 };
 
+cbuffer CascadeIndex : register(b2)
+{
+    uint cascadeIndex;
+};
+
 PSInput VSMain(VSInput input)
 {
     PSInput output;
     float4 worldPos = mul(input.position, world);
-    output.position = mul(worldPos, lightData.lightViewProjection);
+    output.position = mul(worldPos, lightData.lightViewProjection[cascadeIndex]);
     return output;
 }
 

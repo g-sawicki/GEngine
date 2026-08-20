@@ -10,9 +10,10 @@
 namespace GEngine::RenderPass {
 
 ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_DepthStencilFormat(depthStencilFormat) {
-    CD3DX12_ROOT_PARAMETER rootParams[2]{};
+    CD3DX12_ROOT_PARAMETER rootParams[3]{};
     rootParams[0].InitAsConstantBufferView(0); // b0: LightDataConstants
     rootParams[1].InitAsConstantBufferView(1); // b1: ObjectConstants
+    rootParams[2].InitAsConstants(1, 2);       // b2: CascadeIndex (uint)
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
@@ -48,13 +49,14 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_Depth
 ShadowPass::~ShadowPass() = default;
 
 void ShadowPass::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE dsv, Buffer& lightDataConstantBuffer,
-                          std::span<const RenderItem> renderItems) {
+                          uint32_t cascadeIndex, std::span<const RenderItem> renderItems) {
     auto* cmdList = commandList.GetHandle();
     cmdList->OMSetRenderTargets(0, nullptr, FALSE, &dsv);
     cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
     cmdList->SetPipelineState(m_PipelineState->Get());
 
     cmdList->SetGraphicsRootConstantBufferView(0, lightDataConstantBuffer.GetGPUVirtualAddress());
+    cmdList->SetGraphicsRoot32BitConstant(2, cascadeIndex, 0);
 
     for (const auto& item : renderItems) {
         if (!item.ShadowCaster)

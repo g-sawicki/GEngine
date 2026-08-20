@@ -15,10 +15,12 @@ struct PointLight {
 
 struct LightData
 {
-    row_major float4x4 lightViewProjection;
+    row_major float4x4 lightViewProjection[4];
+    float4 cascadeSplits;
     float shadowMapTexelSize;
     float shadowBias;
     float shadowSlopeScaleBias;
     float normalOffsetScale;
     uint  shadowEnabled;
+    uint  cascadeCount;
 };

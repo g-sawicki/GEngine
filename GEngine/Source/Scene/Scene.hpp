@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Rendering/CascadedShadowMaps.hpp"
 #include "Rendering/Mesh.hpp"
 #include "Scene/Camera.hpp"
 #include "Scene/Entity.hpp"
@@ -20,9 +21,11 @@ struct SceneInfo {
     DirectX::XMFLOAT4X4 ViewProjection;
     DirectX::XMFLOAT3 CameraPosition;
     uint32_t Padding0{};
+    DirectX::XMFLOAT3 CameraForward;
+    uint32_t Padding1{};
     DirectionalLight DirectionalLight;
 };
-static_assert(sizeof(SceneInfo) == 108);
+static_assert(sizeof(SceneInfo) == 124);
 
 class Scene {
   public:
@@ -50,9 +53,8 @@ class Scene {
 
     void SetShadowConfig(const ShadowConfig& shadowConfig) noexcept { m_ShadowConfig = shadowConfig; }
     [[nodiscard]] const ShadowConfig& GetShadowConfig() const noexcept { return m_ShadowConfig; }
-    [[nodiscard]] const std::optional<Camera>& GetShadowCamera() const noexcept { return m_ShadowCamera; }
+    [[nodiscard]] uint8_t GetCascadeCount() const noexcept { return m_CSM.GetCascadeCount(); }
 
-    void UpdateShadowCamera();
     LightData GetLightData() const noexcept;
     SceneInfo GetSceneInfo() const noexcept;
 
@@ -66,7 +68,7 @@ class Scene {
 
   private:
     std::optional<Camera> m_Camera{};
-    std::optional<Camera> m_ShadowCamera{};
+    CascadedShadowMaps m_CSM{};
     DirectionalLight m_DirectionalLight{};
     ShadowConfig m_ShadowConfig{};
 

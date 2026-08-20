@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Image.hpp"
 #include "DescriptorHeap.hpp"
 #include "Device.hpp"
 
@@ -11,9 +12,16 @@ namespace GEngine {
 class CommandQueue;
 class Image;
 
+struct TextureDesc {
+    uint32_t Width;
+    uint32_t Height;
+    DXGI_FORMAT Format;
+};
+
 class Texture {
   public:
-    Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle descriptorHandle, const Image& image);
+    Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle descriptorHandle, const TextureDesc& desc,
+            const Image& image);
     ~Texture() = default;
 
     Texture(const Texture&) = delete;

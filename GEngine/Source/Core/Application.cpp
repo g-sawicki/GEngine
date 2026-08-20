@@ -72,7 +72,6 @@ void Application::HandleResize(uint32_t width, uint32_t height) {
 }
 
 void Application::Render() {
-    m_Scene.UpdateShadowCamera();
     m_Renderer.Render(m_Scene);
 }
 
