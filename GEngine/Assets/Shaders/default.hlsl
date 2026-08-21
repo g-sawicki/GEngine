@@ -73,16 +73,13 @@ float SampleCascadeShadow(float3 worldPos, uint cascade)
     float3 ndc = positionLightSpace.xyz / positionLightSpace.w;
     float2 uv = float2(ndc.x * 0.5f + 0.5f, 1.0f - (ndc.y * 0.5f + 0.5f));
 
-    float slope = max(abs(ddx(ndc.z)), abs(ddy(ndc.z)));
-    float bias = min(lightData.shadowSlopeScaleBias * slope, 0.001f) + lightData.shadowBias;
-
     float shadow = 0.0;
     [[unroll]]
     for (int x = -1; x <= 1; ++x) {
         [[unroll]]
         for (int y = -1; y <= 1; ++y) {
             float2 offset = float2(x, y) * lightData.shadowMapTexelSize;
-            shadow += shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade), ndc.z - bias);
+            shadow += shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade), ndc.z - lightData.shadowBias);
         }
     }
 
