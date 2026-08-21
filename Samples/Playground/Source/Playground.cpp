@@ -54,7 +54,7 @@ void Playground::OnInit() {
     }
 
     // Ground plane
-    m_Scene.GetEntityManager().SpawnEntity(planeModel, GEngine::Transform::FromScale({10000.0f, 1.0f, 10000.0f}));
+    m_Scene.GetEntityManager().SpawnEntity(planeModel, GEngine::Transform::FromScale({500.0f, 1.0f, 500.0f}), false);
 
     // Porsche
     m_Scene.GetEntityManager().SpawnEntity(porscheModel);
