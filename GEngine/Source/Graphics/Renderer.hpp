@@ -17,6 +17,7 @@
 #include "Rendering/RenderItem.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
+#include "Rendering/RenderPass/ToneMapPass.hpp"
 
 #include <memory>
 #include <unordered_map>
@@ -62,6 +63,8 @@ class Renderer {
 
     void UpdateRenderTargetViews();
     void CreateShadowMapSRV();
+    void CreateHDRSRV();
+    void CreatePresentTarget(uint32_t width, uint32_t height);
     Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthBuffer(uint32_t width, uint32_t height);
     Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthBufferArray(uint32_t width, uint32_t height, uint32_t arraySize);
 
@@ -87,6 +90,14 @@ class Renderer {
     D3D12_CPU_DESCRIPTOR_HANDLE m_DepthStencilView{};
     D3D12_CPU_DESCRIPTOR_HANDLE m_ShadowMapViews[kMaxCascades]{};
 
+    static constexpr DXGI_FORMAT s_HDRFormat{DXGI_FORMAT_R16G16B16A16_FLOAT};
+    std::unique_ptr<Texture> m_HDRRenderTarget;
+    DescriptorHandle m_HDRRTVHandle{};
+    DescriptorHandle m_HDRSRVHandle{};
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> m_PresentTarget;
+    DescriptorHandle m_PresentUAVHandle{};
+
     static constexpr DXGI_FORMAT s_DepthStencilResourceFormat{DXGI_FORMAT_R32_TYPELESS};
     static constexpr DXGI_FORMAT s_DepthStencilFormat{DXGI_FORMAT_D32_FLOAT};
     Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthStencilBuffer;
@@ -96,8 +107,9 @@ class Renderer {
     D3D12_GPU_DESCRIPTOR_HANDLE m_ShadowMapSRV{};
     D3D12_RESOURCE_STATES m_ShadowMapState{D3D12_RESOURCE_STATE_DEPTH_WRITE};
 
-    std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLighting;
     std::unique_ptr<RenderPass::ShadowPass> m_ShadowPass;
+    std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLighting;
+    std::unique_ptr<RenderPass::ToneMapPass> m_ToneMapPass;
 
     std::vector<RenderItem> m_RenderItems;
     std::vector<std::unique_ptr<Buffer>> m_ObjectConstantBuffers;

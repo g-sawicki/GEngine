@@ -2,10 +2,8 @@
 
 #include "ForwardLightingPass.hpp"
 
+#include "Graphics/D3D12/Shader.hpp"
 #include "Rendering/MeshBuffer.hpp"
-
-#include "default_ps.h"
-#include "default_vs.h"
 
 namespace GEngine::RenderPass {
 
@@ -76,10 +74,13 @@ ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT renderTarge
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
+    const Shader vertexShader{"Assets/Shaders/default_vs.cso"};
+    const Shader pixelShader{"Assets/Shaders/default_ps.cso"};
+
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{
         .pRootSignature = m_RootSignature->Get(),
-        .VS = {g_VSMain, sizeof(g_VSMain)},
-        .PS = {g_PSMain, sizeof(g_PSMain)},
+        .VS = vertexShader.GetBytecode(),
+        .PS = pixelShader.GetBytecode(),
         .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
@@ -94,8 +95,6 @@ ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT renderTarge
 
     m_PipelineState = std::make_unique<PipelineState>(device, psoDesc);
 }
-
-ForwardLightingPass::~ForwardLightingPass() = default;
 
 void ForwardLightingPass::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv,
                                    D3D12_CPU_DESCRIPTOR_HANDLE dsv, Buffer& sceneInfoConstantBuffer,

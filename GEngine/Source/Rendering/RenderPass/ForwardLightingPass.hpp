@@ -12,7 +12,6 @@ namespace GEngine::RenderPass {
 class ForwardLightingPass {
   public:
     ForwardLightingPass(Device& device, DXGI_FORMAT renderTargetFormat, DXGI_FORMAT depthStencilFormat);
-    ~ForwardLightingPass();
 
     ForwardLightingPass(const ForwardLightingPass&) = delete;
     ForwardLightingPass& operator=(const ForwardLightingPass&) = delete;

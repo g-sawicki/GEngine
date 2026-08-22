@@ -3,10 +3,24 @@
 # ── Shaders ────────────────────────────────────────────────────────────────────
 include("${CMAKE_SOURCE_DIR}/cmake/ShaderCompiler.cmake")
 set(SHADER_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/Assets/Shaders")
-compile_shader("default.hlsl" "VSMain" "vs_6_5" "default_vs.h")
-compile_shader("default.hlsl" "PSMain" "ps_6_5" "default_ps.h")
-compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_5" "shadow_pass_vs.h")
-compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_5" "shadow_pass_ps.h")
+compile_shader("default.hlsl" "VSMain" "vs_6_5" "default_vs.cso")
+compile_shader("default.hlsl" "PSMain" "ps_6_5" "default_ps.cso")
+compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_5" "shadow_pass_vs.cso")
+compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_5" "shadow_pass_ps.cso")
+compile_shader("tonemap.hlsl" "ToneMapCS" "cs_6_5" "tonemap_cs.cso")
+
+set(GENGINE_SHADERS
+    "${SHADER_GEN_DIR}/default_vs.cso"
+    "${SHADER_GEN_DIR}/default_ps.cso"
+    "${SHADER_GEN_DIR}/shadow_pass_vs.cso"
+    "${SHADER_GEN_DIR}/shadow_pass_ps.cso"
+    "${SHADER_GEN_DIR}/tonemap_cs.cso"
+)
+set(GENGINE_SHADERS "${GENGINE_SHADERS}" PARENT_SCOPE)
+
+# Build the shaders as part of the default build; executables copy them at link time.
+add_custom_target(GEngineShaders ALL DEPENDS ${GENGINE_SHADERS})
+add_dependencies(GEngine GEngineShaders)
 
 target_sources(${PROJECT_NAME} PRIVATE
     "Source/Core/Utility/Image.cpp"
@@ -37,6 +51,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/D3D12/PipelineState.hpp"
     "Source/Graphics/D3D12/RootSignature.cpp"
     "Source/Graphics/D3D12/RootSignature.hpp"
+    "Source/Graphics/D3D12/Shader.cpp"
+    "Source/Graphics/D3D12/Shader.hpp"
     "Source/Graphics/D3D12/SwapChain.cpp"
     "Source/Graphics/D3D12/SwapChain.hpp"
     "Source/Graphics/D3D12/Texture.cpp"
@@ -53,6 +69,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
     "Source/Rendering/RenderPass/ShadowPass.cpp"
     "Source/Rendering/RenderPass/ShadowPass.hpp"
+    "Source/Rendering/RenderPass/ToneMapPass.cpp"
+    "Source/Rendering/RenderPass/ToneMapPass.hpp"
 
     "Source/Rendering/CascadedShadowMaps.cpp"
     "Source/Rendering/CascadedShadowMaps.hpp"
@@ -80,14 +98,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Scene/Transform.hpp"
 
     "Source/PCH.hpp"
-
-    "${SHADER_GEN_DIR}/default_vs.h"
-    "${SHADER_GEN_DIR}/default_ps.h"
-    "${SHADER_GEN_DIR}/shadow_pass_vs.h"
-    "${SHADER_GEN_DIR}/shadow_pass_ps.h"
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${SHADER_GEN_DIR}")
+target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source")
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
 
@@ -99,7 +112,7 @@ endif()
 
 target_precompile_headers(${PROJECT_NAME} PUBLIC "Source/PCH.hpp")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid Microsoft::DirectX-Headers stb assimp)
+target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid d3dcompiler Microsoft::DirectX-Headers stb assimp)
 
 if(WIN32)
     target_link_options(${PROJECT_NAME} INTERFACE /ENTRY:mainCRTStartup)

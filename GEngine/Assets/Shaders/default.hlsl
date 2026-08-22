@@ -1,4 +1,4 @@
-#include "light.hlsli"
+#include "common.hlsli"
 
 struct VSInput
 {
@@ -17,42 +17,28 @@ struct PSInput
     float3 normal : NORMAL;
 };
 
-cbuffer SceneInfo : register(b0)
-{
-    row_major float4x4 viewProjection;
-    float3 cameraPosition;
-    float3 cameraForward;
-    uint padding0;
-    DirectionalLight directionalLight;
-};
-
-cbuffer ObjectConstants : register(b1)
-{
-    row_major float4x4 world;
-};
-
-cbuffer LightDataBuffer : register(b2)
-{
-    LightData lightData;
-};
+ConstantBuffer<SceneInfo> sceneInfo : register(b0);
+ConstantBuffer<ObjectConstants> objectConstants : register(b1);
+ConstantBuffer<LightData> lightData : register(b2);
 
 Texture2D diffuseMap : register(t0);
 Texture2D specularMap : register(t1);
 Texture2D normalMap : register(t2);
 Texture2DArray shadowMap : register(t3);
+
 SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 
 PSInput VSMain(VSInput input)
 {
-    float4 worldPos = mul(input.position, world);
+    float4 worldPos = mul(input.position, objectConstants.world);
 
     PSInput output;
-    output.position = mul(worldPos, viewProjection);
+    output.position = mul(worldPos, sceneInfo.viewProjection);
     output.uv = input.uv;
     output.worldPos = worldPos.xyz;
-    output.tangent = normalize(mul(float4(input.tangent, 0.0f), world).xyz);
-    output.normal = normalize(mul(float4(input.normal, 0.0f), world).xyz);
+    output.tangent = normalize(mul(float4(input.tangent, 0.0f), objectConstants.world).xyz);
+    output.normal = normalize(mul(float4(input.normal, 0.0f), objectConstants.world).xyz);
     return output;
 }
 
@@ -74,9 +60,9 @@ float SampleCascadeShadow(float3 worldPos, uint cascade)
     float2 uv = float2(ndc.x * 0.5f + 0.5f, 1.0f - (ndc.y * 0.5f + 0.5f));
 
     float shadow = 0.0;
-    [[unroll]]
+    [unroll]
     for (int x = -1; x <= 1; ++x) {
-        [[unroll]]
+        [unroll]
         for (int y = -1; y <= 1; ++y) {
             float2 offset = float2(x, y) * lightData.shadowMapTexelSize;
             shadow += shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade), ndc.z - lightData.shadowBias);
@@ -91,7 +77,7 @@ float ComputeShadow(float3 worldPos)
     if (!lightData.shadowEnabled || lightData.cascadeCount == 0)
         return 1.0f;
 
-    float viewDepth = dot(worldPos - cameraPosition, cameraForward);
+    float viewDepth = dot(worldPos - sceneInfo.cameraPosition, sceneInfo.cameraForward);
     uint cascade = SelectCascade(viewDepth);
 
     float split = cascade == 0 ? lightData.cascadeSplits.x :
@@ -122,9 +108,9 @@ float4 PSMain(PSInput input) : SV_TARGET
     float3x3 TBN = float3x3(T, B, N);
     float3 worldNormal = normalize(mul(normalTex.xyz * 2.0f - 1.0f, TBN));
 
-    float3 L = normalize(directionalLight.direction);
-    float3 V = normalize(cameraPosition - input.worldPos);
-    float3 directionalLightColor = directionalLight.color * directionalLight.intensity;
+    float3 L = normalize(sceneInfo.directionalLight.direction);
+    float3 V = normalize(sceneInfo.cameraPosition - input.worldPos);
+    float3 directionalLightColor = sceneInfo.directionalLight.color * sceneInfo.directionalLight.intensity;
     float NdotL = saturate(dot(worldNormal, -L));
 
     float shadow = ComputeShadow(input.worldPos);

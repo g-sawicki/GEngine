@@ -2,10 +2,8 @@
 
 #include "ShadowPass.hpp"
 
+#include "Graphics/D3D12/Shader.hpp"
 #include "Rendering/MeshBuffer.hpp"
-
-#include "shadow_pass_ps.h"
-#include "shadow_pass_vs.h"
 
 namespace GEngine::RenderPass {
 
@@ -27,10 +25,13 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_Depth
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
+    const Shader vertexShader{"Assets/Shaders/shadow_pass_vs.cso"};
+    const Shader pixelShader{"Assets/Shaders/shadow_pass_ps.cso"};
+
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{
         .pRootSignature = m_RootSignature->Get(),
-        .VS = {g_VSMain, sizeof(g_VSMain)},
-        .PS = {g_PSMain, sizeof(g_PSMain)},
+        .VS = vertexShader.GetBytecode(),
+        .PS = pixelShader.GetBytecode(),
         .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),

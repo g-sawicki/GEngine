@@ -10,11 +10,28 @@
 
 namespace GEngine {
 
-Texture::Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle descriptorHandle, const TextureDesc& desc,
+Texture::Texture(Device& device, DescriptorHandle rtvHandle, const TextureDesc& desc,
+                 const std::optional<D3D12_CLEAR_VALUE>& clearValue)
+    : m_Format(desc.Format), m_DescriptorHandle(rtvHandle) {
+    assert(rtvHandle.cpuHandle.ptr != 0);
+
+    const CD3DX12_RESOURCE_DESC resourceDesc{CD3DX12_RESOURCE_DESC::Tex2D(m_Format, static_cast<UINT64>(desc.Width),
+                                                                          static_cast<UINT>(desc.Height), 1, 1, 1, 0,
+                                                                          D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)};
+    const CD3DX12_HEAP_PROPERTIES heapProps{D3D12_HEAP_TYPE_DEFAULT};
+
+    ThrowIfFailed(device.Get()->CreateCommittedResource(
+        &heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+        clearValue ? &*clearValue : nullptr, IID_PPV_ARGS(&m_Resource)));
+
+    device.Get()->CreateRenderTargetView(m_Resource.Get(), nullptr, rtvHandle.cpuHandle);
+}
+
+Texture::Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle srvHandle, const TextureDesc& desc,
                  const Image& image)
-    : m_Format(desc.Format) {
-    assert(descriptorHandle.cpuHandle.ptr != 0);
-    assert(descriptorHandle.gpuHandle.ptr != 0);
+    : m_Format(desc.Format), m_DescriptorHandle(srvHandle) {
+    assert(srvHandle.cpuHandle.ptr != 0);
+    assert(srvHandle.gpuHandle.ptr != 0);
 
     const auto width = static_cast<UINT64>(desc.Width);
     const auto height = static_cast<UINT>(desc.Height);
@@ -28,8 +45,7 @@ Texture::Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle de
         bytesPerPixel = 4;
 
     const UINT64 srcRowPitch = image.GetRowPitch();
-    const UINT64 expectedRowPitch = width * bytesPerPixel;
-    const UINT64 alignedRowPitch = RoundUp<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(expectedRowPitch);
+    const UINT64 alignedRowPitch = RoundUp<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(width * bytesPerPixel);
     const UINT64 uploadSize = alignedRowPitch * height;
 
     // Create the default-heap texture resource.
@@ -50,8 +66,7 @@ Texture::Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle de
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
             .Texture2D = {.MipLevels = 1},
         };
-        device.Get()->CreateShaderResourceView(m_Resource.Get(), &srvDesc, descriptorHandle.cpuHandle);
-        m_SRV = descriptorHandle.gpuHandle;
+        device.Get()->CreateShaderResourceView(m_Resource.Get(), &srvDesc, srvHandle.cpuHandle);
     }
 
     // Create upload buffer and copy pixel data.
@@ -69,6 +84,8 @@ Texture::Texture(Device& device, CommandQueue& commandQueue, DescriptorHandle de
         auto* dst = static_cast<uint8_t*>(mapped);
         const auto* src = image.GetData().data();
         const uint8_t imageBytesPerPixel = image.GetChannelCount();
+
+        assert(srcRowPitch <= alignedRowPitch);
 
         // Handle channel expansion (3->4 bytes per pixel)
         if (imageBytesPerPixel == 3 && bytesPerPixel == 4) {

@@ -24,8 +24,12 @@ struct SceneInfo {
     DirectX::XMFLOAT3 CameraForward;
     uint32_t Padding1{};
     DirectionalLight DirectionalLight;
+    uint32_t Padding2{};
+    uint32_t ScreenResolution[2]{};
+    uint32_t Padding3{};
+    uint32_t Padding4{};
 };
-static_assert(sizeof(SceneInfo) == 124);
+static_assert(sizeof(SceneInfo) == 144);
 
 class Scene {
   public:
