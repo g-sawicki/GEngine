@@ -1,12 +1,22 @@
 #pragma once
 
-#include "Device.hpp"
-
 namespace GEngine {
 
+class Device;
+
 struct DescriptorHandle {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE CpuHandle;
+    UINT Index;
+};
+
+struct DescriptorRange {
+    D3D12_CPU_DESCRIPTOR_HANDLE Base{};
+    UINT Stride{};
+    UINT Count{};
+
+    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(UINT index) const noexcept {
+        return {Base.ptr + static_cast<SIZE_T>(index) * Stride};
+    }
 };
 
 class DescriptorHeap {
@@ -20,7 +30,14 @@ class DescriptorHeap {
     DescriptorHeap(DescriptorHeap&&) = default;
     DescriptorHeap& operator=(DescriptorHeap&&) = default;
 
+    [[nodiscard]] UINT AllocateIndex();
     [[nodiscard]] DescriptorHandle Allocate();
+    [[nodiscard]] DescriptorRange AllocateRange(UINT count);
+
+    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(UINT index) const noexcept {
+        return {m_DescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr +
+                static_cast<SIZE_T>(index) * m_DescriptorSize};
+    }
 
     void Reset() noexcept { m_CurrentIndex = 0; }
     void Release() noexcept { m_DescriptorHeap.Reset(); }
@@ -34,8 +51,6 @@ class DescriptorHeap {
     }
 
   private:
-    [[nodiscard]] UINT AllocateIndex();
-
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DescriptorHeap;
     D3D12_DESCRIPTOR_HEAP_TYPE m_Type{};
     D3D12_DESCRIPTOR_HEAP_FLAGS m_Flags{};

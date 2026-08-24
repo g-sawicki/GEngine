@@ -14,4 +14,8 @@ constexpr T RoundUp(T number) {
     return (number + static_cast<T>(Multiple) - 1) & ~static_cast<T>(Multiple - 1);
 }
 
+template <typename T> constexpr T DivideRoundUp(T numerator, T denominator) {
+    return (numerator + denominator - 1) / denominator;
+}
+
 } // namespace GEngine

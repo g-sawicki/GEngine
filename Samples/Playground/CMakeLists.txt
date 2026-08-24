@@ -32,3 +32,11 @@ foreach(shader IN LISTS GENGINE_SHADERS)
     )
 endforeach()
 add_dependencies(Playground PlaygroundShaders)
+
+# Copy Agility SDK to D3D12/
+add_custom_command(TARGET Playground POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${agility_sdk_SOURCE_DIR}/build/native/bin/x64/"
+        "$<TARGET_FILE_DIR:Playground>/D3D12/"
+    COMMENT "Copying D3D12 Agility SDK binaries to output directory..."
+)

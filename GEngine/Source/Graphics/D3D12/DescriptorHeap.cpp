@@ -1,6 +1,7 @@
 #include "PCH.hpp"
 
 #include "DescriptorHeap.hpp"
+#include "Device.hpp"
 
 #include "D3D12Common.hpp"
 
@@ -20,28 +21,29 @@ DescriptorHeap::DescriptorHeap(Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, 
 }
 
 UINT DescriptorHeap::AllocateIndex() {
-    if (m_CurrentIndex >= m_NumDescriptors) {
-        assert(!"DescriptorHeap exhausted: no more descriptors available.");
-        return UINT32_MAX;
-    }
+    if (m_CurrentIndex >= m_NumDescriptors)
+        throw std::out_of_range("DescriptorHeap exhausted: no more descriptors available.");
     return m_CurrentIndex++;
 }
 
 DescriptorHandle DescriptorHeap::Allocate() {
     const UINT index = AllocateIndex();
-    if (index == UINT32_MAX)
-        return {};
-
     const CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle{m_DescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
                                                   static_cast<INT>(index), m_DescriptorSize};
+    return {cpuHandle, index};
+}
 
-    // GPU handles only exist for shader-visible heaps.
-    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle{};
-    if (IsShaderVisible()) {
-        gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE{m_DescriptorHeap->GetGPUDescriptorHandleForHeapStart(),
+DescriptorRange DescriptorHeap::AllocateRange(UINT count) {
+    if (count == 0)
+        throw std::invalid_argument("DescriptorHeap::AllocateRange: count must be non-zero.");
+    if (m_CurrentIndex + count > m_NumDescriptors)
+        throw std::out_of_range("DescriptorHeap exhausted: no more descriptors available.");
+
+    const UINT index = m_CurrentIndex;
+    m_CurrentIndex += count;
+    const CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle{m_DescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
                                                   static_cast<INT>(index), m_DescriptorSize};
-    }
-    return {cpuHandle, gpuHandle};
+    return {.Base = cpuHandle, .Stride = m_DescriptorSize, .Count = count};
 }
 
 } // namespace GEngine

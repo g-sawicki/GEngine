@@ -62,7 +62,12 @@ void SwapChain::OnResize(uint32_t width, uint32_t height) {
 
 void SwapChain::RetrieveBackBuffers() {
     for (uint32_t i{}; i < NumFrames; ++i) {
-        ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&m_BackBuffers[i])));
+        ComPtr<ID3D12Resource> backBuffer;
+        ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
+        m_BackBuffers[i].CreateFromResource(
+            backBuffer.Get(),
+            {.Width = m_Width, .Height = m_Height, .Format = BackBufferFormat, .Usage = TextureUsage::RenderTarget},
+            D3D12_RESOURCE_STATE_PRESENT);
     }
 }
 

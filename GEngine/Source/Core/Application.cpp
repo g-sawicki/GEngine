@@ -24,7 +24,8 @@ int Application::Run() {
         [this](HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) { return HandleMessage(hwnd, msg, wp, lp); });
     m_Window->SetResizeCallback([this](uint32_t width, uint32_t height) { HandleResize(width, height); });
 
-    m_Renderer.Init(m_Window->GetHandle(), m_Window->GetClientWidth(), m_Window->GetClientHeight(), m_UseWarp);
+    m_Renderer.Init(m_Window->GetHandle(), m_Window->GetClientWidth(), m_Window->GetClientHeight(), m_UseWarp,
+                    m_Scene.GetShadowConfig().MapSize);
 
     OnInit();
 

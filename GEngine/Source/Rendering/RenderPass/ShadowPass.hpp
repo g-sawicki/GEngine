@@ -5,6 +5,7 @@
 #include "Graphics/D3D12/Device.hpp"
 #include "Graphics/D3D12/PipelineState.hpp"
 #include "Graphics/D3D12/RootSignature.hpp"
+#include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/RenderItem.hpp"
 
 namespace GEngine::RenderPass {
@@ -12,15 +13,14 @@ namespace GEngine::RenderPass {
 class ShadowPass {
   public:
     ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat);
-    ~ShadowPass();
 
     ShadowPass(const ShadowPass&) = delete;
     ShadowPass& operator=(const ShadowPass&) = delete;
     ShadowPass(ShadowPass&&) = delete;
     ShadowPass& operator=(ShadowPass&&) = delete;
 
-    void OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE dsv, Buffer& lightDataConstantBuffer,
-                  uint32_t cascadeIndex, std::span<const RenderItem> renderItems);
+    void OnRender(CommandList& commandList, Texture& shadowMapTexture, Buffer& lightDataConstantBuffer,
+                  uint32_t cascadeCount, std::span<const RenderItem> renderItems);
 
   private:
     std::unique_ptr<RootSignature> m_RootSignature;

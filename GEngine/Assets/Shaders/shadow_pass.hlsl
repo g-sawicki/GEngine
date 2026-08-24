@@ -1,4 +1,4 @@
-#include "light.hlsli"
+#include "common.hlsli"
 
 struct VSInput
 {
@@ -10,26 +10,19 @@ struct PSInput
     float4 position : SV_POSITION;
 };
 
-cbuffer LightDataBuffer : register(b0)
-{
-    LightData lightData;
-};
-
-cbuffer ObjectConstants : register(b1)
-{
-    row_major float4x4 world;
-};
-
-cbuffer CascadeIndex : register(b2)
-{
+struct RootConstants {
     uint cascadeIndex;
 };
+
+ConstantBuffer<LightData> lightDataCB : register(b0);
+ConstantBuffer<ObjectConstants> objectConstantsCB : register(b1);
+ConstantBuffer<RootConstants> constantsCB : register(b2);
 
 PSInput VSMain(VSInput input)
 {
     PSInput output;
-    float4 worldPos = mul(input.position, world);
-    output.position = mul(worldPos, lightData.lightViewProjection[cascadeIndex]);
+    float4 worldPos = mul(input.position, objectConstantsCB.world);
+    output.position = mul(worldPos, lightDataCB.lightViewProjection[constantsCB.cascadeIndex]);
     return output;
 }
 

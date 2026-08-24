@@ -32,6 +32,7 @@ class Renderer {
         std::unique_ptr<CommandList> CommandList;
         std::unique_ptr<Buffer> SceneInfoConstantBuffer;
         std::unique_ptr<Buffer> LightDataConstantBuffer;
+        std::vector<std::unique_ptr<Buffer>> ObjectConstantBuffers;
         uint64_t FenceValue{};
     };
 
@@ -42,7 +43,7 @@ class Renderer {
     Renderer(Renderer&&) = delete;
     Renderer& operator=(Renderer&&) = delete;
 
-    void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp);
+    void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize);
     void Destroy();
 
     void Render(const Scene& scene);
@@ -61,16 +62,11 @@ class Renderer {
         std::vector<std::unique_ptr<Texture>> Textures;
     };
 
-    void UpdateRenderTargetViews();
-    void CreateShadowMapSRV();
-    void CreateHDRSRV();
-    void CreatePresentTarget(uint32_t width, uint32_t height);
-    Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthBuffer(uint32_t width, uint32_t height);
-    Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthBufferArray(uint32_t width, uint32_t height, uint32_t arraySize);
-
     std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
     std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
     std::unique_ptr<Texture> CreateTexture(const Image& image);
+
+    void CreateRenderTargets(uint32_t width, uint32_t height);
 
     void EnsureDefaultMaterial();
     const ModelResources& EnsureModelResources(const Model& model);
@@ -82,42 +78,21 @@ class Renderer {
 
     FrameResource m_FrameResources[SwapChain::NumFrames]{};
 
-    DescriptorHeap m_RTVDescriptorHeap{};
-    DescriptorHeap m_DSVDescriptorHeap{};
-    DescriptorHeap m_CbvSrvUavDescriptorHeap{};
-
-    D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandles[SwapChain::NumFrames]{};
-    D3D12_CPU_DESCRIPTOR_HANDLE m_DepthStencilView{};
-    D3D12_CPU_DESCRIPTOR_HANDLE m_ShadowMapViews[kMaxCascades]{};
-
-    static constexpr DXGI_FORMAT s_HDRFormat{DXGI_FORMAT_R16G16B16A16_FLOAT};
-    std::unique_ptr<Texture> m_HDRRenderTarget;
-    DescriptorHandle m_HDRRTVHandle{};
-    DescriptorHandle m_HDRSRVHandle{};
-
-    Microsoft::WRL::ComPtr<ID3D12Resource> m_PresentTarget;
-    DescriptorHandle m_PresentUAVHandle{};
-
-    static constexpr DXGI_FORMAT s_DepthStencilResourceFormat{DXGI_FORMAT_R32_TYPELESS};
-    static constexpr DXGI_FORMAT s_DepthStencilFormat{DXGI_FORMAT_D32_FLOAT};
-    Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthStencilBuffer;
-
-    static constexpr uint32_t s_ShadowMapSize{2048};
-    Microsoft::WRL::ComPtr<ID3D12Resource> m_ShadowMapBuffer;
-    D3D12_GPU_DESCRIPTOR_HANDLE m_ShadowMapSRV{};
-    D3D12_RESOURCE_STATES m_ShadowMapState{D3D12_RESOURCE_STATE_DEPTH_WRITE};
+    Texture m_HdrTexture{};
+    Texture m_PresentTarget{};
+    Texture m_DepthTexture{};
+    Texture m_ShadowMapTexture{};
 
     std::unique_ptr<RenderPass::ShadowPass> m_ShadowPass;
     std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLighting;
     std::unique_ptr<RenderPass::ToneMapPass> m_ToneMapPass;
 
     std::vector<RenderItem> m_RenderItems;
-    std::vector<std::unique_ptr<Buffer>> m_ObjectConstantBuffers;
     std::unordered_map<const Model*, ModelResources> m_ModelCache;
 
-    std::unique_ptr<Texture> m_DefaultDiffuse;
-    std::unique_ptr<Texture> m_DefaultSpecular;
-    std::unique_ptr<Texture> m_DefaultNormal;
+    Texture m_DefaultDiffuse;
+    Texture m_DefaultSpecular;
+    Texture m_DefaultNormal;
     MaterialGPU m_DefaultMaterial{};
 
     bool m_VSync{false};

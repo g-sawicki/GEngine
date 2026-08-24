@@ -10,22 +10,11 @@ namespace GEngine {
 
 using namespace Microsoft::WRL;
 
-namespace {
-
-constexpr D3D12_CLEAR_VALUE kHDRClearValue{.Format = DXGI_FORMAT_R16G16B16A16_FLOAT, .Color = {0.4f, 0.6f, 0.9f, 1.0f}};
-
-} // namespace
-
-void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
+void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize) {
     Device::EnableDebugLayer();
     ComPtr<IDXGIFactory6> dxgiFactory = Device::CreateDXGIFactory();
     ComPtr<IDXGIAdapter4> dxgiAdapter4{Device::GetAdapter(dxgiFactory.Get(), useWarp)};
     m_Device = std::make_unique<Device>(dxgiAdapter4.Get());
-
-    m_RTVDescriptorHeap = DescriptorHeap(*m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, SwapChain::NumFrames + 1);
-    m_DSVDescriptorHeap = DescriptorHeap(*m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1 + kMaxCascades);
-    m_CbvSrvUavDescriptorHeap = DescriptorHeap(*m_Device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024,
-                                               D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     m_TearingSupported = SwapChain::CheckTearingSupport(dxgiFactory.Get());
 
@@ -34,38 +23,18 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
     m_SwapChain =
         std::make_unique<SwapChain>(dxgiFactory.Get(), hwnd, *m_CommandQueue, width, height, SwapChain::NumFrames);
 
-    m_DepthStencilBuffer = CreateDepthBuffer(width, height);
-    m_ShadowMapBuffer = CreateDepthBufferArray(s_ShadowMapSize, s_ShadowMapSize, kMaxCascades);
+    TextureDesc shadowMapDesc{.Width = shadowMapSize,
+                              .Height = shadowMapSize,
+                              .Depth = kMaxCascades,
+                              .Format = DXGI_FORMAT_D32_FLOAT,
+                              .Usage = TextureUsage::DepthStencil | TextureUsage::ShaderResource,
+                              .ClearValue = {
+                                  .Format = DXGI_FORMAT_D32_FLOAT,
+                                  .DepthStencil = {.Depth = 1.0f, .Stencil = 0},
+                              }};
+    m_ShadowMapTexture.Create(*m_Device, shadowMapDesc);
 
-    for (uint32_t i{}; i < SwapChain::NumFrames; ++i)
-        m_RTVHandles[i] = m_RTVDescriptorHeap.Allocate().cpuHandle;
-    m_DepthStencilView = m_DSVDescriptorHeap.Allocate().cpuHandle;
-    for (uint32_t i{}; i < kMaxCascades; ++i)
-        m_ShadowMapViews[i] = m_DSVDescriptorHeap.Allocate().cpuHandle;
-
-    for (uint32_t i{}; i < kMaxCascades; ++i) {
-        D3D12_DEPTH_STENCIL_VIEW_DESC shadowDsvDesc{
-            .Format = s_DepthStencilFormat,
-            .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY,
-            .Flags = D3D12_DSV_FLAG_NONE,
-            .Texture2DArray = {.MipSlice = 0, .FirstArraySlice = i, .ArraySize = 1},
-        };
-        m_Device->Get()->CreateDepthStencilView(m_ShadowMapBuffer.Get(), &shadowDsvDesc, m_ShadowMapViews[i]);
-    }
-
-    CreateShadowMapSRV();
-
-    UpdateRenderTargetViews();
-
-    // HDR render target
-    {
-        m_HDRRTVHandle = m_RTVDescriptorHeap.Allocate();
-        TextureDesc desc{width, height, s_HDRFormat};
-        m_HDRRenderTarget = std::make_unique<Texture>(*m_Device, m_HDRRTVHandle, desc, kHDRClearValue);
-    }
-
-    CreateHDRSRV();
-    CreatePresentTarget(width, height);
+    CreateRenderTargets(width, height);
 
     for (uint32_t i{}; i < SwapChain::NumFrames; ++i) {
         ThrowIfFailed(m_Device->Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -88,9 +57,37 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp) {
 
     m_Fence = std::make_unique<Fence>(*m_Device);
 
-    m_ShadowPass = std::make_unique<RenderPass::ShadowPass>(*m_Device, s_DepthStencilFormat);
-    m_ForwardLighting = std::make_unique<RenderPass::ForwardLightingPass>(*m_Device, s_HDRFormat, s_DepthStencilFormat);
+    m_ShadowPass = std::make_unique<RenderPass::ShadowPass>(*m_Device, m_ShadowMapTexture.GetDesc().Format);
+    m_ForwardLighting = std::make_unique<RenderPass::ForwardLightingPass>(*m_Device, m_HdrTexture, m_DepthTexture);
     m_ToneMapPass = std::make_unique<RenderPass::ToneMapPass>(*m_Device);
+}
+
+void Renderer::CreateRenderTargets(uint32_t width, uint32_t height) {
+    TextureDesc depthStencilDesc{.Width = width,
+                                 .Height = height,
+                                 .Format = DXGI_FORMAT_D32_FLOAT,
+                                 .Usage = TextureUsage::DepthStencil,
+                                 .ClearValue = {
+                                     .Format = DXGI_FORMAT_D32_FLOAT,
+                                     .DepthStencil = {.Depth = 1.0f, .Stencil = 0},
+                                 }};
+    m_DepthTexture.Create(*m_Device, depthStencilDesc);
+
+    TextureDesc hdrDesc{.Width = width,
+                        .Height = height,
+                        .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
+                        .Usage = TextureUsage::ShaderResource | TextureUsage::RenderTarget,
+                        .ClearValue = {
+                            .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
+                            .Color = {0.4f, 0.6f, 0.9f, 1.0f},
+                        }};
+    m_HdrTexture.Create(*m_Device, hdrDesc);
+
+    TextureDesc presentTargetDesc{.Width = width,
+                                  .Height = height,
+                                  .Format = SwapChain::BackBufferFormat,
+                                  .Usage = TextureUsage::UnorderedAccess};
+    m_PresentTarget.Create(*m_Device, presentTargetDesc);
 }
 
 void Renderer::Destroy() {
@@ -104,18 +101,23 @@ void Renderer::Destroy() {
         frame.CommandAllocator.Reset();
         frame.SceneInfoConstantBuffer.reset();
         frame.LightDataConstantBuffer.reset();
+        frame.ObjectConstantBuffers.clear();
     }
     m_Fence.reset();
     m_SwapChain.reset();
     m_CommandQueue.reset();
-    m_DepthStencilBuffer.Reset();
-    m_ShadowMapBuffer.Reset();
-    m_PresentTarget.Reset();
+    m_ToneMapPass.reset();
     m_ForwardLighting.reset();
     m_ShadowPass.reset();
-    m_RTVDescriptorHeap.Release();
-    m_DSVDescriptorHeap.Release();
-    m_CbvSrvUavDescriptorHeap.Release();
+
+    m_PresentTarget.Reset();
+    m_HdrTexture.Reset();
+    m_ShadowMapTexture.Reset();
+    m_DepthTexture.Reset();
+    m_DefaultNormal.Reset();
+    m_DefaultSpecular.Reset();
+    m_DefaultDiffuse.Reset();
+
     m_Device.reset();
 
 #if defined(_DEBUG)
@@ -135,29 +137,39 @@ std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
     return std::make_unique<Buffer>(*m_Device, *m_CommandQueue, desc);
 }
 
-std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
-    DescriptorHandle handle = m_CbvSrvUavDescriptorHeap.Allocate();
-    TextureDesc desc{image.GetWidth(), image.GetHeight(), image.GetDXGIFormat()};
-    return std::make_unique<Texture>(*m_Device, *m_CommandQueue, handle, desc, image);
-}
-
 std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
     return std::make_unique<MeshBuffer>(*m_Device, *m_CommandQueue, mesh);
 }
 
+std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
+    TextureDesc desc{.Width = image.GetWidth(),
+                     .Height = image.GetHeight(),
+                     .Format = image.GetDXGIFormat(),
+                     .Usage = TextureUsage::ShaderResource};
+    auto texture = std::make_unique<Texture>();
+    texture->CreateFromImage(*m_Device, *m_CommandQueue, desc, image);
+    return texture;
+}
+
 void Renderer::EnsureDefaultMaterial() {
-    if (m_DefaultDiffuse)
+    if (m_DefaultDiffuse.GetSrvIndex() != INVALID_BINDLESS_INDEX)
         return;
     static constexpr uint8_t kWhitePixel[]{255, 255, 255, 255};
     static constexpr uint8_t kBluePixel[]{0, 0, 255, 255};
     const Image white = Image::FromRawRGBA(kWhitePixel, 1, 1);
     const Image blue = Image::FromRawRGBA(kBluePixel, 1, 1);
-    m_DefaultDiffuse = CreateTexture(white);
-    m_DefaultSpecular = CreateTexture(white);
-    m_DefaultNormal = CreateTexture(blue);
-    m_DefaultMaterial = {.DiffuseSRV = m_DefaultDiffuse->GetSRV(),
-                         .SpecularSRV = m_DefaultSpecular->GetSRV(),
-                         .NormalSRV = m_DefaultNormal->GetSRV()};
+    m_DefaultDiffuse.CreateFromImage(
+        *m_Device, *m_CommandQueue,
+        {.Width = 1, .Height = 1, .Format = white.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource}, white);
+    m_DefaultSpecular.CreateFromImage(
+        *m_Device, *m_CommandQueue,
+        {.Width = 1, .Height = 1, .Format = white.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource}, white);
+    m_DefaultNormal.CreateFromImage(
+        *m_Device, *m_CommandQueue,
+        {.Width = 1, .Height = 1, .Format = blue.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource}, blue);
+    m_DefaultMaterial = {.DiffuseIndex = m_DefaultDiffuse.GetSrvIndex(),
+                         .SpecularIndex = m_DefaultSpecular.GetSrvIndex(),
+                         .NormalIndex = m_DefaultNormal.GetSrvIndex()};
 }
 
 const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& model) {
@@ -178,9 +190,9 @@ const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& mode
         auto specular = material.Specular.has_value() ? CreateTexture(*material.Specular) : nullptr;
         auto normal = material.Normal.has_value() ? CreateTexture(*material.Normal) : nullptr;
         resources.Materials.push_back({
-            .DiffuseSRV = diffuse ? diffuse->GetSRV() : m_DefaultMaterial.DiffuseSRV,
-            .SpecularSRV = specular ? specular->GetSRV() : m_DefaultMaterial.SpecularSRV,
-            .NormalSRV = normal ? normal->GetSRV() : m_DefaultMaterial.NormalSRV,
+            .DiffuseIndex = diffuse ? diffuse->GetSrvIndex() : m_DefaultMaterial.DiffuseIndex,
+            .SpecularIndex = specular ? specular->GetSrvIndex() : m_DefaultMaterial.SpecularIndex,
+            .NormalIndex = normal ? normal->GetSrvIndex() : m_DefaultMaterial.NormalIndex,
         });
         if (diffuse)
             resources.Textures.push_back(std::move(diffuse));
@@ -192,69 +204,6 @@ const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& mode
     return it->second;
 }
 
-void Renderer::UpdateRenderTargetViews() {
-    for (uint32_t i{}; i < SwapChain::NumFrames; ++i) {
-        ID3D12Resource* backBuffer{m_SwapChain->GetBackBuffer(i)};
-        m_Device->Get()->CreateRenderTargetView(backBuffer, nullptr, m_RTVHandles[i]);
-    }
-
-    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{
-        .Format = s_DepthStencilFormat,
-        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-        .Flags = D3D12_DSV_FLAG_NONE,
-        .Texture2D = {.MipSlice = 0},
-    };
-    m_Device->Get()->CreateDepthStencilView(m_DepthStencilBuffer.Get(), &dsvDesc, m_DepthStencilView);
-}
-
-void Renderer::CreateShadowMapSRV() {
-    DescriptorHandle handle = m_CbvSrvUavDescriptorHeap.Allocate();
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{
-        .Format = DXGI_FORMAT_R32_FLOAT,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY,
-        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2DArray = {.MipLevels = 1, .FirstArraySlice = 0, .ArraySize = kMaxCascades},
-    };
-    m_Device->Get()->CreateShaderResourceView(m_ShadowMapBuffer.Get(), &srvDesc, handle.cpuHandle);
-    m_ShadowMapSRV = handle.gpuHandle;
-}
-
-void Renderer::CreateHDRSRV() {
-    // Reuse the same descriptor slot across resizes.
-    if (m_HDRSRVHandle.cpuHandle.ptr == 0)
-        m_HDRSRVHandle = m_CbvSrvUavDescriptorHeap.Allocate();
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{
-        .Format = s_HDRFormat,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2D = {.MipLevels = 1},
-    };
-    m_Device->Get()->CreateShaderResourceView(m_HDRRenderTarget->Get(), &srvDesc, m_HDRSRVHandle.cpuHandle);
-}
-
-void Renderer::CreatePresentTarget(uint32_t width, uint32_t height) {
-    const CD3DX12_HEAP_PROPERTIES heapProps{D3D12_HEAP_TYPE_DEFAULT};
-    const CD3DX12_RESOURCE_DESC desc{CD3DX12_RESOURCE_DESC::Tex2D(SwapChain::BackBufferFormat, width, height, 1, 1, 1,
-                                                                  0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)};
-
-    ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-                                                           D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr,
-                                                           IID_PPV_ARGS(&m_PresentTarget)));
-
-    // Reuse the same descriptor slot across resizes.
-    if (m_PresentUAVHandle.cpuHandle.ptr == 0)
-        m_PresentUAVHandle = m_CbvSrvUavDescriptorHeap.Allocate();
-
-    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{
-        .Format = SwapChain::BackBufferFormat,
-        .ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
-        .Texture2D = {.MipSlice = 0},
-    };
-    m_Device->Get()->CreateUnorderedAccessView(m_PresentTarget.Get(), nullptr, &uavDesc, m_PresentUAVHandle.cpuHandle);
-}
-
 void Renderer::OnResize(uint32_t width, uint32_t height) {
     width = std::max(1u, width);
     height = std::max(1u, height);
@@ -262,74 +211,25 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
     m_Fence->Flush(m_CommandQueue->GetHandle());
     m_SwapChain->OnResize(width, height);
 
-    m_DepthStencilBuffer = CreateDepthBuffer(width, height);
-
-    // Recreate the HDR render target at the new resolution (it isn't owned by the swap chain).
-    {
-        TextureDesc desc{width, height, s_HDRFormat};
-        m_HDRRenderTarget = std::make_unique<Texture>(*m_Device, m_HDRRTVHandle, desc, kHDRClearValue);
-        CreateHDRSRV();
-    }
-
-    CreatePresentTarget(width, height);
-
-    UpdateRenderTargetViews();
-}
-
-ComPtr<ID3D12Resource> Renderer::CreateDepthBuffer(uint32_t width, uint32_t height) {
-    D3D12_CLEAR_VALUE clearValue{
-        .Format = s_DepthStencilFormat,
-        .DepthStencil = {.Depth = 1.0f, .Stencil = 0},
-    };
-
-    const CD3DX12_HEAP_PROPERTIES heapProps{D3D12_HEAP_TYPE_DEFAULT};
-    const CD3DX12_RESOURCE_DESC desc{CD3DX12_RESOURCE_DESC::Tex2D(s_DepthStencilResourceFormat, width, height, 1, 1, 1,
-                                                                  0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)};
-
-    ComPtr<ID3D12Resource> depthBuffer;
-    ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-                                                           D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue,
-                                                           IID_PPV_ARGS(&depthBuffer)));
-    return depthBuffer;
-}
-
-ComPtr<ID3D12Resource> Renderer::CreateDepthBufferArray(uint32_t width, uint32_t height, uint32_t arraySize) {
-    D3D12_CLEAR_VALUE clearValue{
-        .Format = s_DepthStencilFormat,
-        .DepthStencil = {.Depth = 1.0f, .Stencil = 0},
-    };
-
-    const CD3DX12_HEAP_PROPERTIES heapProps{D3D12_HEAP_TYPE_DEFAULT};
-    const CD3DX12_RESOURCE_DESC desc{
-        CD3DX12_RESOURCE_DESC::Tex2D(s_DepthStencilResourceFormat, static_cast<UINT>(width), static_cast<UINT>(height),
-                                     static_cast<UINT16>(arraySize), 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)};
-
-    ComPtr<ID3D12Resource> depthBuffer;
-    ThrowIfFailed(m_Device->Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-                                                           D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue,
-                                                           IID_PPV_ARGS(&depthBuffer)));
-    return depthBuffer;
+    CreateRenderTargets(width, height);
 }
 
 void Renderer::Render(const Scene& scene) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
 
-    // Ensure the GPU has finished with this frame's resources before reusing them.
     m_Fence->WaitForValue(frame.FenceValue);
 
-    ID3D12Resource* backBuffer{m_SwapChain->GetCurrentBackBuffer()};
+    Texture& backBuffer{m_SwapChain->GetCurrentBackBuffer()};
 
     frame.CommandList->Reset(frame.CommandAllocator.Get());
     auto* cmdList{frame.CommandList->GetHandle()};
 
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_RTVHandles[currentIdx];
-    D3D12_CPU_DESCRIPTOR_HANDLE depthHandle = m_DepthStencilView;
-
     // Build one RenderItem per entity mesh; GPU resources are uploaded on first use and cached per Model asset.
     const auto& entities = scene.GetEntityManager().GetEntities();
-    if (m_ObjectConstantBuffers.size() < entities.size())
-        m_ObjectConstantBuffers.resize(entities.size());
+    auto& objectConstantBuffers{frame.ObjectConstantBuffers};
+    if (objectConstantBuffers.size() < entities.size())
+        objectConstantBuffers.resize(entities.size());
     m_RenderItems.clear();
     m_RenderItems.reserve(entities.size() * 2);
     for (size_t i{}; i < entities.size(); ++i) {
@@ -337,17 +237,17 @@ void Renderer::Render(const Scene& scene) {
         if (!entity.Model)
             continue;
 
-        if (!m_ObjectConstantBuffers[i])
-            m_ObjectConstantBuffers[i] = CreateConstantBuffer(sizeof(DirectX::XMFLOAT4X4));
+        if (!objectConstantBuffers[i])
+            objectConstantBuffers[i] = CreateConstantBuffer(sizeof(DirectX::XMFLOAT4X4));
         const DirectX::XMFLOAT4X4& worldMatrix = entity.Transform.GetMatrix();
-        m_ObjectConstantBuffers[i]->Write(&worldMatrix, sizeof(worldMatrix));
+        objectConstantBuffers[i]->Write(&worldMatrix, sizeof(worldMatrix));
 
         const Model& model = *entity.Model;
         const ModelResources& resources = EnsureModelResources(model);
         for (size_t m{}; m < model.Meshes.size(); ++m) {
             m_RenderItems.push_back({
                 .Mesh = resources.Meshes[m].get(),
-                .TransformCB = m_ObjectConstantBuffers[i].get(),
+                .TransformCB = objectConstantBuffers[i].get(),
                 .Material = resources.Materials[model.Meshes[m].MaterialIndex],
                 .ShadowCaster = entity.CastsShadow,
             });
@@ -362,103 +262,60 @@ void Renderer::Render(const Scene& scene) {
     frame.SceneInfoConstantBuffer->Write(&sceneInfo, sizeof(sceneInfo));
     frame.LightDataConstantBuffer->Write(&lightData, sizeof(lightData));
 
-    ID3D12DescriptorHeap* heaps[] = {m_CbvSrvUavDescriptorHeap.Get()};
-    cmdList->SetDescriptorHeaps(static_cast<UINT>(std::size(heaps)), heaps);
+    m_Device->SetDescriptorHeaps(*frame.CommandList);
 
-    // Shadow map
+    // Cascaded shadow maps
     {
-        if (m_ShadowMapState != D3D12_RESOURCE_STATE_DEPTH_WRITE) {
-            CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(
-                m_ShadowMapBuffer.Get(), m_ShadowMapState, D3D12_RESOURCE_STATE_DEPTH_WRITE)};
-            cmdList->ResourceBarrier(1, &barrier);
-            m_ShadowMapState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-        }
+        m_ShadowMapTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-        D3D12_VIEWPORT viewport{0,    0,   static_cast<FLOAT>(s_ShadowMapSize), static_cast<FLOAT>(s_ShadowMapSize),
-                                0.0f, 1.0f};
-        D3D12_RECT scissorRect{0, 0, static_cast<UINT>(s_ShadowMapSize), static_cast<UINT>(s_ShadowMapSize)};
+        uint32_t width = m_ShadowMapTexture.GetDesc().Width;
+        uint32_t height = m_ShadowMapTexture.GetDesc().Height;
+        D3D12_VIEWPORT viewport{0, 0, static_cast<FLOAT>(width), static_cast<FLOAT>(height), 0.0f, 1.0f};
+        D3D12_RECT scissorRect{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);
 
         const uint32_t cascadeCount = std::min<uint32_t>(lightData.CascadeCount, kMaxCascades);
-        for (uint32_t cascade{}; cascade < cascadeCount; ++cascade) {
-            cmdList->ClearDepthStencilView(m_ShadowMapViews[cascade], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-            m_ShadowPass->OnRender(*frame.CommandList, m_ShadowMapViews[cascade], *frame.LightDataConstantBuffer,
-                                   cascade, m_RenderItems);
-        }
+        m_ShadowPass->OnRender(*frame.CommandList, m_ShadowMapTexture, *frame.LightDataConstantBuffer, cascadeCount,
+                               m_RenderItems);
 
-        // Make the shadow map sampleable for the forward pass.
-        CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(
-            m_ShadowMapBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)};
-        cmdList->ResourceBarrier(1, &barrier);
-        m_ShadowMapState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        m_ShadowMapTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
     // Forward lighting pass
     {
-        CD3DX12_RESOURCE_BARRIER barrier{CD3DX12_RESOURCE_BARRIER::Transition(
-            m_HDRRenderTarget->Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-            D3D12_RESOURCE_STATE_RENDER_TARGET)};
-        cmdList->ResourceBarrier(1, &barrier);
+        m_HdrTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        cmdList->ClearRenderTargetView(m_HDRRenderTarget->GetRTV(), kHDRClearValue.Color, 0, nullptr);
-        cmdList->ClearDepthStencilView(depthHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-        D3D12_VIEWPORT viewport{
-            0,    0,   static_cast<float>(m_SwapChain->GetWidth()), static_cast<float>(m_SwapChain->GetHeight()),
-            0.0f, 1.0f};
-        D3D12_RECT scissorRect{0, 0, static_cast<LONG>(m_SwapChain->GetWidth()),
-                               static_cast<LONG>(m_SwapChain->GetHeight())};
-        cmdList->RSSetViewports(1, &viewport);
-        cmdList->RSSetScissorRects(1, &scissorRect);
-
-        m_ForwardLighting->OnRender(*frame.CommandList, m_HDRRenderTarget->GetRTV(), depthHandle,
-                                    *frame.SceneInfoConstantBuffer, *frame.LightDataConstantBuffer, m_ShadowMapSRV,
-                                    m_RenderItems);
+        m_ForwardLighting->OnRender(*frame.CommandList, m_HdrTexture, m_DepthTexture, m_ShadowMapTexture,
+                                    *frame.SceneInfoConstantBuffer, *frame.LightDataConstantBuffer, m_RenderItems);
     }
 
     m_RenderItems.clear();
 
     // Post-processing
     {
-        std::array<CD3DX12_RESOURCE_BARRIER, 2> barriers = {
-            CD3DX12_RESOURCE_BARRIER::Transition(m_HDRRenderTarget->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET,
-                                                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-            CD3DX12_RESOURCE_BARRIER::Transition(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
-                                                 D3D12_RESOURCE_STATE_COPY_DEST),
-        };
-        cmdList->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+        m_HdrTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        backBuffer.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_COPY_DEST);
 
-        m_ToneMapPass->Dispatch(*frame.CommandList, m_HDRSRVHandle.gpuHandle, m_PresentUAVHandle.gpuHandle,
+        m_ToneMapPass->Dispatch(*frame.CommandList, m_HdrTexture.GetSrvIndex(), m_PresentTarget.GetUavIndex(),
                                 *frame.SceneInfoConstantBuffer, m_SwapChain->GetWidth(), m_SwapChain->GetHeight());
 
-        CD3DX12_RESOURCE_BARRIER presentToCopySrc{CD3DX12_RESOURCE_BARRIER::Transition(
-            m_PresentTarget.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE)};
-        cmdList->ResourceBarrier(1, &presentToCopySrc);
-        cmdList->CopyResource(backBuffer, m_PresentTarget.Get());
+        m_PresentTarget.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        cmdList->CopyResource(backBuffer.GetResource(), m_PresentTarget.GetResource());
 
-        // Restore states for the next frame.
-        std::array<CD3DX12_RESOURCE_BARRIER, 2> restoreBarriers = {
-            CD3DX12_RESOURCE_BARRIER::Transition(m_PresentTarget.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
-                                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
-            CD3DX12_RESOURCE_BARRIER::Transition(backBuffer, D3D12_RESOURCE_STATE_COPY_DEST,
-                                                 D3D12_RESOURCE_STATE_PRESENT),
-        };
-        cmdList->ResourceBarrier(static_cast<UINT>(restoreBarriers.size()), restoreBarriers.data());
+        m_PresentTarget.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        backBuffer.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_PRESENT);
     }
 
-    // Present
-    {
-        frame.CommandList->Close();
-        ID3D12CommandList* const ppCommandLists[]{cmdList};
-        m_CommandQueue->ExecuteCommandLists(ppCommandLists);
+    frame.CommandList->Close();
+    ID3D12CommandList* const ppCommandLists[]{cmdList};
+    m_CommandQueue->ExecuteCommandLists(ppCommandLists);
 
-        UINT syncInterval{m_VSync || !m_TearingSupported ? 1u : 0u};
-        UINT presentFlags{!m_VSync && m_TearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0u};
-        ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
+    UINT syncInterval{m_VSync || !m_TearingSupported ? 1u : 0u};
+    UINT presentFlags{!m_VSync && m_TearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0u};
+    ThrowIfFailed(m_SwapChain->Present(syncInterval, presentFlags));
 
-        frame.FenceValue = m_Fence->Signal(m_CommandQueue->GetHandle());
-    }
+    frame.FenceValue = m_Fence->Signal(m_CommandQueue->GetHandle());
 }
 
 } // namespace GEngine

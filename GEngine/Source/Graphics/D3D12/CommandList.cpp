@@ -1,6 +1,7 @@
 #include "PCH.hpp"
 
 #include "CommandList.hpp"
+#include "Device.hpp"
 
 #include "D3D12Common.hpp"
 

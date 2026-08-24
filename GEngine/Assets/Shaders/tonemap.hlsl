@@ -1,17 +1,12 @@
 #include "common.hlsli"
 
-struct CSInput {
-    uint3 GroupId : SV_GroupID;
-    uint3 GroupThreadId : SV_GroupThreadID;
-    uint3 DispatchThreadId : SV_DispatchThreadID;
-    uint GroupIndex : SV_GroupIndex;
+struct RootConstants {
+    uint32_t InputIndex;
+    uint32_t OutputIndex;
 };
 
 ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
-
-Texture2D<float4> hdr : register(t0);
-RWTexture2D<float4> outputTexture : register(u0);
-
+ConstantBuffer<RootConstants> constantsCB : register(b1);
 SamplerState hdrSampler : register(s0);
 
 // https://64.github.io/tonemapping
@@ -19,10 +14,18 @@ float3 ReinhardToneMap(float3 luminance) {
     return luminance / (1.0f + luminance);
 }
 
+[shader("compute")]
 [numthreads(8, 8, 1)]
-void ToneMapCS(CSInput input) {
-    float2 uv = (float2(input.DispatchThreadId.xy) + 0.5f) / float2(sceneInfoCB.screenResolution);
-    half4 hdrTex = hdr.SampleLevel(hdrSampler, uv, 0.0f);
+void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
+    if (dispatchThreadId.x >= sceneInfoCB.screenResolution.x ||
+        dispatchThreadId.y >= sceneInfoCB.screenResolution.y)
+        return;
+
+    Texture2D<float4> hdrTexture = ResourceDescriptorHeap[constantsCB.InputIndex];
+    RWTexture2D<float4> outputTexture = ResourceDescriptorHeap[constantsCB.OutputIndex];
+
+    float2 uv = (float2(dispatchThreadId.xy) + 0.5f) / float2(sceneInfoCB.screenResolution);
+    half4 hdrTex = hdrTexture.SampleLevel(hdrSampler, uv, 0.0f);
     float3 color = ReinhardToneMap(hdrTex.xyz);
-    outputTexture[input.DispatchThreadId.xy] = float4(color, 1.0f);
+    outputTexture[dispatchThreadId.xy] = float4(color, 1.0f);
 }

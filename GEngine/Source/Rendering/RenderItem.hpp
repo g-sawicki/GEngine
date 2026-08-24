@@ -8,9 +8,9 @@ class Buffer;
 class MeshBuffer;
 
 struct MaterialGPU {
-    D3D12_GPU_DESCRIPTOR_HANDLE DiffuseSRV{};
-    D3D12_GPU_DESCRIPTOR_HANDLE SpecularSRV{};
-    D3D12_GPU_DESCRIPTOR_HANDLE NormalSRV{};
+    uint32_t DiffuseIndex{};
+    uint32_t SpecularIndex{};
+    uint32_t NormalIndex{};
 };
 
 struct RenderItem {

@@ -17,45 +17,47 @@ struct PSInput
     float3 normal : NORMAL;
 };
 
-ConstantBuffer<SceneInfo> sceneInfo : register(b0);
-ConstantBuffer<ObjectConstants> objectConstants : register(b1);
-ConstantBuffer<LightData> lightData : register(b2);
+struct RootConstants{
+    uint32_t diffuseIndex;
+    uint32_t specularIndex;
+    uint32_t normalIndex;
+    uint32_t shadowIndex;
+};
 
-Texture2D diffuseMap : register(t0);
-Texture2D specularMap : register(t1);
-Texture2D normalMap : register(t2);
-Texture2DArray shadowMap : register(t3);
-
+ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
+ConstantBuffer<LightData> lightDataCB : register(b1);
+ConstantBuffer<ObjectConstants> objectConstantsCB : register(b2);
+ConstantBuffer<RootConstants> constantsCB : register(b3);
 SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 
 PSInput VSMain(VSInput input)
 {
-    float4 worldPos = mul(input.position, objectConstants.world);
+    float4 worldPos = mul(input.position, objectConstantsCB.world);
 
     PSInput output;
-    output.position = mul(worldPos, sceneInfo.viewProjection);
+    output.position = mul(worldPos, sceneInfoCB.viewProjection);
     output.uv = input.uv;
     output.worldPos = worldPos.xyz;
-    output.tangent = normalize(mul(float4(input.tangent, 0.0f), objectConstants.world).xyz);
-    output.normal = normalize(mul(float4(input.normal, 0.0f), objectConstants.world).xyz);
+    output.tangent = normalize(mul(float4(input.tangent, 0.0f), objectConstantsCB.world).xyz);
+    output.normal = normalize(mul(float4(input.normal, 0.0f), objectConstantsCB.world).xyz);
     return output;
 }
 
 uint SelectCascade(float viewDepth)
 {
-    if (viewDepth <= lightData.cascadeSplits.x)
+    if (viewDepth <= lightDataCB.cascadeSplits.x)
         return 0;
-    if (viewDepth <= lightData.cascadeSplits.y)
+    if (viewDepth <= lightDataCB.cascadeSplits.y)
         return 1;
-    if (viewDepth <= lightData.cascadeSplits.z)
+    if (viewDepth <= lightDataCB.cascadeSplits.z)
         return 2;
     return 3;
 }
 
-float SampleCascadeShadow(float3 worldPos, uint cascade)
+float SampleCascadeShadow(float3 worldPos, Texture2DArray shadowMap, uint cascade)
 {
-    float4 positionLightSpace = mul(float4(worldPos, 1.0f), lightData.lightViewProjection[cascade]);
+    float4 positionLightSpace = mul(float4(worldPos, 1.0f), lightDataCB.lightViewProjection[cascade]);
     float3 ndc = positionLightSpace.xyz / positionLightSpace.w;
     float2 uv = float2(ndc.x * 0.5f + 0.5f, 1.0f - (ndc.y * 0.5f + 0.5f));
 
@@ -64,37 +66,42 @@ float SampleCascadeShadow(float3 worldPos, uint cascade)
     for (int x = -1; x <= 1; ++x) {
         [unroll]
         for (int y = -1; y <= 1; ++y) {
-            float2 offset = float2(x, y) * lightData.shadowMapTexelSize;
-            shadow += shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade), ndc.z - lightData.shadowBias);
+            float2 offset = float2(x, y) * lightDataCB.shadowMapTexelSize;
+            shadow += shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade), ndc.z - lightDataCB.shadowBias);
         }
     }
 
     return shadow / 9.0f;
 }
 
-float ComputeShadow(float3 worldPos)
+float ComputeShadow(float3 worldPos, Texture2DArray shadowMap)
 {
-    if (!lightData.shadowEnabled || lightData.cascadeCount == 0)
+    if (!lightDataCB.shadowEnabled || lightDataCB.cascadeCount == 0)
         return 1.0f;
 
-    float viewDepth = dot(worldPos - sceneInfo.cameraPosition, sceneInfo.cameraForward);
+    float viewDepth = dot(worldPos - sceneInfoCB.cameraPosition, sceneInfoCB.cameraForward);
     uint cascade = SelectCascade(viewDepth);
 
-    float split = cascade == 0 ? lightData.cascadeSplits.x :
-                  cascade == 1 ? lightData.cascadeSplits.y :
-                  cascade == 2 ? lightData.cascadeSplits.z : 1e30f;
+    float split = cascade == 0 ? lightDataCB.cascadeSplits.x :
+                  cascade == 1 ? lightDataCB.cascadeSplits.y :
+                  cascade == 2 ? lightDataCB.cascadeSplits.z : 1e30f;
     float blendStart = split * 0.8f;
     float blend = saturate((viewDepth - blendStart) / max(split - blendStart, 1e-6f));
 
-    float shadow = SampleCascadeShadow(worldPos, cascade);
-    if (cascade < lightData.cascadeCount - 1)
-        shadow = lerp(shadow, SampleCascadeShadow(worldPos, cascade + 1), blend);
+    float shadow = SampleCascadeShadow(worldPos, shadowMap, cascade);
+    if (cascade < lightDataCB.cascadeCount - 1)
+        shadow = lerp(shadow, SampleCascadeShadow(worldPos, shadowMap, cascade + 1), blend);
 
     return shadow;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
+    Texture2D diffuseMap = ResourceDescriptorHeap[constantsCB.diffuseIndex];
+    Texture2D specularMap = ResourceDescriptorHeap[constantsCB.specularIndex];
+    Texture2D normalMap = ResourceDescriptorHeap[constantsCB.normalIndex];
+    Texture2DArray shadowMap = ResourceDescriptorHeap[constantsCB.shadowIndex];
+
     float4 diffuseTex = diffuseMap.Sample(texSampler, input.uv);
     if (diffuseTex.a < 0.01f)
         discard;
@@ -108,12 +115,12 @@ float4 PSMain(PSInput input) : SV_TARGET
     float3x3 TBN = float3x3(T, B, N);
     float3 worldNormal = normalize(mul(normalTex.xyz * 2.0f - 1.0f, TBN));
 
-    float3 L = normalize(sceneInfo.directionalLight.direction);
-    float3 V = normalize(sceneInfo.cameraPosition - input.worldPos);
-    float3 directionalLightColor = sceneInfo.directionalLight.color * sceneInfo.directionalLight.intensity;
+    float3 L = normalize(sceneInfoCB.directionalLight.direction);
+    float3 V = normalize(sceneInfoCB.cameraPosition - input.worldPos);
+    float3 directionalLightColor = sceneInfoCB.directionalLight.color * sceneInfoCB.directionalLight.intensity;
     float NdotL = saturate(dot(worldNormal, -L));
 
-    float shadow = ComputeShadow(input.worldPos);
+    float shadow = ComputeShadow(input.worldPos, shadowMap);
 
     float3 ambient = 0.3f * diffuseTex.xyz * directionalLightColor;
     float3 diffuse = diffuseTex.xyz * NdotL * directionalLightColor;

@@ -29,7 +29,7 @@ Buffer::Buffer(Device& device, CommandQueue& commandQueue, const BufferDesc& des
 
     const bool needsUpload = initialData && desc.HeapType == D3D12_HEAP_TYPE_DEFAULT;
     const D3D12_RESOURCE_STATES initialState =
-        needsUpload ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+        needsUpload ? D3D12_RESOURCE_STATE_COMMON : D3D12_RESOURCE_STATE_GENERIC_READ;
 
     ThrowIfFailed(device.Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, initialState,
                                                         nullptr, IID_PPV_ARGS(&m_Resource)));

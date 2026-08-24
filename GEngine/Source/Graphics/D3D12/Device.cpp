@@ -1,5 +1,6 @@
 #include "PCH.hpp"
 
+#include "CommandList.hpp"
 #include "Device.hpp"
 
 #include "D3D12Common.hpp"
@@ -80,6 +81,11 @@ ComPtr<IDXGIAdapter4> Device::GetAdapter(IDXGIFactory6* dxgiFactory, bool useWar
 Device::Device(IDXGIAdapter4* adapter) {
     ThrowIfFailed(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
 
+    m_RtvDescriptorHeap = DescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128);
+    m_DsvDescriptorHeap = DescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32);
+    m_ShaderResourceDescriptorHeap =
+        DescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+
 #if defined(_DEBUG)
     ComPtr<ID3D12InfoQueue> pInfoQueue;
     if (SUCCEEDED(m_Device.As(&pInfoQueue))) {
@@ -108,6 +114,13 @@ bool Device::IsDeviceRemoved() const noexcept {
         return true;
     }
     return false;
+}
+
+void Device::SetDescriptorHeaps(CommandList& commandList) {
+    ID3D12DescriptorHeap* heaps[] = {
+        m_ShaderResourceDescriptorHeap.Get(),
+    };
+    commandList.GetHandle()->SetDescriptorHeaps(static_cast<UINT>(std::size(heaps)), heaps);
 }
 
 } // namespace GEngine

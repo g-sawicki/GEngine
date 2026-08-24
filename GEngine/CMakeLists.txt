@@ -1,13 +1,13 @@
 ﻿add_library(${PROJECT_NAME} STATIC)
 
-# ── Shaders ────────────────────────────────────────────────────────────────────
+# Shaders
 include("${CMAKE_SOURCE_DIR}/cmake/ShaderCompiler.cmake")
 set(SHADER_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/Assets/Shaders")
-compile_shader("default.hlsl" "VSMain" "vs_6_5" "default_vs.cso")
-compile_shader("default.hlsl" "PSMain" "ps_6_5" "default_ps.cso")
-compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_5" "shadow_pass_vs.cso")
-compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_5" "shadow_pass_ps.cso")
-compile_shader("tonemap.hlsl" "ToneMapCS" "cs_6_5" "tonemap_cs.cso")
+compile_shader("default.hlsl" "VSMain" "vs_6_6" "default_vs.cso")
+compile_shader("default.hlsl" "PSMain" "ps_6_6" "default_ps.cso")
+compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_6" "shadow_pass_vs.cso")
+compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_6" "shadow_pass_ps.cso")
+compile_shader("tonemap.hlsl" "ToneMapCS" "cs_6_6" "tonemap_cs.cso")
 
 set(GENGINE_SHADERS
     "${SHADER_GEN_DIR}/default_vs.cso"
@@ -101,6 +101,11 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source")
+
+target_include_directories(${PROJECT_NAME} PUBLIC 
+    "${CMAKE_CURRENT_SOURCE_DIR}/Source"
+    "${agility_sdk_SOURCE_DIR}/build/native/include" # Agility SDK headers
+)
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
 

@@ -17,8 +17,8 @@ class ToneMapPass {
     ToneMapPass(ToneMapPass&&) = delete;
     ToneMapPass& operator=(ToneMapPass&&) = delete;
 
-    void Dispatch(CommandList& commandList, D3D12_GPU_DESCRIPTOR_HANDLE hdrSRV, D3D12_GPU_DESCRIPTOR_HANDLE outputUAV,
-                  Buffer& sceneInfoBuffer, uint32_t width, uint32_t height);
+    void Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex, Buffer& sceneInfoBuffer,
+                  uint32_t width, uint32_t height);
 
   private:
     std::unique_ptr<RootSignature> m_RootSignature;

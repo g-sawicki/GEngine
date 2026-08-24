@@ -1,5 +1,6 @@
 include(FetchContent)
 
+# DirectX-Headers
 FetchContent_Declare(
     DirectX-Headers
     GIT_REPOSITORY https://github.com/microsoft/DirectX-Headers.git
@@ -8,7 +9,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(DirectX-Headers)
 
-
+# stb
 FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
@@ -19,7 +20,7 @@ FetchContent_MakeAvailable(stb)
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE "${stb_SOURCE_DIR}")
 
-
+# assimp
 FetchContent_Declare(
     assimp
     GIT_REPOSITORY https://github.com/assimp/assimp.git
@@ -33,3 +34,12 @@ set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
 set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(assimp)
+
+# Agility SDK
+FetchContent_Declare(
+    agility_sdk
+    URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.619.5"
+    DOWNLOAD_NO_EXTRACT FALSE
+)
+FetchContent_MakeAvailable(agility_sdk)
+set(agility_sdk_SOURCE_DIR "${agility_sdk_SOURCE_DIR}" CACHE INTERNAL "Agility SDK Source Directory")

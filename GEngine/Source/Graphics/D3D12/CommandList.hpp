@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Device.hpp"
-
 namespace GEngine {
+
+class Device;
 
 class CommandList {
   public:

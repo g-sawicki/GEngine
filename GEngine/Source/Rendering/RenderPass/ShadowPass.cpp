@@ -8,12 +8,12 @@
 namespace GEngine::RenderPass {
 
 ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_DepthStencilFormat(depthStencilFormat) {
-    CD3DX12_ROOT_PARAMETER rootParams[3]{};
+    CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
     rootParams[0].InitAsConstantBufferView(0); // b0: LightDataConstants
     rootParams[1].InitAsConstantBufferView(1); // b1: ObjectConstants
-    rootParams[2].InitAsConstants(1, 2);       // b2: CascadeIndex (uint)
+    rootParams[2].InitAsConstants(1, 2);       // b2: RootConstants
 
-    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc{};
+    D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
     rootSigDesc.pParameters = rootParams;
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -47,23 +47,26 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_Depth
     m_PipelineState = std::make_unique<PipelineState>(device, psoDesc);
 }
 
-ShadowPass::~ShadowPass() = default;
-
-void ShadowPass::OnRender(CommandList& commandList, D3D12_CPU_DESCRIPTOR_HANDLE dsv, Buffer& lightDataConstantBuffer,
-                          uint32_t cascadeIndex, std::span<const RenderItem> renderItems) {
+void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, Buffer& lightDataConstantBuffer,
+                          uint32_t cascadeCount, std::span<const RenderItem> renderItems) {
     auto* cmdList = commandList.GetHandle();
-    cmdList->OMSetRenderTargets(0, nullptr, FALSE, &dsv);
     cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
     cmdList->SetPipelineState(m_PipelineState->Get());
-
     cmdList->SetGraphicsRootConstantBufferView(0, lightDataConstantBuffer.GetGPUVirtualAddress());
-    cmdList->SetGraphicsRoot32BitConstant(2, cascadeIndex, 0);
 
-    for (const auto& item : renderItems) {
-        if (!item.ShadowCaster)
-            continue;
-        cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
-        item.Mesh->Draw(commandList);
+    for (uint8_t cascadeIndex{}; cascadeIndex < cascadeCount; ++cascadeIndex) {
+        const D3D12_CPU_DESCRIPTOR_HANDLE depthDsv = shadowMapTexture.GetDsvHandle(cascadeIndex);
+        cmdList->OMSetRenderTargets(0, nullptr, FALSE, &depthDsv);
+        const D3D12_CLEAR_VALUE& clearValue = shadowMapTexture.GetDesc().ClearValue;
+        cmdList->ClearDepthStencilView(depthDsv, D3D12_CLEAR_FLAG_DEPTH, clearValue.DepthStencil.Depth,
+                                       clearValue.DepthStencil.Stencil, 0, nullptr);
+        cmdList->SetGraphicsRoot32BitConstant(2, cascadeIndex, 0);
+        for (const auto& item : renderItems) {
+            if (!item.ShadowCaster)
+                continue;
+            cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
+            item.Mesh->Draw(commandList);
+        }
     }
 }
 
