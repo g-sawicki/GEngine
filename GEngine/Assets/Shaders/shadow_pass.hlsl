@@ -18,6 +18,7 @@ ConstantBuffer<LightData> lightDataCB : register(b0);
 ConstantBuffer<ObjectConstants> objectConstantsCB : register(b1);
 ConstantBuffer<RootConstants> constantsCB : register(b2);
 
+[shader("vertex")]
 PSInput VSMain(VSInput input)
 {
     PSInput output;
@@ -26,4 +27,5 @@ PSInput VSMain(VSInput input)
     return output;
 }
 
+[shader("pixel")]
 void PSMain(PSInput input){}

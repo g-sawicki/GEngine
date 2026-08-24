@@ -31,6 +31,7 @@ ConstantBuffer<RootConstants> constantsCB : register(b3);
 SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 
+[shader("vertex")]
 PSInput VSMain(VSInput input)
 {
     float4 worldPos = mul(input.position, objectConstantsCB.world);
@@ -95,6 +96,7 @@ float ComputeShadow(float3 worldPos, Texture2DArray shadowMap)
     return shadow;
 }
 
+[shader("pixel")]
 float4 PSMain(PSInput input) : SV_TARGET
 {
     Texture2D diffuseMap = ResourceDescriptorHeap[constantsCB.diffuseIndex];
