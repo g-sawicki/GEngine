@@ -50,7 +50,11 @@ Image::Image(const std::filesystem::path& path) {
     m_Format = DetermineImageFormat(path);
     static constexpr uint8_t kChannels = 4;
     int width, height, channels;
-    void* data = stbi_load(path.string().c_str(), &width, &height, &channels, kChannels);
+    void* data;
+    if (m_Format == ImageFormat::HDR)
+        data = stbi_loadf(path.string().c_str(), &width, &height, &channels, kChannels);
+    else
+        data = stbi_load(path.string().c_str(), &width, &height, &channels, kChannels);
     if (!data) {
         throw std::runtime_error("Failed to load image: " + path.string());
     }
@@ -58,7 +62,8 @@ Image::Image(const std::filesystem::path& path) {
     m_Height = static_cast<uint32_t>(height);
     m_Channels = kChannels;
     m_Data = std::vector<uint8_t>(static_cast<uint8_t*>(data),
-                                  static_cast<uint8_t*>(data) + (m_Width * m_Height * m_Channels));
+                                  static_cast<uint8_t*>(data) +
+                                      (static_cast<size_t>(m_Width) * m_Height * GetBytesPerPixel()));
     stbi_image_free(data);
 }
 
@@ -68,16 +73,20 @@ Image::Image(const void* data, size_t size) {
 
     static constexpr uint8_t kChannels = 4;
     int width, height, channels;
-    void* decoded = stbi_load_from_memory(bytes, static_cast<int>(size), &width, &height, &channels, kChannels);
+    void* decoded;
+    if (m_Format == ImageFormat::HDR)
+        decoded = stbi_loadf_from_memory(bytes, static_cast<int>(size), &width, &height, &channels, kChannels);
+    else
+        decoded = stbi_load_from_memory(bytes, static_cast<int>(size), &width, &height, &channels, kChannels);
     if (!decoded) {
         throw std::runtime_error("Failed to decode in-memory image.");
     }
     m_Width = static_cast<uint32_t>(width);
     m_Height = static_cast<uint32_t>(height);
     m_Channels = kChannels;
-    m_Data =
-        std::vector<uint8_t>(static_cast<uint8_t*>(decoded),
-                             static_cast<uint8_t*>(decoded) + (static_cast<size_t>(m_Width) * m_Height * m_Channels));
+    m_Data = std::vector<uint8_t>(static_cast<uint8_t*>(decoded),
+                                  static_cast<uint8_t*>(decoded) +
+                                      (static_cast<size_t>(m_Width) * m_Height * GetBytesPerPixel()));
     stbi_image_free(decoded);
 }
 
@@ -93,6 +102,8 @@ Image Image::FromRawRGBA(const void* data, uint32_t width, uint32_t height) {
 }
 
 DXGI_FORMAT Image::GetDXGIFormat() const noexcept {
+    if (m_Format == ImageFormat::HDR)
+        return DXGI_FORMAT_R32G32B32A32_FLOAT;
     switch (m_Channels) {
     case 1:
         return DXGI_FORMAT_R8_UNORM;

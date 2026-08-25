@@ -27,7 +27,11 @@ class Image {
 
     [[nodiscard]] DXGI_FORMAT GetDXGIFormat() const noexcept;
 
-    [[nodiscard]] UINT64 GetRowPitch() const noexcept { return static_cast<UINT64>(m_Width) * m_Channels; }
+    [[nodiscard]] uint32_t GetBytesPerPixel() const noexcept {
+        return m_Format == ImageFormat::HDR ? sizeof(float) * m_Channels : m_Channels;
+    }
+
+    [[nodiscard]] UINT64 GetRowPitch() const noexcept { return static_cast<UINT64>(m_Width) * GetBytesPerPixel(); }
 
   private:
     std::vector<uint8_t> m_Data;

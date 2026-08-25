@@ -8,6 +8,7 @@
 #include "Scene/Light.hpp"
 #include "Scene/Material.hpp"
 #include "Scene/Model.hpp"
+#include "Scene/Skybox.hpp"
 
 #include <cassert>
 #include <filesystem>
@@ -19,6 +20,8 @@ namespace GEngine {
 
 struct SceneInfo {
     DirectX::XMFLOAT4X4 ViewProjection;
+    DirectX::XMFLOAT4X4 View;
+    DirectX::XMFLOAT4X4 Projection;
     DirectX::XMFLOAT3 CameraPosition;
     uint32_t Padding0{};
     DirectX::XMFLOAT3 CameraForward;
@@ -29,7 +32,7 @@ struct SceneInfo {
     uint32_t Padding3{};
     uint32_t Padding4{};
 };
-static_assert(sizeof(SceneInfo) == 144);
+static_assert(sizeof(SceneInfo) == 272);
 
 class Scene {
   public:
@@ -49,6 +52,9 @@ class Scene {
         assert(m_Camera);
         return *m_Camera;
     }
+
+    void SetSkybox(Skybox skybox) noexcept { m_Skybox = std::move(skybox); }
+    const Skybox& GetSkybox() const noexcept { return m_Skybox; }
 
     void SetDirectionalLight(const DirectionalLight& directionalLight) noexcept {
         m_DirectionalLight = directionalLight;
@@ -75,6 +81,7 @@ class Scene {
     CascadedShadowMaps m_CSM{};
     DirectionalLight m_DirectionalLight{};
     ShadowConfig m_ShadowConfig{};
+    Skybox m_Skybox{};
 
     std::vector<std::shared_ptr<const Model>> m_ModelAssets;
     std::vector<std::shared_ptr<const Material>> m_MaterialAssets;

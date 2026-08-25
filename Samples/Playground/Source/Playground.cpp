@@ -61,6 +61,10 @@ void Playground::OnInit() {
 
     // Sponza
     m_Scene.GetEntityManager().SpawnEntity(sponzaModel, GEngine::Transform{.Position = {20.0f, 5.0f, 20.0f}});
+
+    auto skyboxTexture =
+        m_Renderer.CreateTexture(GEngine::Image("Assets\\Textures\\Skybox\\citrus_orchard_road_puresky_4k.hdr"));
+    m_Scene.SetSkybox(GEngine::Skybox{.Panorama = std::move(*skyboxTexture)});
 }
 
 void Playground::OnUpdate(float deltaTime) {

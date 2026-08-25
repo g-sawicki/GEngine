@@ -8,6 +8,8 @@ compile_shader("default.hlsl" "PSMain" "ps_6_6" "default_ps.cso")
 compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_6" "shadow_pass_vs.cso")
 compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_6" "shadow_pass_ps.cso")
 compile_shader("tonemap.hlsl" "ToneMapCS" "cs_6_6" "tonemap_cs.cso")
+compile_shader("skybox.hlsl" "VSMain" "vs_6_6" "skybox_vs.cso")
+compile_shader("skybox.hlsl" "PSMain" "ps_6_6" "skybox_ps.cso")
 
 set(GENGINE_SHADERS
     "${SHADER_GEN_DIR}/default_vs.cso"
@@ -15,6 +17,8 @@ set(GENGINE_SHADERS
     "${SHADER_GEN_DIR}/shadow_pass_vs.cso"
     "${SHADER_GEN_DIR}/shadow_pass_ps.cso"
     "${SHADER_GEN_DIR}/tonemap_cs.cso"
+    "${SHADER_GEN_DIR}/skybox_vs.cso"
+    "${SHADER_GEN_DIR}/skybox_ps.cso"
 )
 set(GENGINE_SHADERS "${GENGINE_SHADERS}" PARENT_SCOPE)
 
@@ -69,6 +73,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
     "Source/Rendering/RenderPass/ShadowPass.cpp"
     "Source/Rendering/RenderPass/ShadowPass.hpp"
+    "Source/Rendering/RenderPass/SkyboxPass.cpp"
+    "Source/Rendering/RenderPass/SkyboxPass.hpp"
     "Source/Rendering/RenderPass/ToneMapPass.cpp"
     "Source/Rendering/RenderPass/ToneMapPass.hpp"
 
@@ -95,6 +101,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Scene/ModelLoader.hpp"
     "Source/Scene/Scene.cpp"
     "Source/Scene/Scene.hpp"
+    "Source/Scene/Skybox.hpp"
     "Source/Scene/Transform.hpp"
 
     "Source/PCH.hpp"

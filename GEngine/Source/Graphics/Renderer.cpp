@@ -5,6 +5,7 @@
 #include "Core/Utility/Common.hpp"
 #include "Graphics/D3D12/D3D12Common.hpp"
 #include "Rendering/MeshBuffer.hpp"
+#include "Rendering/MeshFactory.hpp"
 
 namespace GEngine {
 
@@ -60,6 +61,8 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, ui
     m_ShadowPass = std::make_unique<RenderPass::ShadowPass>(*m_Device, m_ShadowMapTexture.GetDesc().Format);
     m_ForwardLighting = std::make_unique<RenderPass::ForwardLightingPass>(*m_Device, m_HdrTexture, m_DepthTexture);
     m_ToneMapPass = std::make_unique<RenderPass::ToneMapPass>(*m_Device);
+    m_SkyboxPass = std::make_unique<RenderPass::SkyboxPass>(*m_Device, m_HdrTexture, m_DepthTexture);
+    m_SkyboxMeshBuffer = CreateMeshBuffer(MeshFactory::Cube());
 }
 
 void Renderer::CreateRenderTargets(uint32_t width, uint32_t height) {
@@ -109,6 +112,8 @@ void Renderer::Destroy() {
     m_ToneMapPass.reset();
     m_ForwardLighting.reset();
     m_ShadowPass.reset();
+    m_SkyboxPass.reset();
+    m_SkyboxMeshBuffer.reset();
 
     m_PresentTarget.Reset();
     m_HdrTexture.Reset();
@@ -258,6 +263,7 @@ void Renderer::Render(const Scene& scene) {
     sceneInfo.ScreenResolution[0] = m_SwapChain->GetWidth();
     sceneInfo.ScreenResolution[1] = m_SwapChain->GetHeight();
     const LightData lightData = scene.GetLightData();
+    const Skybox& skybox = scene.GetSkybox();
 
     frame.SceneInfoConstantBuffer->Write(&sceneInfo, sizeof(sceneInfo));
     frame.LightDataConstantBuffer->Write(&lightData, sizeof(lightData));
@@ -288,6 +294,12 @@ void Renderer::Render(const Scene& scene) {
 
         m_ForwardLighting->OnRender(*frame.CommandList, m_HdrTexture, m_DepthTexture, m_ShadowMapTexture,
                                     *frame.SceneInfoConstantBuffer, *frame.LightDataConstantBuffer, m_RenderItems);
+    }
+
+    // Skybox pass
+    if (skybox.Panorama.GetSrvIndex() != INVALID_BINDLESS_INDEX) {
+        m_SkyboxPass->OnRender(*frame.CommandList, *m_SkyboxMeshBuffer, m_HdrTexture, m_DepthTexture,
+                               skybox.Panorama.GetSrvIndex(), *frame.SceneInfoConstantBuffer);
     }
 
     m_RenderItems.clear();

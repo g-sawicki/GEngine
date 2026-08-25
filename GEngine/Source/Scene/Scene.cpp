@@ -20,6 +20,8 @@ SceneInfo Scene::GetSceneInfo() const noexcept {
     SceneInfo sceneInfo{};
     if (m_Camera) {
         DirectX::XMStoreFloat4x4(&sceneInfo.ViewProjection, m_Camera->GetViewProjectionMatrix());
+        DirectX::XMStoreFloat4x4(&sceneInfo.View, m_Camera->GetViewMatrix());
+        DirectX::XMStoreFloat4x4(&sceneInfo.Projection, m_Camera->GetProjectionMatrix());
         sceneInfo.CameraPosition = m_Camera->GetPosition();
         sceneInfo.CameraForward = m_Camera->GetForward();
     }

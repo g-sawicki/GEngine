@@ -17,6 +17,7 @@
 #include "Rendering/RenderItem.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
+#include "Rendering/RenderPass/SkyboxPass.hpp"
 #include "Rendering/RenderPass/ToneMapPass.hpp"
 
 #include <memory>
@@ -55,6 +56,8 @@ class Renderer {
     [[nodiscard]] bool IsVSyncEnabled() const noexcept { return m_VSync; }
     [[nodiscard]] bool IsTearingSupported() const noexcept { return m_TearingSupported; }
 
+    std::unique_ptr<Texture> CreateTexture(const Image& image);
+
   private:
     struct ModelResources {
         std::vector<std::unique_ptr<MeshBuffer>> Meshes;
@@ -64,7 +67,6 @@ class Renderer {
 
     std::unique_ptr<MeshBuffer> CreateMeshBuffer(const Mesh& mesh);
     std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
-    std::unique_ptr<Texture> CreateTexture(const Image& image);
 
     void CreateRenderTargets(uint32_t width, uint32_t height);
 
@@ -85,7 +87,10 @@ class Renderer {
 
     std::unique_ptr<RenderPass::ShadowPass> m_ShadowPass;
     std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLighting;
+    std::unique_ptr<RenderPass::SkyboxPass> m_SkyboxPass;
     std::unique_ptr<RenderPass::ToneMapPass> m_ToneMapPass;
+
+    std::unique_ptr<MeshBuffer> m_SkyboxMeshBuffer;
 
     std::vector<RenderItem> m_RenderItems;
     std::unordered_map<const Model*, ModelResources> m_ModelCache;
