@@ -1,12 +1,10 @@
 #include "common.hlsli"
 
-struct VSInput
-{
+struct VSInput {
     float4 position : POSITION;
 };
 
-struct PSInput
-{
+struct PSInput {
     float4 position : SV_POSITION;
 };
 
@@ -19,8 +17,7 @@ ConstantBuffer<ObjectConstants> objectConstantsCB : register(b1);
 ConstantBuffer<RootConstants> constantsCB : register(b2);
 
 [shader("vertex")]
-PSInput VSMain(VSInput input)
-{
+PSInput VSMain(VSInput input) {
     PSInput output;
     float4 worldPos = mul(input.position, objectConstantsCB.world);
     output.position = mul(worldPos, lightDataCB.lightViewProjection[constantsCB.cascadeIndex]);

@@ -1,15 +1,13 @@
 #include "common.hlsli"
 
-struct VSInput
-{
+struct VSInput {
     float4 position : POSITION;
     float3 normal : NORMAL;
     float3 tangent : TANGENT;
     float2 uv : TEXCOORD;
 };
 
-struct PSInput
-{
+struct PSInput {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD;
     float3 worldPos : WORLDPOS;
@@ -17,7 +15,7 @@ struct PSInput
     float3 normal : NORMAL;
 };
 
-struct RootConstants{
+struct RootConstants {
     uint32_t diffuseIndex;
     uint32_t specularIndex;
     uint32_t normalIndex;
@@ -32,8 +30,7 @@ SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 
 [shader("vertex")]
-PSInput VSMain(VSInput input)
-{
+PSInput VSMain(VSInput input) {
     float4 worldPos = mul(input.position, objectConstantsCB.world);
 
     PSInput output;
@@ -45,8 +42,7 @@ PSInput VSMain(VSInput input)
     return output;
 }
 
-uint SelectCascade(float viewDepth)
-{
+uint SelectCascade(float viewDepth) {
     if (viewDepth <= lightDataCB.cascadeSplits.x)
         return 0;
     if (viewDepth <= lightDataCB.cascadeSplits.y)
@@ -56,8 +52,7 @@ uint SelectCascade(float viewDepth)
     return 3;
 }
 
-float SampleCascadeShadow(float3 worldPos, Texture2DArray shadowMap, uint cascade)
-{
+float SampleCascadeShadow(float3 worldPos, Texture2DArray shadowMap, uint cascade) {
     float4 positionLightSpace = mul(float4(worldPos, 1.0f), lightDataCB.lightViewProjection[cascade]);
     float3 ndc = positionLightSpace.xyz / positionLightSpace.w;
     float2 uv = float2(ndc.x * 0.5f + 0.5f, 1.0f - (ndc.y * 0.5f + 0.5f));
@@ -68,24 +63,25 @@ float SampleCascadeShadow(float3 worldPos, Texture2DArray shadowMap, uint cascad
         [unroll]
         for (int y = -1; y <= 1; ++y) {
             float2 offset = float2(x, y) * lightDataCB.shadowMapTexelSize;
-            shadow += shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade), ndc.z - lightDataCB.shadowBias);
+            shadow += shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade),
+                                                   ndc.z - lightDataCB.shadowBias);
         }
     }
 
     return shadow / 9.0f;
 }
 
-float ComputeShadow(float3 worldPos, Texture2DArray shadowMap)
-{
+float ComputeShadow(float3 worldPos, Texture2DArray shadowMap) {
     if (!lightDataCB.shadowEnabled || lightDataCB.cascadeCount == 0)
         return 1.0f;
 
     float viewDepth = dot(worldPos - sceneInfoCB.cameraPosition, sceneInfoCB.cameraForward);
     uint cascade = SelectCascade(viewDepth);
 
-    float split = cascade == 0 ? lightDataCB.cascadeSplits.x :
-                  cascade == 1 ? lightDataCB.cascadeSplits.y :
-                  cascade == 2 ? lightDataCB.cascadeSplits.z : 1e30f;
+    float split = cascade == 0   ? lightDataCB.cascadeSplits.x
+                  : cascade == 1 ? lightDataCB.cascadeSplits.y
+                  : cascade == 2 ? lightDataCB.cascadeSplits.z
+                                 : 1e30f;
     float blendStart = split * 0.8f;
     float blend = saturate((viewDepth - blendStart) / max(split - blendStart, 1e-6f));
 
@@ -97,8 +93,7 @@ float ComputeShadow(float3 worldPos, Texture2DArray shadowMap)
 }
 
 [shader("pixel")]
-float4 PSMain(PSInput input) : SV_TARGET
-{
+float4 PSMain(PSInput input) : SV_TARGET {
     Texture2D diffuseMap = ResourceDescriptorHeap[constantsCB.diffuseIndex];
     Texture2D specularMap = ResourceDescriptorHeap[constantsCB.specularIndex];
     Texture2D normalMap = ResourceDescriptorHeap[constantsCB.normalIndex];

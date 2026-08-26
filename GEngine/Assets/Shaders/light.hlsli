@@ -13,8 +13,7 @@ struct PointLight {
     float  attenuationQuadratic;
 };
 
-struct LightData
-{
+struct LightData {
     row_major float4x4 lightViewProjection[4];
     float4 cascadeSplits;
     float shadowMapTexelSize;
