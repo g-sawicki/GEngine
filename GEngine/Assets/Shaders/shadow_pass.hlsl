@@ -12,7 +12,7 @@ struct RootConstants {
     uint cascadeIndex;
 };
 
-ConstantBuffer<LightData> lightDataCB : register(b0);
+ConstantBuffer<CascadedShadowMapsData> cascadedShadowMapsDataCB : register(b0);
 ConstantBuffer<ObjectConstants> objectConstantsCB : register(b1);
 ConstantBuffer<RootConstants> constantsCB : register(b2);
 
@@ -20,7 +20,7 @@ ConstantBuffer<RootConstants> constantsCB : register(b2);
 PSInput VSMain(VSInput input) {
     PSInput output;
     float4 worldPos = mul(input.position, objectConstantsCB.world);
-    output.position = mul(worldPos, lightDataCB.lightViewProjection[constantsCB.cascadeIndex]);
+    output.position = mul(worldPos, cascadedShadowMapsDataCB.lightViewProjection[constantsCB.cascadeIndex]);
     return output;
 }
 

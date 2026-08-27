@@ -32,6 +32,12 @@ void Playground::OnInit() {
         .Color = {1.0f, 1.0f, 1.0f},
     });
 
+    m_Scene.AddPointLight({
+        .Position = {10.0f, 7.0f, 20.0f},
+        .Intensity = 2.0f,
+        .Color = {1.0f, 0.6f, 0.3f},
+    });
+
     const GEngine::Material containerMaterial{
         .Diffuse = GEngine::Image{"Assets\\Textures\\Container\\container2.png"},
         .Specular = GEngine::Image{"Assets\\Textures\\Container\\container2_specular.png"},

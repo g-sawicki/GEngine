@@ -19,8 +19,9 @@ class ForwardLightingPass {
     ForwardLightingPass(ForwardLightingPass&&) = delete;
     ForwardLightingPass& operator=(ForwardLightingPass&&) = delete;
 
-    void OnRender(CommandList& commandList, Texture& colorTexture, Texture& depthTexture, Texture& shadowMapTexture,
-                  Buffer& sceneInfoCB, Buffer& lightDataCB, std::span<const RenderItem> renderItems);
+    void OnRender(CommandList& commandList, const Texture& colorTexture, const Texture& depthTexture,
+                  const Texture& shadowMapTexture, const Buffer& sceneInfoCB, const Buffer& cascadedShadowMapsDataCB,
+                  std::span<const RenderItem> renderItems);
 
   private:
     std::unique_ptr<RootSignature> m_RootSignature;

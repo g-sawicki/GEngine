@@ -25,7 +25,6 @@ SceneInfo Scene::GetSceneInfo() const noexcept {
         sceneInfo.CameraPosition = m_Camera->GetPosition();
         sceneInfo.CameraForward = m_Camera->GetForward();
     }
-    sceneInfo.DirectionalLight = m_DirectionalLight;
     return sceneInfo;
 }
 
@@ -55,27 +54,28 @@ std::shared_ptr<const Model> Scene::LoadModel(const std::filesystem::path& filep
     return AddModel(std::move(*result));
 }
 
-LightData Scene::GetLightData() const noexcept {
+CascadedShadowMapsData Scene::GetCascadedShadowMapsData() const noexcept {
     if (!m_Camera)
-        return LightData{};
+        return CascadedShadowMapsData{};
 
-    LightData lightData{};
-    lightData.ShadowMapTexelSize = 1.0f / static_cast<float>(m_ShadowConfig.MapSize);
-    lightData.ShadowBias = m_ShadowConfig.Bias;
-    lightData.ShadowSlopeScaleBias = m_ShadowConfig.SlopeScaleBias;
-    lightData.NormalOffsetScale = m_ShadowConfig.NormalOffsetScale;
-    lightData.ShadowEnabled = m_ShadowConfig.Enabled ? 1u : 0u;
+    CascadedShadowMapsData cascadedShadowMapsData{
+        .ShadowMapTexelSize = 1.0f / static_cast<float>(m_ShadowConfig.MapSize),
+        .ShadowBias = m_ShadowConfig.Bias,
+        .ShadowSlopeScaleBias = m_ShadowConfig.SlopeScaleBias,
+        .NormalOffsetScale = m_ShadowConfig.NormalOffsetScale,
+        .ShadowEnabled = m_ShadowConfig.Enabled ? 1u : 0u,
+    };
 
     if (m_ShadowConfig.Enabled) {
         const CascadedShadowMaps::CascadeData cascadeData = m_CSM.Update(*m_Camera, m_DirectionalLight, m_ShadowConfig);
-        lightData.CascadeCount = static_cast<uint32_t>(cascadeData.ViewProjection.size());
-        for (uint32_t i{}; i < lightData.CascadeCount && i < kMaxCascades; ++i) {
-            DirectX::XMStoreFloat4x4(&lightData.LightViewProjection[i], cascadeData.ViewProjection[i]);
-            (&lightData.CascadeSplits.x)[i] = cascadeData.FarSplits[i];
+        cascadedShadowMapsData.CascadeCount = static_cast<uint32_t>(cascadeData.ViewProjection.size());
+        for (uint32_t i{}; i < cascadedShadowMapsData.CascadeCount && i < kMaxCascades; ++i) {
+            DirectX::XMStoreFloat4x4(&cascadedShadowMapsData.LightViewProjection[i], cascadeData.ViewProjection[i]);
+            (&cascadedShadowMapsData.CascadeSplits.x)[i] = cascadeData.FarSplits[i];
         }
     }
 
-    return lightData;
+    return cascadedShadowMapsData;
 }
 
 } // namespace GEngine

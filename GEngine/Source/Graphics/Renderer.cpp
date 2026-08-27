@@ -49,11 +49,17 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, ui
         m_FrameResources[i].SceneInfoConstantBuffer =
             std::make_unique<Buffer>(*m_Device, *m_CommandQueue, sceneInfoCbDesc);
 
-        const BufferDesc lightDataCbDesc{.Size = sizeof(LightData),
-                                         .HeapType = D3D12_HEAP_TYPE_UPLOAD,
-                                         .MiscFlags = BufferMiscFlags::ConstantBuffer};
-        m_FrameResources[i].LightDataConstantBuffer =
-            std::make_unique<Buffer>(*m_Device, *m_CommandQueue, lightDataCbDesc);
+        const BufferDesc cascadedShadowMapsDataCbDesc{.Size = sizeof(CascadedShadowMapsData),
+                                                      .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+                                                      .MiscFlags = BufferMiscFlags::ConstantBuffer};
+        m_FrameResources[i].CascadedShadowMapsDataConstantBuffer =
+            std::make_unique<Buffer>(*m_Device, *m_CommandQueue, cascadedShadowMapsDataCbDesc);
+
+        const BufferDesc LightDataSbDesc{.Size = kMaxLights * sizeof(LightData), .HeapType = D3D12_HEAP_TYPE_UPLOAD};
+        m_FrameResources[i].LightDataStructuredBuffer =
+            std::make_unique<Buffer>(*m_Device, *m_CommandQueue, LightDataSbDesc);
+        m_FrameResources[i].LightDataStructuredBuffer->CreateStructuredBufferSRV(*m_Device, kMaxLights,
+                                                                                 sizeof(LightData));
     }
 
     m_Fence = std::make_unique<Fence>(*m_Device);
@@ -103,7 +109,8 @@ void Renderer::Destroy() {
         frame.CommandList.reset();
         frame.CommandAllocator.Reset();
         frame.SceneInfoConstantBuffer.reset();
-        frame.LightDataConstantBuffer.reset();
+        frame.CascadedShadowMapsDataConstantBuffer.reset();
+        frame.LightDataStructuredBuffer.reset();
         frame.ObjectConstantBuffers.clear();
     }
     m_Fence.reset();
@@ -262,11 +269,36 @@ void Renderer::Render(const Scene& scene) {
     SceneInfo sceneInfo = scene.GetSceneInfo();
     sceneInfo.ScreenResolution[0] = m_SwapChain->GetWidth();
     sceneInfo.ScreenResolution[1] = m_SwapChain->GetHeight();
-    const LightData lightData = scene.GetLightData();
-    const Skybox& skybox = scene.GetSkybox();
+    const CascadedShadowMapsData cascadedShadowMapsData = scene.GetCascadedShadowMapsData();
+
+    std::vector<LightData> lightData;
+    lightData.reserve(1 + scene.GetPointLights().size());
+    {
+        const DirectionalLight& directionalLight = scene.GetDirectionalLight();
+        lightData.push_back({
+            .Position = {},
+            .Type = static_cast<uint32_t>(LightType::Directional),
+            .Direction = directionalLight.Direction,
+            .Color = directionalLight.Color,
+            .Intensity = directionalLight.Intensity,
+        });
+    }
+    for (const PointLight& pointLight : scene.GetPointLights()) {
+        lightData.push_back({
+            .Position = pointLight.Position,
+            .Type = static_cast<uint32_t>(LightType::Point),
+            .Color = pointLight.Color,
+            .Intensity = pointLight.Intensity,
+        });
+    }
+    if (lightData.size() > kMaxLights)
+        lightData.resize(kMaxLights);
+    frame.LightDataStructuredBuffer->Write(lightData.data(), lightData.size() * sizeof(LightData));
+    sceneInfo.LightCount = static_cast<uint32_t>(lightData.size());
+    sceneInfo.LightIndex = frame.LightDataStructuredBuffer->GetSrvIndex();
 
     frame.SceneInfoConstantBuffer->Write(&sceneInfo, sizeof(sceneInfo));
-    frame.LightDataConstantBuffer->Write(&lightData, sizeof(lightData));
+    frame.CascadedShadowMapsDataConstantBuffer->Write(&cascadedShadowMapsData, sizeof(cascadedShadowMapsData));
 
     m_Device->SetDescriptorHeaps(*frame.CommandList);
 
@@ -274,29 +306,22 @@ void Renderer::Render(const Scene& scene) {
     {
         m_ShadowMapTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-        uint32_t width = m_ShadowMapTexture.GetDesc().Width;
-        uint32_t height = m_ShadowMapTexture.GetDesc().Height;
-        D3D12_VIEWPORT viewport{0, 0, static_cast<FLOAT>(width), static_cast<FLOAT>(height), 0.0f, 1.0f};
-        D3D12_RECT scissorRect{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
-        cmdList->RSSetViewports(1, &viewport);
-        cmdList->RSSetScissorRects(1, &scissorRect);
-
-        const uint32_t cascadeCount = std::min<uint32_t>(lightData.CascadeCount, kMaxCascades);
-        m_ShadowPass->OnRender(*frame.CommandList, m_ShadowMapTexture, *frame.LightDataConstantBuffer, cascadeCount,
-                               m_RenderItems);
-
-        m_ShadowMapTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        m_ShadowPass->OnRender(*frame.CommandList, m_ShadowMapTexture, *frame.CascadedShadowMapsDataConstantBuffer,
+                               cascadedShadowMapsData.CascadeCount, m_RenderItems);
     }
 
     // Forward lighting pass
     {
         m_HdrTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        m_ShadowMapTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
         m_ForwardLighting->OnRender(*frame.CommandList, m_HdrTexture, m_DepthTexture, m_ShadowMapTexture,
-                                    *frame.SceneInfoConstantBuffer, *frame.LightDataConstantBuffer, m_RenderItems);
+                                    *frame.SceneInfoConstantBuffer, *frame.CascadedShadowMapsDataConstantBuffer,
+                                    m_RenderItems);
     }
 
     // Skybox pass
+    const Skybox& skybox = scene.GetSkybox();
     if (skybox.Panorama.GetSrvIndex() != INVALID_BINDLESS_INDEX) {
         m_SkyboxPass->OnRender(*frame.CommandList, *m_SkyboxMeshBuffer, m_HdrTexture, m_DepthTexture,
                                skybox.Panorama.GetSrvIndex(), *frame.SceneInfoConstantBuffer);
@@ -307,15 +332,19 @@ void Renderer::Render(const Scene& scene) {
     // Post-processing
     {
         m_HdrTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        backBuffer.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_COPY_DEST);
+        m_PresentTarget.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         m_ToneMapPass->Dispatch(*frame.CommandList, m_HdrTexture.GetSrvIndex(), m_PresentTarget.GetUavIndex(),
                                 *frame.SceneInfoConstantBuffer, m_SwapChain->GetWidth(), m_SwapChain->GetHeight());
+    }
 
+    // Present target
+    {
         m_PresentTarget.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        backBuffer.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_COPY_DEST);
+
         cmdList->CopyResource(backBuffer.GetResource(), m_PresentTarget.GetResource());
 
-        m_PresentTarget.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         backBuffer.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_PRESENT);
     }
 

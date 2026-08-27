@@ -9,10 +9,10 @@ namespace GEngine::RenderPass {
 
 ForwardLightingPass::ForwardLightingPass(Device& device, const Texture& colorTexture, const Texture& depthTexture) {
     CD3DX12_ROOT_PARAMETER1 rootParams[4]{};
-    rootParams[0].InitAsConstantBufferView(0); // b0: SceneInfo
-    rootParams[1].InitAsConstantBufferView(1); // b1: LightData
-    rootParams[2].InitAsConstantBufferView(2); // b2: ObjectConstants
-    rootParams[3].InitAsConstants(4, 3);       // b3: RootConstants
+    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[1].InitAsConstantBufferView(1);
+    rootParams[2].InitAsConstantBufferView(2);
+    rootParams[3].InitAsConstants(4, 3);
 
     D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
     staticSamplers[0] = D3D12_STATIC_SAMPLER_DESC{
@@ -83,9 +83,9 @@ ForwardLightingPass::ForwardLightingPass(Device& device, const Texture& colorTex
     m_PipelineState = std::make_unique<PipelineState>(device, psoDesc);
 }
 
-void ForwardLightingPass::OnRender(CommandList& commandList, Texture& colorTexture, Texture& depthTexture,
-                                   Texture& shadowMapTexture, Buffer& sceneInfoCB, Buffer& lightDataCB,
-                                   std::span<const RenderItem> renderItems) {
+void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colorTexture, const Texture& depthTexture,
+                                   const Texture& shadowMapTexture, const Buffer& sceneInfoCB,
+                                   const Buffer& cascadedShadowMapsDataCB, std::span<const RenderItem> renderItems) {
 
     auto* cmdList = commandList.GetHandle();
     cmdList->ClearRenderTargetView(colorTexture.GetRtvHandle(), colorTexture.GetDesc().ClearValue.Color, 0, nullptr);
@@ -107,7 +107,7 @@ void ForwardLightingPass::OnRender(CommandList& commandList, Texture& colorTextu
     cmdList->SetPipelineState(m_PipelineState->Get());
 
     cmdList->SetGraphicsRootConstantBufferView(0, sceneInfoCB.GetGPUVirtualAddress());
-    cmdList->SetGraphicsRootConstantBufferView(1, lightDataCB.GetGPUVirtualAddress());
+    cmdList->SetGraphicsRootConstantBufferView(1, cascadedShadowMapsDataCB.GetGPUVirtualAddress());
 
     struct RootConstants {
         uint32_t DiffuseIndex;

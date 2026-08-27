@@ -79,4 +79,21 @@ void Buffer::Write(const void* data, const UINT64 size) {
     m_Resource->Unmap(0, nullptr);
 }
 
+void Buffer::CreateStructuredBufferSRV(Device& device, const UINT numElements, const UINT strideInBytes) {
+    assert(m_SrvIndex == INVALID_BINDLESS_INDEX);
+    m_SrvIndex = device.GetShaderResourceDescriptorHeap().Allocate().Index;
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Buffer = {
+        .FirstElement = 0,
+        .NumElements = numElements,
+        .StructureByteStride = strideInBytes,
+        .Flags = D3D12_BUFFER_SRV_FLAG_NONE,
+    };
+    const D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = device.GetShaderResourceDescriptorHeap().GetCpuHandle(m_SrvIndex);
+    device.Get()->CreateShaderResourceView(m_Resource.Get(), &srvDesc, srvHandle);
+}
+
 } // namespace GEngine

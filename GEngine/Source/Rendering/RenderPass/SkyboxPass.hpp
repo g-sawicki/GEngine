@@ -19,8 +19,8 @@ class SkyboxPass {
     SkyboxPass(SkyboxPass&&) = delete;
     SkyboxPass& operator=(SkyboxPass&&) = delete;
 
-    void OnRender(CommandList& commandList, const MeshBuffer& cubeMesh, Texture& colorTexture, Texture& depthTexture,
-                  uint32_t skyboxSrvIndex, Buffer& sceneInfoCB);
+    void OnRender(CommandList& commandList, const MeshBuffer& cubeMesh, const Texture& colorTexture,
+                  const Texture& depthTexture, uint32_t skyboxSrvIndex, Buffer& sceneInfoCB);
 
   private:
     std::unique_ptr<RootSignature> m_RootSignature;

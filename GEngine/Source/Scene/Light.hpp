@@ -7,6 +7,13 @@
 namespace GEngine {
 
 static constexpr uint32_t kMaxCascades = 4;
+static constexpr uint32_t kMaxLights = 16;
+
+enum class LightType : uint32_t {
+    Directional = 0,
+    Point = 1,
+    Spot = 2,
+};
 
 struct DirectionalLight {
     DirectX::XMFLOAT3 Direction{};
@@ -14,18 +21,11 @@ struct DirectionalLight {
     DirectX::XMFLOAT3 Color{1.0f, 1.0f, 1.0f};
 };
 
-static_assert(sizeof(DirectionalLight) == 28);
-
 struct PointLight {
     DirectX::XMFLOAT3 Position{};
     float Intensity{1.0f};
     DirectX::XMFLOAT3 Color{1.0f, 1.0f, 1.0f};
-    float AttenuationConstant{};
-    float AttenuationLinear{};
-    float AttenuationQuadratic{};
 };
-
-static_assert(sizeof(PointLight) == 40);
 
 struct ShadowConfig {
     bool Enabled{true};
@@ -36,7 +36,7 @@ struct ShadowConfig {
     float MaxFarZ{200.0f};
 };
 
-struct LightData {
+struct CascadedShadowMapsData {
     DirectX::XMFLOAT4X4 LightViewProjection[kMaxCascades]{};
     DirectX::XMFLOAT4 CascadeSplits{};
     float ShadowMapTexelSize{};
@@ -48,6 +48,16 @@ struct LightData {
     uint32_t Padding[2]{};
 };
 
-static_assert(sizeof(LightData) == 304);
+static_assert(sizeof(CascadedShadowMapsData) == 304);
+
+struct LightData {
+    DirectX::XMFLOAT3 Position;
+    uint32_t Type;
+    DirectX::XMFLOAT3 Direction;
+    DirectX::XMFLOAT3 Color;
+    float Intensity;
+};
+
+static_assert(sizeof(LightData) == 44);
 
 } // namespace GEngine

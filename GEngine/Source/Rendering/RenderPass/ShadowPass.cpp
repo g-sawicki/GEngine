@@ -9,9 +9,9 @@ namespace GEngine::RenderPass {
 
 ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_DepthStencilFormat(depthStencilFormat) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstantBufferView(0); // b0: LightDataConstants
-    rootParams[1].InitAsConstantBufferView(1); // b1: ObjectConstants
-    rootParams[2].InitAsConstants(1, 2);       // b2: RootConstants
+    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[1].InitAsConstantBufferView(1);
+    rootParams[2].InitAsConstants(1, 2);
 
     D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
@@ -50,6 +50,14 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_Depth
 void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, Buffer& lightDataConstantBuffer,
                           uint32_t cascadeCount, std::span<const RenderItem> renderItems) {
     auto* cmdList = commandList.GetHandle();
+
+    uint32_t width = shadowMapTexture.GetDesc().Width;
+    uint32_t height = shadowMapTexture.GetDesc().Height;
+    D3D12_VIEWPORT viewport{0, 0, static_cast<FLOAT>(width), static_cast<FLOAT>(height), 0.0f, 1.0f};
+    D3D12_RECT scissorRect{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+    cmdList->RSSetViewports(1, &viewport);
+    cmdList->RSSetScissorRects(1, &scissorRect);
+
     cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
     cmdList->SetPipelineState(m_PipelineState->Get());
     cmdList->SetGraphicsRootConstantBufferView(0, lightDataConstantBuffer.GetGPUVirtualAddress());

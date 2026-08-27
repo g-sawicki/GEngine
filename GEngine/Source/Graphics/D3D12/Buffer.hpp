@@ -1,5 +1,6 @@
 #pragma once
 
+#include "D3D12Common.hpp"
 #include "Device.hpp"
 
 #include <memory>
@@ -10,7 +11,7 @@ class CommandQueue;
 
 enum class BufferMiscFlags : uint32_t {
     None = 0,
-    ConstantBuffer = 1 << 0,  // requires 256-byte alignment for CBV
+    ConstantBuffer = 1 << 0, // requires 256-byte alignment for CBV
 };
 
 [[nodiscard]] constexpr bool HasFlag(BufferMiscFlags flags, BufferMiscFlags flag) noexcept {
@@ -35,6 +36,9 @@ class Buffer {
     }
     [[nodiscard]] UINT64 GetSize() const noexcept { return m_Size; }
 
+    [[nodiscard]] uint32_t GetSrvIndex() const noexcept { return m_SrvIndex; }
+    void CreateStructuredBufferSRV(Device& device, UINT numElements, UINT strideInBytes);
+
     [[nodiscard]] D3D12_VERTEX_BUFFER_VIEW GetVBV(UINT stride) const noexcept {
         return {.BufferLocation = m_Resource->GetGPUVirtualAddress(),
                 .SizeInBytes = static_cast<UINT>(m_Size),
@@ -52,6 +56,7 @@ class Buffer {
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
     UINT64 m_Size{};
     D3D12_HEAP_TYPE m_HeapType{};
+    uint32_t m_SrvIndex{INVALID_BINDLESS_INDEX};
 };
 
 } // namespace GEngine

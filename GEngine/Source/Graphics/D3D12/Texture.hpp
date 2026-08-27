@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Utility/Image.hpp"
+#include "D3D12Common.hpp"
 #include "DescriptorHeap.hpp"
 #include "Device.hpp"
 
@@ -64,9 +65,6 @@ struct TextureFormatInfo {
         return {format, format, format, DXGI_FORMAT_UNKNOWN};
     }
 }
-
-constexpr uint64_t INVALID_HANDLE = 0xFFFFFFFF'FFFFFFFF;
-constexpr uint32_t INVALID_BINDLESS_INDEX = 0xFFFFFFFF;
 
 class Texture {
   public:

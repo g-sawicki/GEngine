@@ -26,13 +26,11 @@ struct SceneInfo {
     uint32_t Padding0{};
     DirectX::XMFLOAT3 CameraForward;
     uint32_t Padding1{};
-    DirectionalLight DirectionalLight;
-    uint32_t Padding2{};
     uint32_t ScreenResolution[2]{};
-    uint32_t Padding3{};
-    uint32_t Padding4{};
+    uint32_t LightCount{};
+    uint32_t LightIndex{};
 };
-static_assert(sizeof(SceneInfo) == 272);
+static_assert(sizeof(SceneInfo) == 240);
 
 class Scene {
   public:
@@ -61,11 +59,14 @@ class Scene {
     }
     [[nodiscard]] const DirectionalLight& GetDirectionalLight() const noexcept { return m_DirectionalLight; }
 
+    void AddPointLight(const PointLight& pointLight) noexcept { m_PointLights.push_back(pointLight); }
+    [[nodiscard]] const std::vector<PointLight>& GetPointLights() const noexcept { return m_PointLights; }
+
     void SetShadowConfig(const ShadowConfig& shadowConfig) noexcept { m_ShadowConfig = shadowConfig; }
     [[nodiscard]] const ShadowConfig& GetShadowConfig() const noexcept { return m_ShadowConfig; }
     [[nodiscard]] uint8_t GetCascadeCount() const noexcept { return m_CSM.GetCascadeCount(); }
 
-    LightData GetLightData() const noexcept;
+    CascadedShadowMapsData GetCascadedShadowMapsData() const noexcept;
     SceneInfo GetSceneInfo() const noexcept;
 
     std::shared_ptr<const Model> AddModel(Model model);
@@ -78,10 +79,12 @@ class Scene {
 
   private:
     std::optional<Camera> m_Camera{};
-    CascadedShadowMaps m_CSM{};
-    DirectionalLight m_DirectionalLight{};
-    ShadowConfig m_ShadowConfig{};
     Skybox m_Skybox{};
+
+    CascadedShadowMaps m_CSM{};
+    ShadowConfig m_ShadowConfig{};
+    DirectionalLight m_DirectionalLight{};
+    std::vector<PointLight> m_PointLights;
 
     std::vector<std::shared_ptr<const Model>> m_ModelAssets;
     std::vector<std::shared_ptr<const Material>> m_MaterialAssets;

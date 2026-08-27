@@ -6,8 +6,9 @@ struct SceneInfo {
     row_major float4x4 projection;
     float3 cameraPosition;
     float3 cameraForward;
-    DirectionalLight directionalLight;
     uint2 screenResolution;
+    uint32_t lightCount;
+    uint32_t lightIndex;
 };
 
 struct ObjectConstants {

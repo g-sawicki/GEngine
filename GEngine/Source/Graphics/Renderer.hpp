@@ -32,7 +32,8 @@ class Renderer {
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CommandAllocator;
         std::unique_ptr<CommandList> CommandList;
         std::unique_ptr<Buffer> SceneInfoConstantBuffer;
-        std::unique_ptr<Buffer> LightDataConstantBuffer;
+        std::unique_ptr<Buffer> CascadedShadowMapsDataConstantBuffer;
+        std::unique_ptr<Buffer> LightDataStructuredBuffer;
         std::vector<std::unique_ptr<Buffer>> ObjectConstantBuffers;
         uint64_t FenceValue{};
     };
