@@ -272,7 +272,7 @@ void Renderer::Render(const Scene& scene) {
     const CascadedShadowMapsData cascadedShadowMapsData = scene.GetCascadedShadowMapsData();
 
     std::vector<LightData> lightData;
-    lightData.reserve(1 + scene.GetPointLights().size());
+    lightData.reserve(1 + scene.GetPointLights().size() + scene.GetSpotLights().size());
     {
         const DirectionalLight& directionalLight = scene.GetDirectionalLight();
         lightData.push_back({
@@ -291,8 +291,21 @@ void Renderer::Render(const Scene& scene) {
             .Intensity = pointLight.Intensity,
         });
     }
-    if (lightData.size() > kMaxLights)
+    for (const SpotLight& spotLight : scene.GetSpotLights()) {
+        lightData.push_back({
+            .Position = spotLight.Position,
+            .Type = static_cast<uint32_t>(LightType::Spot),
+            .Direction = spotLight.Direction,
+            .Color = spotLight.Color,
+            .Intensity = spotLight.Intensity,
+            .CosInnerCone = std::cos(DirectX::XMConvertToRadians(spotLight.InnerConeAngle)),
+            .CosOuterCone = std::cos(DirectX::XMConvertToRadians(spotLight.OuterConeAngle)),
+        });
+    }
+    if (lightData.size() > kMaxLights) {
+        assert(false && "Too many lights; excess lights beyond kMaxLights are ignored.");
         lightData.resize(kMaxLights);
+    }
     frame.LightDataStructuredBuffer->Write(lightData.data(), lightData.size() * sizeof(LightData));
     sceneInfo.LightCount = static_cast<uint32_t>(lightData.size());
     sceneInfo.LightIndex = frame.LightDataStructuredBuffer->GetSrvIndex();

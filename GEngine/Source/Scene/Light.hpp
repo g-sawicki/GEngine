@@ -16,7 +16,7 @@ enum class LightType : uint32_t {
 };
 
 struct DirectionalLight {
-    DirectX::XMFLOAT3 Direction{};
+    DirectX::XMFLOAT3 Direction{0.0f, -1.0f, 0.0f};
     float Intensity{1.0f};
     DirectX::XMFLOAT3 Color{1.0f, 1.0f, 1.0f};
 };
@@ -25,6 +25,15 @@ struct PointLight {
     DirectX::XMFLOAT3 Position{};
     float Intensity{1.0f};
     DirectX::XMFLOAT3 Color{1.0f, 1.0f, 1.0f};
+};
+
+struct SpotLight {
+    DirectX::XMFLOAT3 Position{};
+    float Intensity{1.0f};
+    DirectX::XMFLOAT3 Direction{0.0f, -1.0f, 0.0f};
+    DirectX::XMFLOAT3 Color{1.0f, 1.0f, 1.0f};
+    float InnerConeAngle{45.0f};
+    float OuterConeAngle{60.0f};
 };
 
 struct ShadowConfig {
@@ -51,13 +60,15 @@ struct CascadedShadowMapsData {
 static_assert(sizeof(CascadedShadowMapsData) == 304);
 
 struct LightData {
-    DirectX::XMFLOAT3 Position;
-    uint32_t Type;
-    DirectX::XMFLOAT3 Direction;
-    DirectX::XMFLOAT3 Color;
-    float Intensity;
+    DirectX::XMFLOAT3 Position{};
+    uint32_t Type{};
+    DirectX::XMFLOAT3 Direction{};
+    DirectX::XMFLOAT3 Color{};
+    float Intensity{};
+    float CosInnerCone{};
+    float CosOuterCone{};
 };
 
-static_assert(sizeof(LightData) == 44);
+static_assert(sizeof(LightData) == 52);
 
 } // namespace GEngine

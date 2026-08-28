@@ -61,6 +61,15 @@ class Scene {
 
     void AddPointLight(const PointLight& pointLight) noexcept { m_PointLights.push_back(pointLight); }
     [[nodiscard]] const std::vector<PointLight>& GetPointLights() const noexcept { return m_PointLights; }
+    void AddSpotLight(const SpotLight& spotLight) noexcept {
+        assert((spotLight.Direction.x != 0.0f || spotLight.Direction.y != 0.0f || spotLight.Direction.z != 0.0f) &&
+               "SpotLight direction must be non-zero.");
+        assert(spotLight.InnerConeAngle >= 0.0f && spotLight.OuterConeAngle <= 90.0f &&
+               spotLight.InnerConeAngle < spotLight.OuterConeAngle &&
+               "SpotLight cones must satisfy 0 <= InnerConeAngle < OuterConeAngle <= 90 degrees.");
+        m_SpotLights.push_back(spotLight);
+    }
+    [[nodiscard]] const std::vector<SpotLight>& GetSpotLights() const noexcept { return m_SpotLights; }
 
     void SetShadowConfig(const ShadowConfig& shadowConfig) noexcept { m_ShadowConfig = shadowConfig; }
     [[nodiscard]] const ShadowConfig& GetShadowConfig() const noexcept { return m_ShadowConfig; }
@@ -85,6 +94,7 @@ class Scene {
     ShadowConfig m_ShadowConfig{};
     DirectionalLight m_DirectionalLight{};
     std::vector<PointLight> m_PointLights;
+    std::vector<SpotLight> m_SpotLights;
 
     std::vector<std::shared_ptr<const Model>> m_ModelAssets;
     std::vector<std::shared_ptr<const Material>> m_MaterialAssets;

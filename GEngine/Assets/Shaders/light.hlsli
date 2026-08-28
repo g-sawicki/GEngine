@@ -10,6 +10,8 @@ struct LightData {
     float3   direction;
     float3   color;
     float    intensity;
+    float    cosInnerCone;
+    float    cosOuterCone;
 };
 
 struct CascadedShadowMapsData {
@@ -94,25 +96,29 @@ float3 CalculateDirectionalLight(LightData lightData, float3 viewDir, float3 wor
     return CalculateBlinnPhong(lightData, lightDir, viewDir, worldNormal, diffuseTex, specularTex) * shadow;
 }
 
-float3 CalculatePointLight(LightData lightData, float3 worldPos, float3 viewDir, float3 worldNormal, float3 diffuseTex, float3 specularTex) {
-    float distance = length(worldPos - lightData.position);
+float3 CalculatePointLight(LightData lightData, float3 lightDir, float distance, float3 viewDir, float3 worldNormal, float3 diffuseTex, float3 specularTex) {
     float attenuation = 1.0 / (1.0f + 0.09f * distance + 0.032f * (distance * distance));
-
-    float3 lightDir = normalize(worldPos - lightData.position);
     return CalculateBlinnPhong(lightData, lightDir, viewDir, worldNormal, diffuseTex, specularTex) * attenuation;
 }
 
 float3 CalculateLight(LightData lightData, float3 worldPos, float3 viewDir, float3 worldNormal, float3 diffuseTex, float3 specularTex,
                       float shadow) {
-    switch(lightData.type) {
-        case DIRECTIONAL_LIGHT:
-            return CalculateDirectionalLight(lightData, viewDir, worldNormal, diffuseTex, specularTex, shadow);
-        case POINT_LIGHT:
-            return CalculatePointLight(lightData, worldPos, viewDir, worldNormal, diffuseTex, specularTex);
-        case SPOT_LIGHT:
-            break;
+    if (lightData.type == DIRECTIONAL_LIGHT)
+        return CalculateDirectionalLight(lightData, viewDir, worldNormal, diffuseTex, specularTex, shadow);
+
+    float3 lightToWorldPos = worldPos - lightData.position;
+    float3 worldPosDir = normalize(lightToWorldPos);
+    float distance = length(lightToWorldPos);
+    float3 intensity = CalculatePointLight(lightData, worldPosDir, distance, viewDir, worldNormal, diffuseTex, specularTex);
+
+    if (lightData.type == SPOT_LIGHT) {
+        float3 lightDir = normalize(lightData.direction);
+        float theta = dot(lightDir, worldPosDir);
+        float epsilon = lightData.cosInnerCone - lightData.cosOuterCone;
+        intensity *= saturate((theta - lightData.cosOuterCone) / epsilon);
     }
-    return 0.0f;
+
+    return intensity;
 }
 
 float3 CalculateDirectLighting(uint32_t lightIndex, uint32_t lightCount, float3 worldPos, float3 viewDir, float3 worldNormal,
