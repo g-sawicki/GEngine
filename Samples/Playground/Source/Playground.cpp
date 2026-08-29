@@ -34,13 +34,13 @@ void Playground::OnInit() {
 
     m_Scene.AddPointLight({
         .Position = {10.0f, 7.0f, 20.0f},
-        .Intensity = 2.0f,
+        .Intensity = 50.0f,
         .Color = {1.0f, 0.6f, 0.3f},
     });
 
     m_Scene.AddSpotLight({
         .Position = {30.0f, 7.0f, 20.0f},
-        .Intensity = 2.0f,
+        .Intensity = 10.0f,
         .Direction = {0.0f, -1.0f, 0.0f},
         .Color = {3.0f, 0.6f, 1.0f},
         .InnerConeAngle = 45.0f,
@@ -48,8 +48,7 @@ void Playground::OnInit() {
     });
 
     const GEngine::Material containerMaterial{
-        .Diffuse = GEngine::Image{"Assets\\Textures\\Container\\container2.png"},
-        .Specular = GEngine::Image{"Assets\\Textures\\Container\\container2_specular.png"},
+        .Albedo = std::make_shared<GEngine::Image>(GEngine::Image{"Assets\\Textures\\Container\\container2.png"}),
     };
 
     const auto cubeModel = m_Scene.AddModel(GEngine::MeshFactory::Cube(), containerMaterial);

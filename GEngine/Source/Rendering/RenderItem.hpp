@@ -8,9 +8,9 @@ class Buffer;
 class MeshBuffer;
 
 struct MaterialGPU {
-    uint32_t DiffuseIndex{};
-    uint32_t SpecularIndex{};
+    uint32_t AlbedoIndex{};
     uint32_t NormalIndex{};
+    uint32_t RoughnessMetallicIndex{};
 };
 
 struct RenderItem {

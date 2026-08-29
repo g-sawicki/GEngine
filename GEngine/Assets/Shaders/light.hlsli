@@ -1,3 +1,5 @@
+#define PI 3.14159265358979323846264f
+
 enum LightType {
     DIRECTIONAL_LIGHT,
     POINT_LIGHT,
@@ -23,6 +25,12 @@ struct CascadedShadowMapsData {
     float  normalOffsetScale;
     uint   shadowEnabled;
     uint   cascadeCount;
+};
+
+struct Material {
+    float4 albedo;
+    float  roughness;
+    float  metallic;
 };
 
 uint SelectCascade(CascadedShadowMapsData csmData, float viewDepth) {
@@ -77,39 +85,116 @@ float ComputeShadow(CascadedShadowMapsData csmData, SamplerComparisonState shado
     return shadow;
 }
 
-float3 CalculateBlinnPhong(LightData lightData, float3 lightDir, float3 viewDir, float3 worldNormal, float3 diffuseTex,
-                           float3 specularTex) {
-    float NdotL = saturate(dot(worldNormal, -lightDir));
-    float3 diffuse = diffuseTex * NdotL;
+float DistributionTrowbridgeReitzGGX(float3 normal, float3 halfDir, float roughness) {
+    float alpha = roughness * roughness;
+    float alpha2 = alpha * alpha;
+    float NdotH = max(dot(normal, halfDir), 0.0f);
+    float NdotH2 = NdotH * NdotH;
+    float denominator = NdotH2 * (alpha2 - 1.0f) + 1.0f;
+    denominator = PI * denominator * denominator;
+    return alpha2 / denominator;
+}
 
+float kDirect(float roughness) {
+    return (roughness + 1.0f) * (roughness + 1.0f) / 8.0f;
+}
+
+float kIBL(float roughness) {
+    return roughness * roughness / 2.0f;
+}
+
+float GeometrySchlickGGX(float NdotV, float k) {
+    return NdotV / (NdotV * (1.0f - k) + k);
+}
+
+float GeometrySmith(float3 normal, float3 viewDir, float3 lightDir, float k) {
+    float NdotV = max(dot(normal, viewDir), 0.0f);
+    float NdotL = max(dot(normal, lightDir), 0.0f);
+    float ggx1 = GeometrySchlickGGX(NdotV, k);
+    float ggx2 = GeometrySchlickGGX(NdotL, k);
+    return ggx1 * ggx2;
+}
+
+float3 FresnelSchlick(float cosTheta, float3 F0) {
+    return F0 + (1.0f - F0) * pow(1.0f - cosTheta, 5.0f);
+}
+
+struct CookTorranceResult {
+    float3 specular;
+    float3 kD;
+};
+
+CookTorranceResult CookTorranceBRDF(float3 lightDir, float3 viewDir, float3 normal, Material material) {
+    float3 L = -lightDir;
+    float3 halfDir = normalize(viewDir + L);
+    float k = kDirect(material.roughness);
+    float3 F0 = 0.04f;
+    F0 = lerp(F0, material.albedo.xyz, material.metallic);
+
+    float NdotL = max(dot(normal, L), 0.0f);
+    float NdotV = max(dot(normal, viewDir), 0.0f);
+    float cosTheta = max(dot(viewDir, halfDir), 0.0f);
+
+    float  D = DistributionTrowbridgeReitzGGX(normal, halfDir, material.roughness);
+    float3 F = FresnelSchlick(cosTheta, F0);
+    float  G = GeometrySmith(normal, viewDir, L, k);
+    float divisor = 4.0f * NdotL * NdotV + 0.0001f;
+
+    CookTorranceResult result;
+    result.specular = D * F * G / divisor;
+    result.kD = (1.0f - F) * (1.0f - material.metallic);
+    return result;
+}
+
+float3 BlinnPhong(LightData lightData, float3 lightDir, float3 viewDir, float3 normal, Material material) {
+    float3 diffuse = material.albedo.xyz;
+    float3 specular = lerp(0.04f, material.albedo.xyz, material.metallic);
+    float shininess = max(pow(1.0f - material.roughness, 2.0f) * 256.0f, 1.0f);
+
+    float NdotL = saturate(dot(normal, -lightDir));
     float3 halfDir = normalize(viewDir - lightDir);
-    float specFactor = (NdotL > 0.0f) ? pow(saturate(dot(worldNormal, halfDir)), 64.0f) : 0.0f;
-    float3 specular = specularTex * specFactor;
+    float specFactor = (NdotL > 0.0f) ? pow(saturate(dot(normal, halfDir)), shininess) : 0.0f;
 
     float3 lightColor = lightData.color * lightData.intensity;
-    return (diffuse + specular) * lightColor;
+    return (diffuse + specular * specFactor) * lightColor * NdotL;
 }
 
-float3 CalculateDirectionalLight(LightData lightData, float3 viewDir, float3 worldNormal, float3 diffuseTex,
-                                 float3 specularTex, float shadow) {
+float CalculateAttentuation(float distance) {
+    return 1.0 / (distance * distance);
+}
+
+float3 CalculateDirectionalLight(LightData lightData, float3 viewDir, float3 normal, Material material, float shadow) {
     float3 lightDir = normalize(lightData.direction);
-    return CalculateBlinnPhong(lightData, lightDir, viewDir, worldNormal, diffuseTex, specularTex) * shadow;
+    float NdotL = saturate(dot(normal, -lightDir));
+    float3 radiance = lightData.color * lightData.intensity;
+
+    CookTorranceResult brdf = CookTorranceBRDF(lightDir, viewDir, normal, material);
+    float3 diffuse = material.albedo.xyz / PI * brdf.kD;
+    float3 specular = brdf.specular;
+
+    return (diffuse + specular) * NdotL * radiance * shadow;
 }
 
-float3 CalculatePointLight(LightData lightData, float3 lightDir, float distance, float3 viewDir, float3 worldNormal, float3 diffuseTex, float3 specularTex) {
-    float attenuation = 1.0 / (1.0f + 0.09f * distance + 0.032f * (distance * distance));
-    return CalculateBlinnPhong(lightData, lightDir, viewDir, worldNormal, diffuseTex, specularTex) * attenuation;
+float3 CalculatePointLight(LightData lightData, float3 lightDir, float distance, float3 viewDir, float3 normal, Material material) {
+    float attenuation = CalculateAttentuation(distance);
+    float NdotL = saturate(dot(normal, -lightDir));
+    float3 radiance = lightData.color * lightData.intensity * attenuation;
+
+    CookTorranceResult brdf = CookTorranceBRDF(lightDir, viewDir, normal, material);
+    float3 diffuse = material.albedo.xyz / PI * brdf.kD;
+    float3 specular = brdf.specular;
+
+    return (diffuse + specular) * NdotL * radiance;
 }
 
-float3 CalculateLight(LightData lightData, float3 worldPos, float3 viewDir, float3 worldNormal, float3 diffuseTex, float3 specularTex,
-                      float shadow) {
+float3 CalculateLight(LightData lightData, float3 worldPos, float3 viewDir, float3 normal, Material material, float shadow) {
     if (lightData.type == DIRECTIONAL_LIGHT)
-        return CalculateDirectionalLight(lightData, viewDir, worldNormal, diffuseTex, specularTex, shadow);
+        return CalculateDirectionalLight(lightData, viewDir, normal, material, shadow);
 
     float3 lightToWorldPos = worldPos - lightData.position;
     float3 worldPosDir = normalize(lightToWorldPos);
     float distance = length(lightToWorldPos);
-    float3 intensity = CalculatePointLight(lightData, worldPosDir, distance, viewDir, worldNormal, diffuseTex, specularTex);
+    float3 intensity = CalculatePointLight(lightData, worldPosDir, distance, viewDir, normal, material);
 
     if (lightData.type == SPOT_LIGHT) {
         float3 lightDir = normalize(lightData.direction);
@@ -121,13 +206,13 @@ float3 CalculateLight(LightData lightData, float3 worldPos, float3 viewDir, floa
     return intensity;
 }
 
-float3 CalculateDirectLighting(uint32_t lightIndex, uint32_t lightCount, float3 worldPos, float3 viewDir, float3 worldNormal,
-                               float3 diffuseTex, float3 specularTex, float shadow) {
+float3 CalculateDirectLighting(uint32_t lightIndex, uint32_t lightCount, float3 worldPos, float3 viewDir, float3 normal,
+                               Material material, float shadow) {
     StructuredBuffer<LightData> lightDataSB = ResourceDescriptorHeap[lightIndex];
     float3 result = 0.0f;
     for (uint32_t i = 0; i < lightCount; ++i) {
         LightData lightData = lightDataSB[i];
-        result += CalculateLight(lightData, worldPos, viewDir, worldNormal, diffuseTex, specularTex, shadow);
+        result += CalculateLight(lightData, worldPos, viewDir, normal, material, shadow);
     }
     return result;
 }

@@ -26,8 +26,9 @@ std::expected<Model, std::string> ModelLoader::Load(const std::filesystem::path&
 
     const std::filesystem::path modelDirectory = filepath.parent_path();
 
+    ImageCache imageCache;
     std::vector<LoadedMesh> loadedMeshes;
-    ProcessNode(pScene->mRootNode, pScene, aiMatrix4x4{}, modelDirectory, loadedMeshes);
+    ProcessNode(pScene->mRootNode, pScene, aiMatrix4x4{}, modelDirectory, imageCache, loadedMeshes);
 
     // Deduplicate materials (meshes may share a material) and assign each mesh its material index.
     Model model;
@@ -46,28 +47,30 @@ std::expected<Model, std::string> ModelLoader::Load(const std::filesystem::path&
 }
 
 void ModelLoader::ProcessNode(aiNode* node, const aiScene* scene, const aiMatrix4x4& parentTransform,
-                              const std::filesystem::path& modelDirectory, std::vector<LoadedMesh>& outMeshes) {
+                              const std::filesystem::path& modelDirectory, ModelLoader::ImageCache& imageCache,
+                              std::vector<LoadedMesh>& outMeshes) {
     const aiMatrix4x4 nodeTransform = parentTransform * node->mTransformation;
 
     for (UINT i{}; i < node->mNumMeshes; ++i) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        outMeshes.push_back(ProcessMesh(mesh, scene, nodeTransform, modelDirectory));
+        outMeshes.push_back(ProcessMesh(mesh, scene, nodeTransform, modelDirectory, imageCache));
     }
 
     for (UINT i{}; i < node->mNumChildren; ++i) {
-        ProcessNode(node->mChildren[i], scene, nodeTransform, modelDirectory, outMeshes);
+        ProcessNode(node->mChildren[i], scene, nodeTransform, modelDirectory, imageCache, outMeshes);
     }
 }
 
 ModelLoader::LoadedMesh ModelLoader::ProcessMesh(aiMesh* mesh, const aiScene* scene, const aiMatrix4x4& transform,
-                                                 const std::filesystem::path& modelDirectory) {
+                                                 const std::filesystem::path& modelDirectory,
+                                                 ModelLoader::ImageCache& imageCache) {
     // Normals must be transformed by the inverse-transpose of the upper 3x3 so non-uniform scales stay correct.
     aiMatrix3x3 normalTransform(transform);
     normalTransform.Inverse().Transpose();
 
     LoadedMesh loaded;
     loaded.SourceMaterial = scene->mMaterials[mesh->mMaterialIndex];
-    loaded.Material = LoadMaterial(loaded.SourceMaterial, scene, modelDirectory);
+    loaded.Material = LoadMaterial(loaded.SourceMaterial, scene, modelDirectory, imageCache);
 
     loaded.Geometry.Vertices.reserve(mesh->mNumVertices);
     loaded.Geometry.Indices.reserve(mesh->mNumFaces * 3);
@@ -110,57 +113,65 @@ ModelLoader::LoadedMesh ModelLoader::ProcessMesh(aiMesh* mesh, const aiScene* sc
 }
 
 Material ModelLoader::LoadMaterial(const aiMaterial* material, const aiScene* scene,
-                                   const std::filesystem::path& modelDirectory) {
+                                   const std::filesystem::path& modelDirectory, ModelLoader::ImageCache& imageCache) {
     Material mat;
-
-    // glTF base-color maps to BASE_COLOR in recent Assimp; fall back to the classic DIFFUSE slot.
-    mat.Diffuse = LoadTexture(material, aiTextureType_BASE_COLOR, scene, modelDirectory);
-    if (!mat.Diffuse.has_value())
-        mat.Diffuse = LoadTexture(material, aiTextureType_DIFFUSE, scene, modelDirectory);
-
-    mat.Specular = LoadTexture(material, aiTextureType_SPECULAR, scene, modelDirectory);
-    mat.Normal = LoadTexture(material, aiTextureType_NORMALS, scene, modelDirectory);
+    mat.Albedo = LoadTexture(material, aiTextureType_BASE_COLOR, scene, modelDirectory, imageCache);
+    mat.Normal = LoadTexture(material, aiTextureType_NORMALS, scene, modelDirectory, imageCache);
+    mat.RoughnessMetallic =
+        LoadTexture(material, aiTextureType_GLTF_METALLIC_ROUGHNESS, scene, modelDirectory, imageCache);
     return mat;
 }
 
-std::optional<Image> ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType type, const aiScene* scene,
-                                              const std::filesystem::path& modelDirectory) {
+std::shared_ptr<const Image> ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType type,
+                                                      const aiScene* scene, const std::filesystem::path& modelDirectory,
+                                                      ModelLoader::ImageCache& imageCache) {
     aiString texturePath;
     if (aiGetMaterialTexture(material, type, 0, &texturePath, nullptr, nullptr, nullptr, nullptr, nullptr) !=
         AI_SUCCESS)
-        return std::nullopt;
+        return nullptr;
 
     const std::string pathString = texturePath.C_Str();
     if (pathString.empty())
-        return std::nullopt;
+        return nullptr;
 
-    // Embedded textures are referenced as "*<index>" into scene->mTextures.
+    std::string cacheKey;
+    std::filesystem::path textureFile;
     if (pathString[0] == '*') {
-        const int index = std::atoi(pathString.c_str() + 1);
-        if (index < 0 || static_cast<unsigned int>(index) >= scene->mNumTextures)
-            return std::nullopt;
-
-        const aiTexture* embedded = scene->mTextures[index];
-        try {
-            if (embedded->mHeight != 0) {
-                // Uncompressed RGBA pixels (mWidth * mHeight * 4 bytes).
-                return Image::FromRawRGBA(embedded->pcData, embedded->mWidth, embedded->mHeight);
-            }
-            // Compressed data (PNG/JPEG/...); mWidth bytes in pcData.
-            return Image(embedded->pcData, embedded->mWidth);
-        } catch (const std::exception&) {
-            return std::nullopt;
-        }
+        cacheKey = pathString;
+    } else {
+        textureFile = std::filesystem::path(pathString).is_absolute() ? std::filesystem::path(pathString)
+                                                                      : modelDirectory / pathString;
+        cacheKey = textureFile.lexically_normal().string();
     }
 
-    // External file: resolve against the directory containing the model.
-    const std::filesystem::path textureFile = std::filesystem::path(pathString).is_absolute()
-                                                  ? std::filesystem::path(pathString)
-                                                  : modelDirectory / pathString;
+    if (const auto it = imageCache.find(cacheKey); it != imageCache.end())
+        return it->second;
+
     try {
-        return Image(textureFile);
+        std::shared_ptr<const Image> image;
+        if (pathString[0] == '*') {
+            // Embedded textures are referenced as "*<index>" into scene->mTextures.
+            const int index = std::atoi(pathString.c_str() + 1);
+            if (index < 0 || static_cast<unsigned int>(index) >= scene->mNumTextures)
+                return nullptr;
+
+            const aiTexture* embedded = scene->mTextures[index];
+            if (embedded->mHeight != 0) {
+                // Uncompressed RGBA pixels (mWidth * mHeight * 4 bytes).
+                image =
+                    std::make_shared<Image>(Image::FromRawRGBA(embedded->pcData, embedded->mWidth, embedded->mHeight));
+            } else {
+                // Compressed data (PNG/JPEG/...); mWidth bytes in pcData.
+                image = std::make_shared<Image>(Image(embedded->pcData, embedded->mWidth));
+            }
+        } else {
+            // External file: resolve against the directory containing the model.
+            image = std::make_shared<Image>(textureFile);
+        }
+        imageCache.emplace(cacheKey, image);
+        return image;
     } catch (const std::exception&) {
-        return std::nullopt;
+        return nullptr;
     }
 }
 

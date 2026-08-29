@@ -110,18 +110,18 @@ void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colo
     cmdList->SetGraphicsRootConstantBufferView(1, cascadedShadowMapsDataCB.GetGPUVirtualAddress());
 
     struct RootConstants {
-        uint32_t DiffuseIndex;
-        uint32_t SpecularIndex;
+        uint32_t AlbedoIndex;
         uint32_t NormalIndex;
+        uint32_t RoughnessMetallicIndex;
         uint32_t ShadowIndex;
     } constants{};
 
     constants.ShadowIndex = shadowMapTexture.GetSrvIndex();
     for (const auto& item : renderItems) {
         cmdList->SetGraphicsRootConstantBufferView(2, item.TransformCB->GetGPUVirtualAddress());
-        constants.DiffuseIndex = item.Material.DiffuseIndex;
-        constants.SpecularIndex = item.Material.SpecularIndex;
+        constants.AlbedoIndex = item.Material.AlbedoIndex;
         constants.NormalIndex = item.Material.NormalIndex;
+        constants.RoughnessMetallicIndex = item.Material.RoughnessMetallicIndex;
         cmdList->SetGraphicsRoot32BitConstants(3, 4, &constants, 0);
         item.Mesh->Draw(commandList);
     }

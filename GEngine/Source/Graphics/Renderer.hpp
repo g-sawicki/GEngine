@@ -96,9 +96,9 @@ class Renderer {
     std::vector<RenderItem> m_RenderItems;
     std::unordered_map<const Model*, ModelResources> m_ModelCache;
 
-    Texture m_DefaultDiffuse;
-    Texture m_DefaultSpecular;
+    Texture m_DefaultAlbedo;
     Texture m_DefaultNormal;
+    Texture m_DefaultRoughnessMetallic;
     MaterialGPU m_DefaultMaterial{};
 
     bool m_VSync{false};

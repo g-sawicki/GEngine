@@ -2,14 +2,14 @@
 
 #include "Core/Utility/Image.hpp"
 
-#include <optional>
+#include <memory>
 
 namespace GEngine {
 
 struct Material {
-    std::optional<Image> Diffuse;
-    std::optional<Image> Specular;
-    std::optional<Image> Normal;
+    std::shared_ptr<const Image> Albedo;
+    std::shared_ptr<const Image> Normal;
+    std::shared_ptr<const Image> RoughnessMetallic;
 };
 
 } // namespace GEngine

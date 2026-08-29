@@ -127,8 +127,8 @@ void Renderer::Destroy() {
     m_ShadowMapTexture.Reset();
     m_DepthTexture.Reset();
     m_DefaultNormal.Reset();
-    m_DefaultSpecular.Reset();
-    m_DefaultDiffuse.Reset();
+    m_DefaultAlbedo.Reset();
+    m_DefaultRoughnessMetallic.Reset();
 
     m_Device.reset();
 
@@ -164,24 +164,30 @@ std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
 }
 
 void Renderer::EnsureDefaultMaterial() {
-    if (m_DefaultDiffuse.GetSrvIndex() != INVALID_BINDLESS_INDEX)
+    if (m_DefaultAlbedo.GetSrvIndex() != INVALID_BINDLESS_INDEX)
         return;
     static constexpr uint8_t kWhitePixel[]{255, 255, 255, 255};
-    static constexpr uint8_t kBluePixel[]{0, 0, 255, 255};
+    static constexpr uint8_t kFlatNormalPixel[]{128, 128, 255, 255};
+    static constexpr uint8_t kDefaultRoughnessMetallicPixel[]{255, 255, 0, 255};
     const Image white = Image::FromRawRGBA(kWhitePixel, 1, 1);
-    const Image blue = Image::FromRawRGBA(kBluePixel, 1, 1);
-    m_DefaultDiffuse.CreateFromImage(
-        *m_Device, *m_CommandQueue,
-        {.Width = 1, .Height = 1, .Format = white.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource}, white);
-    m_DefaultSpecular.CreateFromImage(
+    const Image flatNormal = Image::FromRawRGBA(kFlatNormalPixel, 1, 1);
+    const Image defaultRoughnessMetallic = Image::FromRawRGBA(kDefaultRoughnessMetallicPixel, 1, 1);
+    m_DefaultAlbedo.CreateFromImage(
         *m_Device, *m_CommandQueue,
         {.Width = 1, .Height = 1, .Format = white.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource}, white);
     m_DefaultNormal.CreateFromImage(
         *m_Device, *m_CommandQueue,
-        {.Width = 1, .Height = 1, .Format = blue.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource}, blue);
-    m_DefaultMaterial = {.DiffuseIndex = m_DefaultDiffuse.GetSrvIndex(),
-                         .SpecularIndex = m_DefaultSpecular.GetSrvIndex(),
-                         .NormalIndex = m_DefaultNormal.GetSrvIndex()};
+        {.Width = 1, .Height = 1, .Format = flatNormal.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource},
+        flatNormal);
+    m_DefaultRoughnessMetallic.CreateFromImage(*m_Device, *m_CommandQueue,
+                                               {.Width = 1,
+                                                .Height = 1,
+                                                .Format = defaultRoughnessMetallic.GetDXGIFormat(),
+                                                .Usage = TextureUsage::ShaderResource},
+                                               defaultRoughnessMetallic);
+    m_DefaultMaterial = {.AlbedoIndex = m_DefaultAlbedo.GetSrvIndex(),
+                         .NormalIndex = m_DefaultNormal.GetSrvIndex(),
+                         .RoughnessMetallicIndex = m_DefaultRoughnessMetallic.GetSrvIndex()};
 }
 
 const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& model) {
@@ -196,22 +202,23 @@ const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& mode
 
     EnsureDefaultMaterial();
     resources.Materials.reserve(model.Materials.size());
-    resources.Textures.reserve(model.Materials.size() * 2);
+    resources.Textures.reserve(model.Materials.size() * 3);
     for (const auto& material : model.Materials) {
-        auto diffuse = material.Diffuse.has_value() ? CreateTexture(*material.Diffuse) : nullptr;
-        auto specular = material.Specular.has_value() ? CreateTexture(*material.Specular) : nullptr;
-        auto normal = material.Normal.has_value() ? CreateTexture(*material.Normal) : nullptr;
+        auto albedo = material.Albedo ? CreateTexture(*material.Albedo) : nullptr;
+        auto normal = material.Normal ? CreateTexture(*material.Normal) : nullptr;
+        auto roughnessMetallic = material.RoughnessMetallic ? CreateTexture(*material.RoughnessMetallic) : nullptr;
         resources.Materials.push_back({
-            .DiffuseIndex = diffuse ? diffuse->GetSrvIndex() : m_DefaultMaterial.DiffuseIndex,
-            .SpecularIndex = specular ? specular->GetSrvIndex() : m_DefaultMaterial.SpecularIndex,
+            .AlbedoIndex = albedo ? albedo->GetSrvIndex() : m_DefaultMaterial.AlbedoIndex,
             .NormalIndex = normal ? normal->GetSrvIndex() : m_DefaultMaterial.NormalIndex,
+            .RoughnessMetallicIndex =
+                roughnessMetallic ? roughnessMetallic->GetSrvIndex() : m_DefaultMaterial.RoughnessMetallicIndex,
         });
-        if (diffuse)
-            resources.Textures.push_back(std::move(diffuse));
-        if (specular)
-            resources.Textures.push_back(std::move(specular));
+        if (albedo)
+            resources.Textures.push_back(std::move(albedo));
         if (normal)
             resources.Textures.push_back(std::move(normal));
+        if (roughnessMetallic)
+            resources.Textures.push_back(std::move(roughnessMetallic));
     }
     return it->second;
 }

@@ -16,9 +16,9 @@ struct PSInput {
 };
 
 struct RootConstants {
-    uint32_t diffuseIndex;
-    uint32_t specularIndex;
+    uint32_t albedoIndex;
     uint32_t normalIndex;
+    uint32_t roughnessMetallicIndex;
     uint32_t shadowIndex;
 };
 
@@ -44,31 +44,38 @@ PSInput VSMain(VSInput input) {
 
 [shader("pixel")]
 float4 PSMain(PSInput input) : SV_TARGET {
-    Texture2D diffuseMap = ResourceDescriptorHeap[constantsCB.diffuseIndex];
-    Texture2D specularMap = ResourceDescriptorHeap[constantsCB.specularIndex];
-    Texture2D normalMap = ResourceDescriptorHeap[constantsCB.normalIndex];
-    Texture2DArray shadowMap = ResourceDescriptorHeap[constantsCB.shadowIndex];
+    Texture2D albedoTexture = ResourceDescriptorHeap[constantsCB.albedoIndex];
+    Texture2D normalTexture = ResourceDescriptorHeap[constantsCB.normalIndex];
+    Texture2D roughnessMetallicTexture = ResourceDescriptorHeap[constantsCB.roughnessMetallicIndex];
+    Texture2DArray shadowTexture = ResourceDescriptorHeap[constantsCB.shadowIndex];
 
-    float4 diffuseTex = diffuseMap.Sample(texSampler, input.uv);
-    if (diffuseTex.a < 0.01f)
+    float4 albedo = albedoTexture.Sample(texSampler, input.uv);
+    if (albedo.a < 0.01f)
         discard;
-    float4 specularTex = specularMap.Sample(texSampler, input.uv);
-    float4 normalTex = normalMap.Sample(texSampler, input.uv);
+    float3 normalTS = (normalTexture.Sample(texSampler, input.uv).xyz * 2.0f - 1.0f);
+    float4 roughnessMetallic = roughnessMetallicTexture.Sample(texSampler, input.uv);
+    float roughness = roughnessMetallic.y;
+    float metallic = roughnessMetallic.z;
 
     float3 N = normalize(input.normal);
     float3 T = normalize(input.tangent.xyz - dot(input.tangent.xyz, N) * N);
     float3 B = cross(N, T);
-
     float3x3 TBN = float3x3(T, B, N);
-    float3 worldNormal = normalize(mul(normalTex.xyz * 2.0f - 1.0f, TBN));
+
+    float3 normal = normalize(mul(normalTS, TBN));
     float3 V = normalize(sceneInfoCB.cameraPosition - input.worldPos);
 
+    Material material;
+    material.albedo = albedo;
+    material.roughness = roughness;
+    material.metallic = metallic;
+
     float shadow = ComputeShadow(csmDataCB, shadowSampler, sceneInfoCB.cameraPosition, sceneInfoCB.cameraForward,
-                                 input.worldPos, shadowMap);
+                                 input.worldPos, shadowTexture);
 
-    float3 ambient = diffuseTex.xyz * 0.3;
-    float3 directLighting = CalculateDirectLighting(sceneInfoCB.lightIndex, sceneInfoCB.lightCount, input.worldPos, V, worldNormal,
-                                                    diffuseTex.xyz, specularTex.xyz, shadow);
+    float3 ambient = albedo.xyz * 0.3;
+    float3 directLighting = CalculateDirectLighting(sceneInfoCB.lightIndex, sceneInfoCB.lightCount, input.worldPos, V, normal,
+                                                    material, shadow);
 
-    return float4(ambient + directLighting, diffuseTex.w);
+    return float4(ambient + directLighting, albedo.w);
 }
