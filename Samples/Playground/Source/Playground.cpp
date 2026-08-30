@@ -1,6 +1,7 @@
 #include "Playground.hpp"
 
 #include "Core/Input.hpp"
+#include "Core/Log.hpp"
 #include "Core/Utility/MersenneTwister.hpp"
 #include "Rendering/Components.hpp"
 #include "Rendering/MeshFactory.hpp"
@@ -98,6 +99,8 @@ void Playground::OnInit() {
     auto skyboxTexture =
         m_Renderer.CreateTexture(GEngine::Image("Assets\\Textures\\Skybox\\citrus_orchard_road_puresky_4k.hdr"));
     m_Scene.SetSkybox(GEngine::Skybox{.Panorama = std::move(*skyboxTexture)});
+
+    GE_INFO("Playground initialized successfully.");
 }
 
 void Playground::OnUpdate(float deltaTime) {

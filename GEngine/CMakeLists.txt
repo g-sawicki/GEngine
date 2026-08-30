@@ -37,6 +37,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Core/CommandLine.hpp"
     "Source/Core/Input.cpp"
     "Source/Core/Input.hpp"
+    "Source/Core/Log.cpp"
+    "Source/Core/Log.hpp"
 
     "Source/Graphics/D3D12/Buffer.cpp"
     "Source/Graphics/D3D12/Buffer.hpp"
@@ -124,7 +126,7 @@ endif()
 
 target_precompile_headers(${PROJECT_NAME} PUBLIC "Source/PCH.hpp")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid d3dcompiler Microsoft::DirectX-Headers stb assimp)
+target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid d3dcompiler Microsoft::DirectX-Headers stb assimp spdlog)
 
 if(WIN32)
     target_link_options(${PROJECT_NAME} INTERFACE /ENTRY:mainCRTStartup)

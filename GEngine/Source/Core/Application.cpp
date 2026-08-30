@@ -2,12 +2,14 @@
 
 #include "Application.hpp"
 #include "CommandLine.hpp"
+#include "Log.hpp"
 
 namespace GEngine {
 
 Application::Application(const Specification& specification) : m_Specification(specification) {}
 
 int Application::Run() {
+    Log::Init();
     const HINSTANCE hInstance{::GetModuleHandle(nullptr)};
 
     std::vector<CommandLine::Argument> args = {
@@ -29,6 +31,7 @@ int Application::Run() {
 
     OnInit();
 
+    GE_CORE_INFO("Running the application.");
     int result{m_Window->Run([this]() {
         // Delta time
         auto now{std::chrono::high_resolution_clock::now()};

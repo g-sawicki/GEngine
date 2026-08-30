@@ -1,5 +1,8 @@
 #pragma once
 
+// Engine
+#include "Core/Log.hpp"
+
 // Windows
 #include <Windows.h>
 #include <shellapi.h>
