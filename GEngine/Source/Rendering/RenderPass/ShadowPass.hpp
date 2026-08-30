@@ -6,7 +6,7 @@
 #include "Graphics/D3D12/PipelineState.hpp"
 #include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/Texture.hpp"
-#include "Rendering/RenderItem.hpp"
+#include "Rendering/Components.hpp"
 
 namespace GEngine::RenderPass {
 

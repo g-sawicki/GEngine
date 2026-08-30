@@ -245,32 +245,37 @@ void Renderer::Render(const Scene& scene) {
     auto* cmdList{frame.CommandList->GetHandle()};
 
     // Build one RenderItem per entity mesh; GPU resources are uploaded on first use and cached per Model asset.
-    const auto& entities = scene.GetEntityManager().GetEntities();
     auto& objectConstantBuffers{frame.ObjectConstantBuffers};
-    if (objectConstantBuffers.size() < entities.size())
-        objectConstantBuffers.resize(entities.size());
     m_RenderItems.clear();
-    m_RenderItems.reserve(entities.size() * 2);
-    for (size_t i{}; i < entities.size(); ++i) {
-        const Entity& entity = entities[i];
-        if (!entity.Model)
+    uint32_t objectIndex{};
+    for (const auto& [entity, modelComponent] : scene.GetEntityRegistry().View<ModelComponent>()) {
+        if (!modelComponent.Model.IsValid())
             continue;
 
-        if (!objectConstantBuffers[i])
-            objectConstantBuffers[i] = CreateConstantBuffer(sizeof(DirectX::XMFLOAT4X4));
-        const DirectX::XMFLOAT4X4& worldMatrix = entity.Transform.GetMatrix();
-        objectConstantBuffers[i]->Write(&worldMatrix, sizeof(worldMatrix));
+        const Model* model = scene.GetAssetManager().GetModel(modelComponent.Model);
+        if (!model)
+            continue;
 
-        const Model& model = *entity.Model;
-        const ModelResources& resources = EnsureModelResources(model);
-        for (size_t m{}; m < model.Meshes.size(); ++m) {
+        if (objectIndex >= objectConstantBuffers.size())
+            objectConstantBuffers.resize(objectIndex + 1);
+        if (!objectConstantBuffers[objectIndex])
+            objectConstantBuffers[objectIndex] = CreateConstantBuffer(sizeof(DirectX::XMFLOAT4X4));
+
+        DirectX::XMFLOAT4X4 worldMatrix;
+        const Transform* transform = scene.GetEntityRegistry().GetComponent<Transform>(entity);
+        DirectX::XMStoreFloat4x4(&worldMatrix, transform ? transform->GetMatrix() : DirectX::XMMatrixIdentity());
+        objectConstantBuffers[objectIndex]->Write(&worldMatrix, sizeof(worldMatrix));
+
+        const ModelResources& resources = EnsureModelResources(*model);
+        for (size_t m{}; m < model->Meshes.size(); ++m) {
             m_RenderItems.push_back({
                 .Mesh = resources.Meshes[m].get(),
-                .TransformCB = objectConstantBuffers[i].get(),
-                .Material = resources.Materials[model.Meshes[m].MaterialIndex],
-                .ShadowCaster = entity.CastsShadow,
+                .TransformCB = objectConstantBuffers[objectIndex].get(),
+                .Material = resources.Materials[model->Meshes[m].MaterialIndex],
+                .ShadowCaster = modelComponent.CastsShadow,
             });
         }
+        ++objectIndex;
     }
 
     SceneInfo sceneInfo = scene.GetSceneInfo();

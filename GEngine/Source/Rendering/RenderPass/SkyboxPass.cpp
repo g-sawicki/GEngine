@@ -3,6 +3,7 @@
 #include "SkyboxPass.hpp"
 
 #include "Graphics/D3D12/Shader.hpp"
+#include "Rendering/MeshBuffer.hpp"
 
 namespace GEngine::RenderPass {
 

@@ -80,20 +80,19 @@ target_sources(${PROJECT_NAME} PRIVATE
 
     "Source/Rendering/CascadedShadowMaps.cpp"
     "Source/Rendering/CascadedShadowMaps.hpp"
-    "Source/Rendering/Mesh.hpp"
+    "Source/Rendering/Components.hpp"
     "Source/Rendering/MeshBuffer.cpp"
     "Source/Rendering/MeshBuffer.hpp"
     "Source/Rendering/MeshFactory.cpp"
     "Source/Rendering/MeshFactory.hpp"
-    "Source/Rendering/RenderItem.hpp"
 
+    "Source/Scene/AssetManager.cpp"
+    "Source/Scene/AssetManager.hpp"
     "Source/Scene/Camera.cpp"
     "Source/Scene/Camera.hpp"
     "Source/Scene/CameraController.cpp"
     "Source/Scene/CameraController.hpp"
-    "Source/Scene/Entity.hpp"
-    "Source/Scene/EntityManager.cpp"
-    "Source/Scene/EntityManager.hpp"
+    "Source/Scene/EntityRegistry.hpp"
     "Source/Scene/Light.hpp"
     "Source/Scene/Material.hpp"
     "Source/Scene/Model.hpp"
@@ -102,7 +101,6 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Scene/Scene.cpp"
     "Source/Scene/Scene.hpp"
     "Source/Scene/Skybox.hpp"
-    "Source/Scene/Transform.hpp"
 
     "Source/PCH.hpp"
 )

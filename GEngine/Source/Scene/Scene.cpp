@@ -28,32 +28,6 @@ SceneInfo Scene::GetSceneInfo() const noexcept {
     return sceneInfo;
 }
 
-std::shared_ptr<const Model> Scene::AddModel(Model model) {
-    auto shared = std::make_shared<const Model>(std::move(model));
-    m_ModelAssets.push_back(shared);
-    return shared;
-}
-
-std::shared_ptr<const Model> Scene::AddModel(const Mesh& mesh, const Material& material) {
-    Model model;
-    model.Meshes.push_back(mesh);
-    model.Materials.push_back(material);
-    return AddModel(std::move(model));
-}
-
-std::shared_ptr<const Material> Scene::AddMaterial(Material material) {
-    auto shared = std::make_shared<const Material>(std::move(material));
-    m_MaterialAssets.push_back(shared);
-    return shared;
-}
-
-std::shared_ptr<const Model> Scene::LoadModel(const std::filesystem::path& filepath) {
-    std::expected<Model, std::string> result = ModelLoader::Load(filepath);
-    if (!result)
-        throw std::runtime_error(result.error());
-    return AddModel(std::move(*result));
-}
-
 CascadedShadowMapsData Scene::GetCascadedShadowMapsData() const noexcept {
     if (!m_Camera)
         return CascadedShadowMapsData{};

@@ -4,14 +4,13 @@
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/CommandQueue.hpp"
 #include "Graphics/D3D12/Device.hpp"
-#include "Rendering/Mesh.hpp"
+#include "Scene/Model.hpp"
 
 namespace GEngine {
 
 class MeshBuffer {
   public:
     MeshBuffer(Device& device, CommandQueue& commandQueue, const Mesh& mesh);
-    ~MeshBuffer() = default;
 
     MeshBuffer(const MeshBuffer&) = delete;
     MeshBuffer& operator=(const MeshBuffer&) = delete;

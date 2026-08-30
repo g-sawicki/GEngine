@@ -2,11 +2,11 @@
 
 #include "Core/Input.hpp"
 #include "Core/Utility/MersenneTwister.hpp"
+#include "Rendering/Components.hpp"
 #include "Rendering/MeshFactory.hpp"
 #include "Scene/Light.hpp"
 #include "Scene/Material.hpp"
 #include "Scene/Model.hpp"
-#include "Scene/Transform.hpp"
 
 #include <cmath>
 
@@ -51,30 +51,49 @@ void Playground::OnInit() {
         .Albedo = std::make_shared<GEngine::Image>(GEngine::Image{"Assets\\Textures\\Container\\container2.png"}),
     };
 
-    const auto cubeModel = m_Scene.AddModel(GEngine::MeshFactory::Cube(), containerMaterial);
-    const auto planeModel = m_Scene.AddModel(GEngine::MeshFactory::Plane(), containerMaterial);
-    const auto porscheModel = m_Scene.LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
-    const auto sponzaModel = m_Scene.LoadModel("Assets\\Models\\Sponza\\glTF\\Sponza.gltf");
+    GEngine::AssetManager& assetManager = m_Scene.GetAssetManager();
+
+    const auto cubeModel = assetManager.AddModel(GEngine::Model{
+        .Meshes = {GEngine::MeshFactory::Cube()},
+        .Materials = {containerMaterial},
+    });
+    const auto planeModel = assetManager.AddModel(GEngine::Model{
+        .Meshes = {GEngine::MeshFactory::Plane()},
+        .Materials = {containerMaterial},
+    });
+    const auto porscheModel = assetManager.LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
+    const auto sponzaModel = assetManager.LoadModel("Assets\\Models\\Sponza\\glTF\\Sponza.gltf");
+
+    auto& ecs = m_Scene.GetEntityRegistry();
 
     // Cubes at random positions
     using RNG = GEngine::MersenneTwister;
     RNG::Seed(42);
     for (uint32_t i{}; i < 10; ++i) {
-        m_Scene.GetEntityManager().SpawnEntity(cubeModel, GEngine::Transform::FromPosition({
-                                                              RNG::GetRandom(-10.0f, 10.0f),
-                                                              RNG::GetRandom(0.5f, 10.0f),
-                                                              RNG::GetRandom(-10.0f, 10.0f),
-                                                          }));
+        GEngine::Entity cube = ecs.Create();
+        ecs.AddComponent<GEngine::Transform>(cube, GEngine::Transform{.Position = {
+                                                                          RNG::GetRandom(-10.0f, 10.0f),
+                                                                          RNG::GetRandom(0.5f, 10.0f),
+                                                                          RNG::GetRandom(-10.0f, 10.0f),
+                                                                      }});
+        ecs.AddComponent<GEngine::ModelComponent>(cube, GEngine::ModelComponent{.Model = cubeModel});
     }
 
     // Ground plane
-    m_Scene.GetEntityManager().SpawnEntity(planeModel, GEngine::Transform::FromScale({500.0f, 1.0f, 500.0f}), false);
+    GEngine::Entity plane = ecs.Create();
+    ecs.AddComponent<GEngine::Transform>(plane, GEngine::Transform{.Scale = {500.0f, 1.0f, 500.0f}});
+    ecs.AddComponent<GEngine::ModelComponent>(plane,
+                                              GEngine::ModelComponent{.Model = planeModel, .CastsShadow = false});
 
     // Porsche
-    m_Scene.GetEntityManager().SpawnEntity(porscheModel);
+    GEngine::Entity porsche = ecs.Create();
+    ecs.AddComponent<GEngine::Transform>(porsche, GEngine::Transform{});
+    ecs.AddComponent<GEngine::ModelComponent>(porsche, GEngine::ModelComponent{.Model = porscheModel});
 
     // Sponza
-    m_Scene.GetEntityManager().SpawnEntity(sponzaModel, GEngine::Transform{.Position = {20.0f, 5.0f, 20.0f}});
+    GEngine::Entity sponza = ecs.Create();
+    ecs.AddComponent<GEngine::Transform>(sponza, GEngine::Transform{.Position = {20.0f, 5.0f, 20.0f}});
+    ecs.AddComponent<GEngine::ModelComponent>(sponza, GEngine::ModelComponent{.Model = sponzaModel});
 
     auto skyboxTexture =
         m_Renderer.CreateTexture(GEngine::Image("Assets\\Textures\\Skybox\\citrus_orchard_road_puresky_4k.hdr"));

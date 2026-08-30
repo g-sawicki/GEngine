@@ -6,6 +6,7 @@ PointerAlignment: Left
 ReferenceAlignment: Left
 AccessModifierOffset: -2
 BreakBeforeBraces: Attach
+BreakTemplateDeclarations: Yes
 AllowShortFunctionsOnASingleLine: Inline
 IndentCaseLabels: false
 NamespaceIndentation: None

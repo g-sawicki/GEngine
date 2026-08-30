@@ -1,13 +1,12 @@
 #pragma once
 
 #include "Rendering/CascadedShadowMaps.hpp"
-#include "Rendering/Mesh.hpp"
+#include "Rendering/Components.hpp"
+#include "Scene/AssetManager.hpp"
 #include "Scene/Camera.hpp"
-#include "Scene/Entity.hpp"
-#include "Scene/EntityManager.hpp"
+#include "Scene/EntityRegistry.hpp"
 #include "Scene/Light.hpp"
 #include "Scene/Material.hpp"
-#include "Scene/Model.hpp"
 #include "Scene/Skybox.hpp"
 
 #include <cassert>
@@ -31,6 +30,8 @@ struct SceneInfo {
     uint32_t LightIndex{};
 };
 static_assert(sizeof(SceneInfo) == 240);
+
+using ComponentRegistry = EntityRegistry<Transform, ModelComponent>;
 
 class Scene {
   public:
@@ -78,13 +79,10 @@ class Scene {
     CascadedShadowMapsData GetCascadedShadowMapsData() const noexcept;
     SceneInfo GetSceneInfo() const noexcept;
 
-    std::shared_ptr<const Model> AddModel(Model model);
-    std::shared_ptr<const Model> AddModel(const Mesh& mesh, const Material& material);
-    std::shared_ptr<const Material> AddMaterial(Material material);
-    std::shared_ptr<const Model> LoadModel(const std::filesystem::path& filepath);
-
-    [[nodiscard]] EntityManager& GetEntityManager() noexcept { return m_EntityManager; }
-    [[nodiscard]] const EntityManager& GetEntityManager() const noexcept { return m_EntityManager; }
+    [[nodiscard]] ComponentRegistry& GetEntityRegistry() noexcept { return m_EntityRegistry; }
+    [[nodiscard]] const ComponentRegistry& GetEntityRegistry() const noexcept { return m_EntityRegistry; }
+    [[nodiscard]] AssetManager& GetAssetManager() noexcept { return m_AssetManager; }
+    [[nodiscard]] const AssetManager& GetAssetManager() const noexcept { return m_AssetManager; }
 
   private:
     std::optional<Camera> m_Camera{};
@@ -96,10 +94,8 @@ class Scene {
     std::vector<PointLight> m_PointLights;
     std::vector<SpotLight> m_SpotLights;
 
-    std::vector<std::shared_ptr<const Model>> m_ModelAssets;
-    std::vector<std::shared_ptr<const Material>> m_MaterialAssets;
-
-    EntityManager m_EntityManager;
+    ComponentRegistry m_EntityRegistry{};
+    AssetManager m_AssetManager{};
 };
 
 } // namespace GEngine

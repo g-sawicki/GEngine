@@ -1,10 +1,11 @@
 #pragma once
 
-#include <concepts>
+#include <bit>
 
 namespace GEngine {
 
-template <typename T> constexpr bool is_powerof2(T v) {
+template <typename T>
+constexpr bool is_powerof2(T v) {
     return v && ((v & (v - 1)) == 0);
 }
 
@@ -14,7 +15,8 @@ constexpr T RoundUp(T number) {
     return (number + static_cast<T>(Multiple) - 1) & ~static_cast<T>(Multiple - 1);
 }
 
-template <typename T> constexpr T DivideRoundUp(T numerator, T denominator) {
+template <typename T>
+constexpr T DivideRoundUp(T numerator, T denominator) {
     return (numerator + denominator - 1) / denominator;
 }
 
