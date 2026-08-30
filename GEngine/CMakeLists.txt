@@ -86,6 +86,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/MeshFactory.cpp"
     "Source/Rendering/MeshFactory.hpp"
 
+    "Source/Scene/AssetCache.cpp"
+    "Source/Scene/AssetCache.hpp"
     "Source/Scene/AssetManager.cpp"
     "Source/Scene/AssetManager.hpp"
     "Source/Scene/Camera.cpp"

@@ -46,8 +46,7 @@ static ImageFormat DetermineImageFormat(const std::filesystem::path& path) {
     }
 }
 
-Image::Image(const std::filesystem::path& path) {
-    m_Format = DetermineImageFormat(path);
+Image::Image(const std::filesystem::path& path) : m_Path(path), m_Format(DetermineImageFormat(path)) {
     static constexpr uint8_t kChannels = 4;
     int width, height, channels;
     void* data;

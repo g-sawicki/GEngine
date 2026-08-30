@@ -33,12 +33,15 @@ class Image {
 
     [[nodiscard]] UINT64 GetRowPitch() const noexcept { return static_cast<UINT64>(m_Width) * GetBytesPerPixel(); }
 
+    [[nodiscard]] const std::filesystem::path& GetPath() const noexcept { return m_Path; }
+
   private:
     std::vector<uint8_t> m_Data;
     uint32_t m_Width{};
     uint32_t m_Height{};
     uint8_t m_Channels{};
     ImageFormat m_Format{};
+    std::filesystem::path m_Path{};
 };
 
 } // namespace GEngine

@@ -11,9 +11,19 @@ namespace GEngine {
     if (it != m_PathToHandle.end())
         return it->second;
 
+    const std::filesystem::path cacheFile = path.filename().replace_extension(".gemb");
+    if (auto cached = m_AssetCache.LoadBinaryModel(cacheFile); cached.has_value()) {
+        ModelHandle handle{m_NextModelId++};
+        m_Models[handle.Id] = std::move(*cached);
+        m_PathToHandle[path] = handle;
+        return handle;
+    }
+
     std::expected<Model, std::string> result = ModelLoader::Load(path);
     if (!result.has_value())
         return {};
+
+    m_AssetCache.SaveBinaryModel(cacheFile, *result);
 
     ModelHandle handle{m_NextModelId++};
     m_Models[handle.Id] = std::move(result.value());
