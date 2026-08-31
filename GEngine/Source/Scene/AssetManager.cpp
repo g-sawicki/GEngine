@@ -2,6 +2,7 @@
 
 #include "AssetManager.hpp"
 
+#include "Core/Utility/Timer.hpp"
 #include "ModelLoader.hpp"
 
 namespace GEngine {
@@ -12,11 +13,14 @@ namespace GEngine {
         return it->second;
 
     const std::filesystem::path cacheFile = path.filename().replace_extension(".gemb");
-    if (auto cached = m_AssetCache.LoadBinaryModel(cacheFile); cached.has_value()) {
-        ModelHandle handle{m_NextModelId++};
-        m_Models[handle.Id] = std::move(*cached);
-        m_PathToHandle[path] = handle;
-        return handle;
+    {
+        GE_SCOPED_TIMER(std::format("Loaded {} from binary cache", cacheFile.string()));
+        if (auto cached = m_AssetCache.LoadBinaryModel(cacheFile); cached.has_value()) {
+            ModelHandle handle{m_NextModelId++};
+            m_Models[handle.Id] = std::move(*cached);
+            m_PathToHandle[path] = handle;
+            return handle;
+        }
     }
 
     std::expected<Model, std::string> result = ModelLoader::Load(path);

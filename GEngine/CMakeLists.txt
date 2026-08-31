@@ -31,6 +31,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Core/Utility/Image.hpp"
     "Source/Core/Utility/Common.hpp"
     "Source/Core/Utility/MersenneTwister.hpp"
+    "Source/Core/Utility/Timer.hpp"
     
     "Source/Core/Application.cpp"
     "Source/Core/Application.hpp"
