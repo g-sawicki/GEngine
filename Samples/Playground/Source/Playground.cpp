@@ -10,6 +10,7 @@
 #include "Scene/Model.hpp"
 
 #include <cmath>
+#include <future>
 
 using namespace DirectX;
 
@@ -54,16 +55,22 @@ void Playground::OnInit() {
 
     GEngine::AssetManager& assetManager = m_Scene.GetAssetManager();
 
-    const auto cubeModel = assetManager.AddModel(GEngine::Model{
+    const GEngine::ModelHandle cubeModel = assetManager.AddModel(GEngine::Model{
         .Meshes = {GEngine::MeshFactory::Cube()},
         .Materials = {containerMaterial},
     });
-    const auto planeModel = assetManager.AddModel(GEngine::Model{
+    const GEngine::ModelHandle planeModel = assetManager.AddModel(GEngine::Model{
         .Meshes = {GEngine::MeshFactory::Plane()},
         .Materials = {containerMaterial},
     });
-    const auto porscheModel = assetManager.LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
-    const auto sponzaModel = assetManager.LoadModel("Assets\\Models\\Sponza\\glTF\\Sponza.gltf");
+
+    std::future<GEngine::ModelHandle> porscheFuture = std::async(std::launch::async, [this]() {
+        return m_Scene.GetAssetManager().LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
+    });
+
+    std::future<GEngine::ModelHandle> sponzaFuture = std::async(std::launch::async, [this]() {
+        return m_Scene.GetAssetManager().LoadModel("Assets\\Models\\Sponza\\glTF\\Sponza.gltf");
+    });
 
     auto& ecs = m_Scene.GetEntityRegistry();
 
@@ -87,11 +94,13 @@ void Playground::OnInit() {
                                               GEngine::ModelComponent{.Model = planeModel, .CastsShadow = false});
 
     // Porsche
+    GEngine::ModelHandle porscheModel = porscheFuture.get();
     GEngine::Entity porsche = ecs.Create();
     ecs.AddComponent<GEngine::Transform>(porsche, GEngine::Transform{});
     ecs.AddComponent<GEngine::ModelComponent>(porsche, GEngine::ModelComponent{.Model = porscheModel});
 
     // Sponza
+    GEngine::ModelHandle sponzaModel = sponzaFuture.get();
     GEngine::Entity sponza = ecs.Create();
     ecs.AddComponent<GEngine::Transform>(sponza, GEngine::Transform{.Position = {20.0f, 5.0f, 20.0f}});
     ecs.AddComponent<GEngine::ModelComponent>(sponza, GEngine::ModelComponent{.Model = sponzaModel});

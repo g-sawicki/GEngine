@@ -4,6 +4,7 @@
 #include "Model.hpp"
 
 #include <filesystem>
+#include <mutex>
 #include <unordered_map>
 
 namespace GEngine {
@@ -27,6 +28,8 @@ class AssetManager {
     std::unordered_map<uint32_t, Model> m_Models;
 
     AssetCache m_AssetCache{"AssetCache"};
+
+    mutable std::mutex m_Mutex{};
 };
 
 } // namespace GEngine

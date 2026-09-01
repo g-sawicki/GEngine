@@ -16,6 +16,7 @@ namespace GEngine {
     {
         GE_SCOPED_TIMER(std::format("Loaded {} from binary cache", cacheFile.string()));
         if (auto cached = m_AssetCache.LoadBinaryModel(cacheFile); cached.has_value()) {
+            std::lock_guard lock{m_Mutex};
             ModelHandle handle{m_NextModelId++};
             m_Models[handle.Id] = std::move(*cached);
             m_PathToHandle[path] = handle;
@@ -29,6 +30,7 @@ namespace GEngine {
 
     m_AssetCache.SaveBinaryModel(cacheFile, *result);
 
+    std::lock_guard lock{m_Mutex};
     ModelHandle handle{m_NextModelId++};
     m_Models[handle.Id] = std::move(result.value());
     m_PathToHandle[path] = handle;
@@ -36,12 +38,14 @@ namespace GEngine {
 }
 
 [[nodiscard]] ModelHandle AssetManager::AddModel(Model model) {
+    std::lock_guard lock{m_Mutex};
     ModelHandle handle{m_NextModelId++};
     m_Models[handle.Id] = std::move(model);
     return handle;
 }
 
 [[nodiscard]] const Model* AssetManager::GetModel(ModelHandle handle) const {
+    std::lock_guard lock{m_Mutex};
     auto it = m_Models.find(handle.Id);
     return (it != m_Models.end()) ? &it->second : nullptr;
 }
