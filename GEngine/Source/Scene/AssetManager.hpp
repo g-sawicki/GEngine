@@ -4,6 +4,7 @@
 #include "Model.hpp"
 
 #include <filesystem>
+#include <future>
 #include <mutex>
 #include <unordered_map>
 
@@ -25,7 +26,7 @@ class AssetManager {
   private:
     uint32_t m_NextModelId{1u};
     std::unordered_map<std::filesystem::path, ModelHandle> m_PathToHandle;
-    std::unordered_map<uint32_t, Model> m_Models;
+    std::unordered_map<uint32_t, std::shared_future<std::optional<Model>>> m_Models;
 
     AssetCache m_AssetCache{"AssetCache"};
 
