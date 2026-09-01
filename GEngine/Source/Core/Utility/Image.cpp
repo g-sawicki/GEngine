@@ -46,7 +46,8 @@ static ImageFormat DetermineImageFormat(const std::filesystem::path& path) {
     }
 }
 
-Image::Image(const std::filesystem::path& path) : m_Path(path), m_Format(DetermineImageFormat(path)) {
+Image::Image(const std::filesystem::path& path, bool isSRGB)
+    : m_Path(path), m_Format(DetermineImageFormat(path)), m_IsSRGB(isSRGB) {
     static constexpr uint8_t kChannels = 4;
     int width, height, channels;
     void* data;
@@ -66,9 +67,9 @@ Image::Image(const std::filesystem::path& path) : m_Path(path), m_Format(Determi
     stbi_image_free(data);
 }
 
-Image::Image(const void* data, size_t size) {
+Image::Image(const void* data, size_t size, bool isSRGB)
+    : m_Format(SniffFormat(static_cast<const uint8_t*>(data), size)), m_IsSRGB(isSRGB) {
     const auto* bytes = static_cast<const uint8_t*>(data);
-    m_Format = SniffFormat(bytes, size);
 
     static constexpr uint8_t kChannels = 4;
     int width, height, channels;
@@ -89,13 +90,14 @@ Image::Image(const void* data, size_t size) {
     stbi_image_free(decoded);
 }
 
-Image Image::FromRawRGBA(const void* data, uint32_t width, uint32_t height) {
+Image Image::FromRawRGBA(const void* data, uint32_t width, uint32_t height, bool isSRGB) {
     const auto* bytes = static_cast<const uint8_t*>(data);
     Image image;
     image.m_Width = width;
     image.m_Height = height;
     image.m_Channels = 4;
     image.m_Format = ImageFormat::PNG;
+    image.m_IsSRGB = isSRGB;
     image.m_Data.assign(bytes, bytes + (static_cast<size_t>(width) * height * 4));
     return image;
 }
@@ -109,10 +111,10 @@ DXGI_FORMAT Image::GetDXGIFormat() const noexcept {
     case 2:
         return DXGI_FORMAT_R8G8_UNORM;
     case 4:
-        return DXGI_FORMAT_R8G8B8A8_UNORM;
+        return m_IsSRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
     default:
         // Unsupported channel count; fall back to RGBA8.
-        return DXGI_FORMAT_R8G8B8A8_UNORM;
+        return m_IsSRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
     }
 }
 

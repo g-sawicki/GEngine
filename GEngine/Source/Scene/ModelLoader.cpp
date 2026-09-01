@@ -115,7 +115,7 @@ ModelLoader::LoadedMesh ModelLoader::ProcessMesh(aiMesh* mesh, const aiScene* sc
 Material ModelLoader::LoadMaterial(const aiMaterial* material, const aiScene* scene,
                                    const std::filesystem::path& modelDirectory, ModelLoader::ImageCache& imageCache) {
     Material mat;
-    mat.Albedo = LoadTexture(material, aiTextureType_BASE_COLOR, scene, modelDirectory, imageCache);
+    mat.Albedo = LoadTexture(material, aiTextureType_BASE_COLOR, scene, modelDirectory, imageCache, /*isSRGB*/ true);
     mat.Normal = LoadTexture(material, aiTextureType_NORMALS, scene, modelDirectory, imageCache);
     mat.RoughnessMetallic =
         LoadTexture(material, aiTextureType_GLTF_METALLIC_ROUGHNESS, scene, modelDirectory, imageCache);
@@ -124,7 +124,7 @@ Material ModelLoader::LoadMaterial(const aiMaterial* material, const aiScene* sc
 
 std::shared_ptr<const Image> ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType type,
                                                       const aiScene* scene, const std::filesystem::path& modelDirectory,
-                                                      ModelLoader::ImageCache& imageCache) {
+                                                      ModelLoader::ImageCache& imageCache, bool isSRGB) {
     aiString texturePath;
     if (aiGetMaterialTexture(material, type, 0, &texturePath, nullptr, nullptr, nullptr, nullptr, nullptr) !=
         AI_SUCCESS)
@@ -158,15 +158,15 @@ std::shared_ptr<const Image> ModelLoader::LoadTexture(const aiMaterial* material
             const aiTexture* embedded = scene->mTextures[index];
             if (embedded->mHeight != 0) {
                 // Uncompressed RGBA pixels (mWidth * mHeight * 4 bytes).
-                image =
-                    std::make_shared<Image>(Image::FromRawRGBA(embedded->pcData, embedded->mWidth, embedded->mHeight));
+                image = std::make_shared<Image>(
+                    Image::FromRawRGBA(embedded->pcData, embedded->mWidth, embedded->mHeight, isSRGB));
             } else {
                 // Compressed data (PNG/JPEG/...); mWidth bytes in pcData.
-                image = std::make_shared<Image>(Image(embedded->pcData, embedded->mWidth));
+                image = std::make_shared<Image>(Image(embedded->pcData, embedded->mWidth, isSRGB));
             }
         } else {
             // External file: resolve against the directory containing the model.
-            image = std::make_shared<Image>(textureFile);
+            image = std::make_shared<Image>(textureFile, isSRGB);
         }
         imageCache.emplace(cacheKey, image);
         return image;

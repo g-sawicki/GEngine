@@ -35,7 +35,7 @@ class ModelLoader {
                                  const std::filesystem::path& modelDirectory, ImageCache& imageCache);
     static std::shared_ptr<const Image> LoadTexture(const aiMaterial* material, aiTextureType type,
                                                     const aiScene* scene, const std::filesystem::path& modelDirectory,
-                                                    ImageCache& imageCache);
+                                                    ImageCache& imageCache, bool isSRGB = false);
 };
 
 } // namespace GEngine
