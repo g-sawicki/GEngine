@@ -2,7 +2,7 @@
 
 #include "ToneMapPass.hpp"
 
-#include "Core/Utility/Common.hpp"
+#include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 
 namespace GEngine::RenderPass {

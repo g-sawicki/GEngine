@@ -4,7 +4,7 @@
 
 #include "CommandList.hpp"
 #include "CommandQueue.hpp"
-#include "Core/Utility/Common.hpp"
+#include "Core/Utility/Math.hpp"
 #include "D3D12Common.hpp"
 #include "Fence.hpp"
 

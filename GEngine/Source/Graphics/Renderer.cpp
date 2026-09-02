@@ -2,7 +2,7 @@
 
 #include "Graphics/Renderer.hpp"
 
-#include "Core/Utility/Common.hpp"
+#include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/D3D12Common.hpp"
 #include "Rendering/MeshBuffer.hpp"
 #include "Rendering/MeshFactory.hpp"

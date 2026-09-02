@@ -27,9 +27,10 @@ add_custom_target(GEngineShaders ALL DEPENDS ${GENGINE_SHADERS})
 add_dependencies(GEngine GEngineShaders)
 
 target_sources(${PROJECT_NAME} PRIVATE
+    "Source/Core/Utility/Defines.hpp"
     "Source/Core/Utility/Image.cpp"
     "Source/Core/Utility/Image.hpp"
-    "Source/Core/Utility/Common.hpp"
+    "Source/Core/Utility/Math.hpp"
     "Source/Core/Utility/MersenneTwister.hpp"
     "Source/Core/Utility/Timer.hpp"
     
@@ -65,9 +66,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/D3D12/Texture.cpp"
     "Source/Graphics/D3D12/Texture.hpp"
 
-    "Source/Graphics/Vertex.hpp"
     "Source/Graphics/Renderer.cpp"
     "Source/Graphics/Renderer.hpp"
+    "Source/Graphics/Vertex.hpp"
 
     "Source/Platform/Windows/Window.cpp"
     "Source/Platform/Windows/Window.hpp"
