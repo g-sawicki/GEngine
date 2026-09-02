@@ -48,9 +48,11 @@ void Playground::OnInit() {
         .OuterConeAngle = 60.0f,
     });
 
+    const std::filesystem::path containerTexturePath{"Assets\\Textures\\Container\\container2.png"};
     const GEngine::Material containerMaterial{
-        .Albedo = std::make_shared<GEngine::Image>(std::filesystem::path{"Assets\\Textures\\Container\\container2.png"},
-                                                   /*isSRGB*/ true),
+        .Albedo = {.Path = containerTexturePath,
+                   .IsSRGB = true,
+                   .Decoded = std::make_shared<GEngine::Image>(containerTexturePath)},
     };
 
     GEngine::AssetManager& assetManager = m_Scene.GetAssetManager();

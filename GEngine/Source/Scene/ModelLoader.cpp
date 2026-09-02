@@ -122,17 +122,20 @@ Material ModelLoader::LoadMaterial(const aiMaterial* material, const aiScene* sc
     return mat;
 }
 
-std::shared_ptr<const Image> ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType type,
-                                                      const aiScene* scene, const std::filesystem::path& modelDirectory,
-                                                      ModelLoader::ImageCache& imageCache, bool isSRGB) {
+TextureSource ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType type, const aiScene* scene,
+                                       const std::filesystem::path& modelDirectory, ModelLoader::ImageCache& imageCache,
+                                       bool isSRGB) {
     aiString texturePath;
     if (aiGetMaterialTexture(material, type, 0, &texturePath, nullptr, nullptr, nullptr, nullptr, nullptr) !=
         AI_SUCCESS)
-        return nullptr;
+        return {};
 
     const std::string pathString = texturePath.C_Str();
     if (pathString.empty())
-        return nullptr;
+        return {};
+
+    TextureSource source;
+    source.IsSRGB = isSRGB;
 
     std::string cacheKey;
     std::filesystem::path textureFile;
@@ -144,35 +147,41 @@ std::shared_ptr<const Image> ModelLoader::LoadTexture(const aiMaterial* material
         cacheKey = textureFile.lexically_normal().string();
     }
 
-    if (const auto it = imageCache.find(cacheKey); it != imageCache.end())
-        return it->second;
+    if (pathString[0] == '*') {
+        // Embedded textures are referenced as "*<index>" into scene->mTextures.
+        const int index = std::atoi(pathString.c_str() + 1);
+        if (index < 0 || static_cast<unsigned int>(index) >= scene->mNumTextures)
+            return {};
 
-    try {
-        std::shared_ptr<const Image> image;
-        if (pathString[0] == '*') {
-            // Embedded textures are referenced as "*<index>" into scene->mTextures.
-            const int index = std::atoi(pathString.c_str() + 1);
-            if (index < 0 || static_cast<unsigned int>(index) >= scene->mNumTextures)
-                return nullptr;
-
-            const aiTexture* embedded = scene->mTextures[index];
+        const aiTexture* embedded = scene->mTextures[index];
+        try {
             if (embedded->mHeight != 0) {
                 // Uncompressed RGBA pixels (mWidth * mHeight * 4 bytes).
-                image = std::make_shared<Image>(
-                    Image::FromRawRGBA(embedded->pcData, embedded->mWidth, embedded->mHeight, isSRGB));
+                source.Decoded =
+                    std::make_shared<Image>(Image::FromRGBA8(embedded->pcData, embedded->mWidth, embedded->mHeight));
             } else {
                 // Compressed data (PNG/JPEG/...); mWidth bytes in pcData.
-                image = std::make_shared<Image>(Image(embedded->pcData, embedded->mWidth, isSRGB));
+                source.Decoded = std::make_shared<Image>(embedded->pcData, embedded->mWidth);
             }
-        } else {
-            // External file: resolve against the directory containing the model.
-            image = std::make_shared<Image>(textureFile, isSRGB);
+        } catch (const std::exception&) {
+            return {};
         }
-        imageCache.emplace(cacheKey, image);
-        return image;
-    } catch (const std::exception&) {
-        return nullptr;
+        return source;
     }
+
+    source.Path = textureFile;
+    if (const auto it = imageCache.find(cacheKey); it != imageCache.end()) {
+        source.Decoded = it->second;
+        return source;
+    }
+
+    try {
+        source.Decoded = std::make_shared<Image>(textureFile);
+        imageCache.emplace(cacheKey, source.Decoded);
+    } catch (const std::exception&) {
+        return {};
+    }
+    return source;
 }
 
 } // namespace GEngine

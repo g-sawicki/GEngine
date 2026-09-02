@@ -55,7 +55,7 @@ class Renderer {
     [[nodiscard]] bool IsVSyncEnabled() const noexcept { return m_VSync; }
     [[nodiscard]] bool IsTearingSupported() const noexcept { return m_TearingSupported; }
 
-    std::unique_ptr<Texture> CreateTexture(const Image& image);
+    std::unique_ptr<Texture> CreateTexture(const Image& image, bool isSRGB = false);
 
   private:
     struct ModelResources {

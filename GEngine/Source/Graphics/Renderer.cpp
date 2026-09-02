@@ -153,10 +153,14 @@ std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
     return std::make_unique<MeshBuffer>(*m_Device, *m_CommandQueue, mesh);
 }
 
-std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image) {
+std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image, bool isSRGB) {
+    DXGI_FORMAT format = image.GetFormat();
+    if (isSRGB && format == DXGI_FORMAT_R8G8B8A8_UNORM)
+        format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
     TextureDesc desc{.Width = image.GetWidth(),
                      .Height = image.GetHeight(),
-                     .Format = image.GetDXGIFormat(),
+                     .Format = format,
                      .Usage = TextureUsage::ShaderResource};
     auto texture = std::make_unique<Texture>();
     texture->CreateFromImage(*m_Device, *m_CommandQueue, desc, image);
@@ -169,22 +173,9 @@ void Renderer::EnsureDefaultMaterial() {
     static constexpr uint8_t kWhitePixel[]{255, 255, 255, 255};
     static constexpr uint8_t kFlatNormalPixel[]{128, 128, 255, 255};
     static constexpr uint8_t kDefaultRoughnessMetallicPixel[]{255, 255, 0, 255};
-    const Image white = Image::FromRawRGBA(kWhitePixel, 1, 1);
-    const Image flatNormal = Image::FromRawRGBA(kFlatNormalPixel, 1, 1);
-    const Image defaultRoughnessMetallic = Image::FromRawRGBA(kDefaultRoughnessMetallicPixel, 1, 1);
-    m_DefaultAlbedo.CreateFromImage(
-        *m_Device, *m_CommandQueue,
-        {.Width = 1, .Height = 1, .Format = white.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource}, white);
-    m_DefaultNormal.CreateFromImage(
-        *m_Device, *m_CommandQueue,
-        {.Width = 1, .Height = 1, .Format = flatNormal.GetDXGIFormat(), .Usage = TextureUsage::ShaderResource},
-        flatNormal);
-    m_DefaultRoughnessMetallic.CreateFromImage(*m_Device, *m_CommandQueue,
-                                               {.Width = 1,
-                                                .Height = 1,
-                                                .Format = defaultRoughnessMetallic.GetDXGIFormat(),
-                                                .Usage = TextureUsage::ShaderResource},
-                                               defaultRoughnessMetallic);
+    m_DefaultAlbedo.CreateFromRGBA8(*m_Device, *m_CommandQueue, 1, 1, kWhitePixel);
+    m_DefaultNormal.CreateFromRGBA8(*m_Device, *m_CommandQueue, 1, 1, kFlatNormalPixel);
+    m_DefaultRoughnessMetallic.CreateFromRGBA8(*m_Device, *m_CommandQueue, 1, 1, kDefaultRoughnessMetallicPixel);
     m_DefaultMaterial = {.AlbedoIndex = m_DefaultAlbedo.GetSrvIndex(),
                          .NormalIndex = m_DefaultNormal.GetSrvIndex(),
                          .RoughnessMetallicIndex = m_DefaultRoughnessMetallic.GetSrvIndex()};
@@ -204,9 +195,13 @@ const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& mode
     resources.Materials.reserve(model.Materials.size());
     resources.Textures.reserve(model.Materials.size() * 3);
     for (const auto& material : model.Materials) {
-        auto albedo = material.Albedo ? CreateTexture(*material.Albedo) : nullptr;
-        auto normal = material.Normal ? CreateTexture(*material.Normal) : nullptr;
-        auto roughnessMetallic = material.RoughnessMetallic ? CreateTexture(*material.RoughnessMetallic) : nullptr;
+        auto albedo =
+            material.Albedo.Decoded ? CreateTexture(*material.Albedo.Decoded, material.Albedo.IsSRGB) : nullptr;
+        auto normal =
+            material.Normal.Decoded ? CreateTexture(*material.Normal.Decoded, material.Normal.IsSRGB) : nullptr;
+        auto roughnessMetallic = material.RoughnessMetallic.Decoded ? CreateTexture(*material.RoughnessMetallic.Decoded,
+                                                                                    material.RoughnessMetallic.IsSRGB)
+                                                                    : nullptr;
         resources.Materials.push_back({
             .AlbedoIndex = albedo ? albedo->GetSrvIndex() : m_DefaultMaterial.AlbedoIndex,
             .NormalIndex = normal ? normal->GetSrvIndex() : m_DefaultMaterial.NormalIndex,

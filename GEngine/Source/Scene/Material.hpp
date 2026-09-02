@@ -2,14 +2,21 @@
 
 #include "Core/Utility/Image.hpp"
 
+#include <filesystem>
 #include <memory>
 
 namespace GEngine {
 
+struct TextureSource {
+    std::filesystem::path Path{};
+    bool IsSRGB{};
+    std::shared_ptr<const Image> Decoded;
+};
+
 struct Material {
-    std::shared_ptr<const Image> Albedo;
-    std::shared_ptr<const Image> Normal;
-    std::shared_ptr<const Image> RoughnessMetallic;
+    TextureSource Albedo;
+    TextureSource Normal;
+    TextureSource RoughnessMetallic;
 };
 
 } // namespace GEngine

@@ -25,6 +25,19 @@ namespace {
     return D3D12_RESOURCE_STATE_COMMON;
 }
 
+[[nodiscard]] uint32_t GetBytesPerPixel(DXGI_FORMAT format) {
+    switch (format) {
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        return 4;
+    case DXGI_FORMAT_R32G32B32A32_FLOAT:
+        return sizeof(float) * 4;
+    default:
+        throw std::runtime_error(
+            std::format("Unsupported source format for image upload: {}", static_cast<int>(format)));
+    }
+}
+
 } // namespace
 
 void Texture::Create(Device& device, const TextureDesc& desc) {
@@ -135,11 +148,12 @@ void Texture::Reset() noexcept {
     m_UavIndex = INVALID_BINDLESS_INDEX;
 }
 
-void Texture::CreateFromImage(Device& device, CommandQueue& commandQueue, const TextureDesc& desc, const Image& image) {
+void Texture::UploadPixels(Device& device, CommandQueue& commandQueue, const TextureDesc& desc, uint32_t sourceRowPitch,
+                           const void* pixels) {
     m_Desc = desc;
 
     const CD3DX12_RESOURCE_DESC resourceDesc{
-        CD3DX12_RESOURCE_DESC::Tex2D(desc.Format, image.GetWidth(), image.GetHeight())};
+        CD3DX12_RESOURCE_DESC::Tex2D(desc.Format, static_cast<UINT64>(desc.Width), static_cast<UINT>(desc.Height))};
     const CD3DX12_HEAP_PROPERTIES defaultHeap{D3D12_HEAP_TYPE_DEFAULT};
     ThrowIfFailed(device.Get()->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &resourceDesc,
                                                         D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
@@ -159,11 +173,10 @@ void Texture::CreateFromImage(Device& device, CommandQueue& commandQueue, const 
     void* mappedData{};
     ThrowIfFailed(uploadBuffer->Map(0, nullptr, &mappedData));
     auto* destination = static_cast<uint8_t*>(mappedData) + footprint.Offset;
-    const auto& source = image.GetData();
-    const uint32_t sourceRowPitch = static_cast<uint32_t>(image.GetRowPitch());
+    const auto* source = static_cast<const uint8_t*>(pixels);
     const uint32_t destinationRowPitch = footprint.Footprint.RowPitch;
-    for (uint32_t row{}; row < image.GetHeight(); ++row) {
-        std::memcpy(destination + row * destinationRowPitch, source.data() + row * sourceRowPitch, sourceRowPitch);
+    for (uint32_t row{}; row < desc.Height; ++row) {
+        std::memcpy(destination + row * destinationRowPitch, source + row * sourceRowPitch, sourceRowPitch);
     }
     uploadBuffer->Unmap(0, nullptr);
 
@@ -204,6 +217,22 @@ void Texture::CreateFromImage(Device& device, CommandQueue& commandQueue, const 
     };
     device.Get()->CreateShaderResourceView(m_Resource.Get(), &srvDesc,
                                            device.GetShaderResourceDescriptorHeap().GetCpuHandle(m_SrvIndex));
+}
+
+void Texture::CreateFromImage(Device& device, CommandQueue& commandQueue, const TextureDesc& desc, const Image& image) {
+    assert(desc.Width == image.GetWidth() && desc.Height == image.GetHeight() &&
+           "TextureDesc dimensions must match the image.");
+    const uint32_t bytesPerPixel = GetBytesPerPixel(desc.Format);
+    assert(image.GetData().size() == static_cast<size_t>(image.GetWidth()) * image.GetHeight() * bytesPerPixel &&
+           "Image pixel data does not match desc.Format.");
+    UploadPixels(device, commandQueue, desc, image.GetWidth() * bytesPerPixel, image.GetData().data());
+}
+
+void Texture::CreateFromRGBA8(Device& device, CommandQueue& commandQueue, uint32_t width, uint32_t height,
+                              const void* rgba8) {
+    const TextureDesc desc{
+        .Width = width, .Height = height, .Format = DXGI_FORMAT_R8G8B8A8_UNORM, .Usage = TextureUsage::ShaderResource};
+    UploadPixels(device, commandQueue, desc, width * 4, rgba8);
 }
 
 void Texture::Transition(CommandList& commandList, D3D12_RESOURCE_STATES state) {

@@ -58,13 +58,13 @@ bool AssetCache::SaveBinaryModel(const std::filesystem::path& filename, const Mo
     }
 
     for (const auto& mat : model.Materials) {
-        std::string albedoPath = mat.Albedo ? mat.Albedo->GetPath().string() : "";
-        std::string normalPath = mat.Normal ? mat.Normal->GetPath().string() : "";
-        std::string rmPath = mat.RoughnessMetallic ? mat.RoughnessMetallic->GetPath().string() : "";
+        std::string albedoPath = mat.Albedo.Path.string();
+        std::string normalPath = mat.Normal.Path.string();
+        std::string rmPath = mat.RoughnessMetallic.Path.string();
 
-        const uint8_t albedoIsSRGB = mat.Albedo && mat.Albedo->IsSRGB() ? 1u : 0u;
-        const uint8_t normalIsSRGB = mat.Normal && mat.Normal->IsSRGB() ? 1u : 0u;
-        const uint8_t rmIsSRGB = mat.RoughnessMetallic && mat.RoughnessMetallic->IsSRGB() ? 1u : 0u;
+        const uint8_t albedoIsSRGB = mat.Albedo.IsSRGB ? 1u : 0u;
+        const uint8_t normalIsSRGB = mat.Normal.IsSRGB ? 1u : 0u;
+        const uint8_t rmIsSRGB = mat.RoughnessMetallic.IsSRGB ? 1u : 0u;
 
         MaterialHeader matHeader{
             .AlbedoPathLen = static_cast<uint32_t>(albedoPath.size()),
@@ -139,12 +139,21 @@ std::optional<Model> AssetCache::LoadBinaryModel(const std::filesystem::path& fi
         }
 
         auto& mat = model.Materials[i];
-        if (!albedoPath.empty())
-            mat.Albedo = std::make_shared<const Image>(albedoPath, matHeader.AlbedoIsSRGB != 0);
-        if (!normalPath.empty())
-            mat.Normal = std::make_shared<const Image>(normalPath, matHeader.NormalIsSRGB != 0);
-        if (!rmPath.empty())
-            mat.RoughnessMetallic = std::make_shared<const Image>(rmPath, matHeader.RoughnessMetallicIsSRGB != 0);
+        if (!albedoPath.empty()) {
+            mat.Albedo.Path = albedoPath;
+            mat.Albedo.IsSRGB = matHeader.AlbedoIsSRGB != 0;
+            mat.Albedo.Decoded = std::make_shared<Image>(albedoPath);
+        }
+        if (!normalPath.empty()) {
+            mat.Normal.Path = normalPath;
+            mat.Normal.IsSRGB = matHeader.NormalIsSRGB != 0;
+            mat.Normal.Decoded = std::make_shared<Image>(normalPath);
+        }
+        if (!rmPath.empty()) {
+            mat.RoughnessMetallic.Path = rmPath;
+            mat.RoughnessMetallic.IsSRGB = matHeader.RoughnessMetallicIsSRGB != 0;
+            mat.RoughnessMetallic.Decoded = std::make_shared<Image>(rmPath);
+        }
     }
 
     for (size_t i = 0; i < modelHeader.MeshCount; ++i) {

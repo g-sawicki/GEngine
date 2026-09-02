@@ -77,6 +77,8 @@ class Texture {
     void Create(Device& device, const TextureDesc& desc);
     void CreateFromResource(ID3D12Resource* resource, const TextureDesc& desc, D3D12_RESOURCE_STATES initialState);
     void CreateFromImage(Device& device, CommandQueue& commandQueue, const TextureDesc& desc, const Image& image);
+    void CreateFromRGBA8(Device& device, CommandQueue& commandQueue, uint32_t width, uint32_t height,
+                         const void* rgba8);
     void Reset() noexcept;
     void Transition(CommandList& commandList, D3D12_RESOURCE_STATES state);
 
@@ -91,6 +93,9 @@ class Texture {
     [[nodiscard]] uint32_t GetUavIndex() const noexcept { return m_UavIndex; }
 
   private:
+    void UploadPixels(Device& device, CommandQueue& commandQueue, const TextureDesc& desc, uint32_t sourceRowPitch,
+                      const void* pixels);
+
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
     TextureDesc m_Desc{};
     D3D12_RESOURCE_STATES m_State{D3D12_RESOURCE_STATE_COMMON};
