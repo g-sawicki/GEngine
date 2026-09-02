@@ -73,7 +73,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
     float shadow = ComputeShadow(csmDataCB, shadowSampler, sceneInfoCB.cameraPosition, sceneInfoCB.cameraForward,
                                  input.worldPos, shadowTexture);
 
-    float3 ambient = albedo.xyz * 0.3;
+    float3 ambient = albedo.xyz * 0.03;
     float3 directLighting = CalculateDirectLighting(sceneInfoCB.lightIndex, sceneInfoCB.lightCount, input.worldPos, V, normal,
                                                     material, shadow);
 

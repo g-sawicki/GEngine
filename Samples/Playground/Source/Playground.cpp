@@ -49,7 +49,8 @@ void Playground::OnInit() {
     });
 
     const GEngine::Material containerMaterial{
-        .Albedo = std::make_shared<GEngine::Image>(GEngine::Image{"Assets\\Textures\\Container\\container2.png"}),
+        .Albedo = std::make_shared<GEngine::Image>(std::filesystem::path{"Assets\\Textures\\Container\\container2.png"},
+                                                   /*isSRGB*/ true),
     };
 
     GEngine::AssetManager& assetManager = m_Scene.GetAssetManager();

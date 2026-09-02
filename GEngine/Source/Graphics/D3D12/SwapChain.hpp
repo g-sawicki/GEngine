@@ -19,7 +19,7 @@ class SwapChain {
     [[nodiscard]] UINT GetCurrentBackBufferIndex() const noexcept { return m_SwapChain->GetCurrentBackBufferIndex(); }
     [[nodiscard]] Texture& GetCurrentBackBuffer() noexcept { return m_BackBuffers[GetCurrentBackBufferIndex()]; }
     [[nodiscard]] const Texture& GetCurrentBackBuffer() const noexcept {
-      return m_BackBuffers[GetCurrentBackBufferIndex()];
+        return m_BackBuffers[GetCurrentBackBufferIndex()];
     }
     [[nodiscard]] const Texture& GetBackBuffer(UINT index) const noexcept { return m_BackBuffers[index]; }
     [[nodiscard]] uint32_t GetWidth() const noexcept { return m_Width; }

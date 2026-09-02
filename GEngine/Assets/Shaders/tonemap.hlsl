@@ -27,5 +27,6 @@ void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
     float2 uv = (float2(dispatchThreadId.xy) + 0.5f) / float2(sceneInfoCB.screenResolution);
     half4 hdrTex = hdrTexture.SampleLevel(hdrSampler, uv, 0.0f);
     float3 color = ReinhardToneMap(hdrTex.xyz);
+    color = pow(color, 1.0f / 2.2f);
     outputTexture[dispatchThreadId.xy] = float4(color, 1.0f);
 }
