@@ -13,8 +13,7 @@ class MeshBuffer {
   public:
     MeshBuffer(Device& device, CommandQueue& commandQueue, const Mesh& mesh);
 
-    GE_NO_COPY(MeshBuffer)
-    GE_DEFAULT_MOVE(MeshBuffer)
+    GE_NO_COPY_DEFAULT_MOVE(MeshBuffer)
 
     void Draw(CommandList& commandList) const;
 

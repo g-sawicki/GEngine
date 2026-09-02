@@ -71,8 +71,7 @@ class Texture {
   public:
     Texture() = default;
 
-    GE_NO_COPY(Texture)
-    GE_DEFAULT_MOVE(Texture)
+    GE_NO_COPY_DEFAULT_MOVE(Texture)
 
     void Create(Device& device, const TextureDesc& desc);
     void CreateFromResource(ID3D12Resource* resource, const TextureDesc& desc, D3D12_RESOURCE_STATES initialState);

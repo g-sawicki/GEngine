@@ -16,8 +16,7 @@ class SwapChain {
     SwapChain(IDXGIFactory5* factory, HWND hWnd, CommandQueue& commandQueue, uint32_t width, uint32_t height,
               uint32_t bufferCount);
 
-    GE_NO_COPY(SwapChain)
-    GE_DEFAULT_MOVE(SwapChain)
+    GE_NO_COPY_DEFAULT_MOVE(SwapChain)
 
     [[nodiscard]] IDXGISwapChain4* GetHandle() const noexcept { return m_SwapChain.Get(); }
     [[nodiscard]] UINT GetCurrentBackBufferIndex() const noexcept { return m_SwapChain->GetCurrentBackBufferIndex(); }

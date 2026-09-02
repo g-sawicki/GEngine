@@ -10,8 +10,7 @@ class CommandList {
   public:
     CommandList(Device& device, ID3D12CommandAllocator* initialAllocator, D3D12_COMMAND_LIST_TYPE type);
 
-    GE_NO_COPY(CommandList)
-    GE_DEFAULT_MOVE(CommandList)
+    GE_NO_COPY_DEFAULT_MOVE(CommandList)
 
     [[nodiscard]] ID3D12GraphicsCommandList4* GetHandle() const noexcept { return m_CommandList.Get(); }
 

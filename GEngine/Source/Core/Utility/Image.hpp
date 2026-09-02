@@ -19,8 +19,7 @@ class Image {
 
     static Image FromRGBA8(const void* data, uint32_t width, uint32_t height);
 
-    GE_NO_COPY(Image);
-    GE_DEFAULT_MOVE(Image);
+    GE_NO_COPY_DEFAULT_MOVE(Image)
 
     [[nodiscard]] const std::vector<uint8_t>& GetData() const noexcept { return m_Data; }
     [[nodiscard]] uint32_t GetWidth() const noexcept { return m_Width; }

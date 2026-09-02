@@ -9,8 +9,7 @@ class RootSignature {
   public:
     RootSignature(Device& device, const D3D12_ROOT_SIGNATURE_DESC1& desc);
 
-    GE_NO_COPY(RootSignature)
-    GE_DEFAULT_MOVE(RootSignature)
+    GE_NO_COPY_DEFAULT_MOVE(RootSignature)
 
     [[nodiscard]] ID3D12RootSignature* Get() const noexcept { return m_RootSignature.Get(); }
 

@@ -28,8 +28,6 @@ class Camera {
     Camera(const PerspectiveDesc& desc);
     Camera(const OrthographicDesc& desc);
 
-    GE_DEFAULT_COPY_AND_MOVE(Camera)
-
     void SetPosition(const DirectX::XMFLOAT3& position);
     void SetRotation(float pitch, float yaw);
     void SetLookAt(const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& target);

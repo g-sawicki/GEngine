@@ -9,8 +9,7 @@ class CommandQueue {
   public:
     CommandQueue(Device& device, D3D12_COMMAND_LIST_TYPE type);
 
-    GE_NO_COPY(CommandQueue)
-    GE_DEFAULT_MOVE(CommandQueue)
+    GE_NO_COPY_DEFAULT_MOVE(CommandQueue)
 
     [[nodiscard]] ID3D12CommandQueue* GetHandle() const noexcept { return m_CommandQueue.Get(); }
 

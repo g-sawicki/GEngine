@@ -14,8 +14,7 @@ class Shader {
     Shader() = default;
     explicit Shader(const std::filesystem::path& path) { Load(path); }
 
-    GE_NO_COPY(Shader)
-    GE_DEFAULT_MOVE(Shader)
+    GE_NO_COPY_DEFAULT_MOVE(Shader)
 
     void Load(const std::filesystem::path& path);
 

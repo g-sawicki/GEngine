@@ -27,8 +27,7 @@ class DescriptorHeap {
     DescriptorHeap(Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors,
                    D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
-    GE_NO_COPY(DescriptorHeap)
-    GE_DEFAULT_MOVE(DescriptorHeap)
+    GE_NO_COPY_DEFAULT_MOVE(DescriptorHeap)
 
     [[nodiscard]] UINT AllocateIndex();
     [[nodiscard]] DescriptorHandle Allocate();
