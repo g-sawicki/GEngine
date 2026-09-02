@@ -1,8 +1,9 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "Graphics/Renderer.hpp"
 #include "Platform/Windows/Window.hpp"
-#include "Scene/scene.hpp"
+#include "Scene/Scene.hpp"
 
 namespace GEngine {
 
@@ -17,10 +18,7 @@ class Application {
     Application(const Specification& specification);
     virtual ~Application() = default;
 
-    Application(const Application&) = delete;
-    Application& operator=(const Application&) = delete;
-    Application(Application&&) = delete;
-    Application& operator=(Application&&) = delete;
+    GE_NO_COPY_NO_MOVE(Application)
 
     int Run();
 

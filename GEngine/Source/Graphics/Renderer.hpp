@@ -2,6 +2,7 @@
 
 #include "Scene/Scene.hpp"
 
+#include "Core/Utility/Defines.hpp"
 #include "Core/Utility/Image.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
@@ -40,10 +41,7 @@ class Renderer {
 
     Renderer() = default;
 
-    Renderer(const Renderer&) = delete;
-    Renderer& operator=(const Renderer&) = delete;
-    Renderer(Renderer&&) = delete;
-    Renderer& operator=(Renderer&&) = delete;
+    GE_NO_COPY_NO_MOVE(Renderer)
 
     void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize);
     void Destroy();

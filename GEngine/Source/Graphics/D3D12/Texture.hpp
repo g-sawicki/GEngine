@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "Core/Utility/Image.hpp"
 #include "D3D12Common.hpp"
 #include "DescriptorHeap.hpp"
@@ -70,10 +71,8 @@ class Texture {
   public:
     Texture() = default;
 
-    Texture(const Texture&) = delete;
-    Texture& operator=(const Texture&) = delete;
-    Texture(Texture&&) noexcept = default;
-    Texture& operator=(Texture&&) noexcept = default;
+    GE_NO_COPY(Texture)
+    GE_DEFAULT_MOVE(Texture)
 
     void Create(Device& device, const TextureDesc& desc);
     void CreateFromResource(ID3D12Resource* resource, const TextureDesc& desc, D3D12_RESOURCE_STATES initialState);

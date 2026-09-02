@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/Device.hpp"
@@ -14,10 +15,7 @@ class ForwardLightingPass {
   public:
     ForwardLightingPass(Device& device, const Texture& colorTexture, const Texture& depthTexture);
 
-    ForwardLightingPass(const ForwardLightingPass&) = delete;
-    ForwardLightingPass& operator=(const ForwardLightingPass&) = delete;
-    ForwardLightingPass(ForwardLightingPass&&) = delete;
-    ForwardLightingPass& operator=(ForwardLightingPass&&) = delete;
+    GE_NO_COPY_NO_MOVE(ForwardLightingPass)
 
     void OnRender(CommandList& commandList, const Texture& colorTexture, const Texture& depthTexture,
                   const Texture& shadowMapTexture, const Buffer& sceneInfoCB, const Buffer& cascadedShadowMapsDataCB,

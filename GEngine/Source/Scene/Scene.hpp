@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "Rendering/CascadedShadowMaps.hpp"
 #include "Rendering/Components.hpp"
 #include "Scene/AssetManager.hpp"
@@ -37,10 +38,7 @@ class Scene {
   public:
     Scene() = default;
 
-    Scene(const Scene&) = delete;
-    Scene& operator=(const Scene&) = delete;
-    Scene(Scene&&) = delete;
-    Scene& operator=(Scene&&) = delete;
+    GE_NO_COPY_NO_MOVE(Scene)
 
     Camera& CreateCamera(const PerspectiveDesc& desc);
     [[nodiscard]] Camera& GetActiveCamera() noexcept {

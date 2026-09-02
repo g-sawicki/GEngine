@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "DescriptorHeap.hpp"
 
 namespace GEngine {
@@ -10,10 +11,7 @@ class Device {
   public:
     explicit Device(IDXGIAdapter4* adapter);
 
-    Device(const Device&) = delete;
-    Device& operator=(const Device&) = delete;
-    Device(Device&&) = delete;
-    Device& operator=(Device&&) = delete;
+    GE_NO_COPY_NO_MOVE(Device)
 
     [[nodiscard]] ID3D12Device8* Get() const noexcept { return m_Device.Get(); }
     [[nodiscard]] DescriptorHeap& GetRtvDescriptorHeap() noexcept { return m_RtvDescriptorHeap; }

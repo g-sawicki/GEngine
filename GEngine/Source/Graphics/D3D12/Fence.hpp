@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "Device.hpp"
 
 namespace GEngine {
@@ -10,10 +11,7 @@ class Fence {
     explicit Fence(Device& device);
     ~Fence();
 
-    Fence(const Fence&) = delete;
-    Fence& operator=(const Fence&) = delete;
-    Fence(Fence&&) = delete;
-    Fence& operator=(Fence&&) = delete;
+    GE_NO_COPY_NO_MOVE(Fence)
 
     [[nodiscard]] ID3D12Fence* GetHandle() const noexcept { return m_Fence.Get(); }
 

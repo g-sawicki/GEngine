@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
+
 namespace GEngine {
 
 struct PerspectiveDesc {
@@ -26,10 +28,7 @@ class Camera {
     Camera(const PerspectiveDesc& desc);
     Camera(const OrthographicDesc& desc);
 
-    Camera(const Camera&) = delete;
-    Camera& operator=(const Camera&) = delete;
-    Camera(Camera&&) = delete;
-    Camera& operator=(Camera&&) = delete;
+    GE_DEFAULT_COPY_AND_MOVE(Camera)
 
     void SetPosition(const DirectX::XMFLOAT3& position);
     void SetRotation(float pitch, float yaw);

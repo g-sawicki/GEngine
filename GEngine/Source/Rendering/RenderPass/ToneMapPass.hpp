@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/Device.hpp"
@@ -12,10 +13,7 @@ class ToneMapPass {
   public:
     explicit ToneMapPass(Device& device);
 
-    ToneMapPass(const ToneMapPass&) = delete;
-    ToneMapPass& operator=(const ToneMapPass&) = delete;
-    ToneMapPass(ToneMapPass&&) = delete;
-    ToneMapPass& operator=(ToneMapPass&&) = delete;
+    GE_NO_COPY_NO_MOVE(ToneMapPass)
 
     void Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex, Buffer& sceneInfoBuffer,
                   uint32_t width, uint32_t height);

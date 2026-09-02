@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
+
 #include <cstdint>
 #include <tuple>
 #include <unordered_map>
@@ -60,10 +62,7 @@ class EntityRegistry {
   public:
     EntityRegistry() = default;
 
-    EntityRegistry(const EntityRegistry&) = delete;
-    EntityRegistry& operator=(const EntityRegistry&) = delete;
-    EntityRegistry(EntityRegistry&&) = delete;
-    EntityRegistry& operator=(EntityRegistry&&) = delete;
+    GE_NO_COPY_NO_MOVE(EntityRegistry)
 
     [[nodiscard]] Entity Create() noexcept { return m_EntityIndex++; }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
+
 namespace GEngine {
 
 class Device;
@@ -25,10 +27,8 @@ class DescriptorHeap {
     DescriptorHeap(Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors,
                    D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
-    DescriptorHeap(const DescriptorHeap&) = delete;
-    DescriptorHeap& operator=(const DescriptorHeap&) = delete;
-    DescriptorHeap(DescriptorHeap&&) = default;
-    DescriptorHeap& operator=(DescriptorHeap&&) = default;
+    GE_NO_COPY(DescriptorHeap)
+    GE_DEFAULT_MOVE(DescriptorHeap)
 
     [[nodiscard]] UINT AllocateIndex();
     [[nodiscard]] DescriptorHandle Allocate();

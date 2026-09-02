@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/Device.hpp"
@@ -14,10 +15,7 @@ class ShadowPass {
   public:
     ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat);
 
-    ShadowPass(const ShadowPass&) = delete;
-    ShadowPass& operator=(const ShadowPass&) = delete;
-    ShadowPass(ShadowPass&&) = delete;
-    ShadowPass& operator=(ShadowPass&&) = delete;
+    GE_NO_COPY_NO_MOVE(ShadowPass)
 
     void OnRender(CommandList& commandList, Texture& shadowMapTexture, Buffer& lightDataConstantBuffer,
                   uint32_t cascadeCount, std::span<const RenderItem> renderItems);

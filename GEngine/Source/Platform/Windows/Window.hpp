@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
+
 namespace GEngine {
 
 class Window {
@@ -7,10 +9,7 @@ class Window {
     Window(HINSTANCE hInstance, const std::wstring& title, uint32_t clientWidth, uint32_t clientHeight);
     ~Window();
 
-    Window(const Window&) = delete;
-    Window& operator=(const Window&) = delete;
-    Window(Window&&) = delete;
-    Window& operator=(Window&&) = delete;
+    GE_NO_COPY_NO_MOVE(Window)
 
     [[nodiscard]] HWND GetHandle() const noexcept { return m_hWnd; }
     [[nodiscard]] uint32_t GetClientWidth() const noexcept { return m_ClientWidth; }

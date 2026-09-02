@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
 #include "Graphics/D3D12/CommandList.hpp"
 #include "Graphics/D3D12/CommandQueue.hpp"
@@ -12,10 +13,8 @@ class MeshBuffer {
   public:
     MeshBuffer(Device& device, CommandQueue& commandQueue, const Mesh& mesh);
 
-    MeshBuffer(const MeshBuffer&) = delete;
-    MeshBuffer& operator=(const MeshBuffer&) = delete;
-    MeshBuffer(MeshBuffer&&) = default;
-    MeshBuffer& operator=(MeshBuffer&&) = default;
+    GE_NO_COPY(MeshBuffer)
+    GE_DEFAULT_MOVE(MeshBuffer)
 
     void Draw(CommandList& commandList) const;
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AssetCache.hpp"
+#include "Core/Utility/Defines.hpp"
 #include "Model.hpp"
 
 #include <filesystem>
@@ -14,10 +15,7 @@ class AssetManager {
   public:
     AssetManager() = default;
 
-    AssetManager(const AssetManager&) = delete;
-    AssetManager& operator=(const AssetManager&) = delete;
-    AssetManager(AssetManager&&) = delete;
-    AssetManager& operator=(AssetManager&&) = delete;
+    GE_NO_COPY_NO_MOVE(AssetManager)
 
     [[nodiscard]] ModelHandle LoadModel(const std::filesystem::path& path);
     [[nodiscard]] ModelHandle AddModel(Model model);

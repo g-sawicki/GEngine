@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
 #include "D3D12Common.hpp"
 #include "Device.hpp"
 
@@ -29,6 +30,9 @@ class Buffer {
   public:
     Buffer() = default;
     Buffer(Device& device, CommandQueue& commandQueue, const BufferDesc& desc, const void* initialData = nullptr);
+
+    GE_NO_COPY(Buffer)
+    GE_DEFAULT_MOVE(Buffer)
 
     [[nodiscard]] ID3D12Resource* Get() const noexcept { return m_Resource.Get(); }
     [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const noexcept {
