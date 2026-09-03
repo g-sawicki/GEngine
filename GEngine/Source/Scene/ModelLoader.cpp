@@ -5,36 +5,30 @@
 #include "Graphics/Vertex.hpp"
 
 #include <cstdlib>
-#include <unordered_map>
 
 namespace GEngine {
 
-struct ModelLoader::LoadedMesh {
-    Mesh Geometry;
-    const aiMaterial* SourceMaterial{}; // used to deduplicate materials across meshes
-    Material Material;
-};
+ModelLoader::ModelLoader(const std::filesystem::path& filepath)
+    : m_ModelPath(filepath), m_ModelDirectory(filepath.parent_path()) {}
 
-std::expected<Model, std::string> ModelLoader::Load(const std::filesystem::path& filepath) {
-    Assimp::Importer importer;
+std::expected<Model, std::string> ModelLoader::Load() {
+    assert(!m_Loaded && "ModelLoader is one-shot: Load() may only be called once");
+    m_Loaded = true;
 
-    const aiScene* pScene =
-        importer.ReadFile(filepath.string(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded |
-                                                 aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
-    if (pScene == nullptr)
+    Assimp::Importer importer{};
+
+    m_Scene = importer.ReadFile(m_ModelPath.string(), aiProcess_Triangulate | aiProcess_ConvertToLeftHanded |
+                                                          aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
+    if (m_Scene == nullptr)
         return std::unexpected(std::string(importer.GetErrorString()));
 
-    const std::filesystem::path modelDirectory = filepath.parent_path();
-
-    ImageCache imageCache;
-    std::vector<LoadedMesh> loadedMeshes;
-    ProcessNode(pScene->mRootNode, pScene, aiMatrix4x4{}, modelDirectory, imageCache, loadedMeshes);
+    ProcessNode(m_Scene->mRootNode, aiMatrix4x4{});
 
     // Deduplicate materials (meshes may share a material) and assign each mesh its material index.
     Model model;
     std::unordered_map<const aiMaterial*, uint32_t> materialIndices;
-    materialIndices.reserve(pScene->mNumMaterials);
-    for (auto& loaded : loadedMeshes) {
+    materialIndices.reserve(m_Scene->mNumMaterials);
+    for (auto& loaded : m_LoadedMeshes) {
         const auto [it, inserted] =
             materialIndices.emplace(loaded.SourceMaterial, static_cast<uint32_t>(model.Materials.size()));
         if (inserted)
@@ -46,36 +40,33 @@ std::expected<Model, std::string> ModelLoader::Load(const std::filesystem::path&
     return model;
 }
 
-void ModelLoader::ProcessNode(aiNode* node, const aiScene* scene, const aiMatrix4x4& parentTransform,
-                              const std::filesystem::path& modelDirectory, ModelLoader::ImageCache& imageCache,
-                              std::vector<LoadedMesh>& outMeshes) {
+void ModelLoader::ProcessNode(aiNode* node, const aiMatrix4x4& parentTransform) {
     const aiMatrix4x4 nodeTransform = parentTransform * node->mTransformation;
 
-    for (UINT i{}; i < node->mNumMeshes; ++i) {
-        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        outMeshes.push_back(ProcessMesh(mesh, scene, nodeTransform, modelDirectory, imageCache));
+    for (uint32_t i{}; i < node->mNumMeshes; ++i) {
+        aiMesh* mesh = m_Scene->mMeshes[node->mMeshes[i]];
+        m_LoadedMeshes.push_back(ProcessMesh(mesh, nodeTransform));
     }
 
-    for (UINT i{}; i < node->mNumChildren; ++i) {
-        ProcessNode(node->mChildren[i], scene, nodeTransform, modelDirectory, imageCache, outMeshes);
+    for (uint32_t i{}; i < node->mNumChildren; ++i) {
+        ProcessNode(node->mChildren[i], nodeTransform);
     }
 }
 
-ModelLoader::LoadedMesh ModelLoader::ProcessMesh(aiMesh* mesh, const aiScene* scene, const aiMatrix4x4& transform,
-                                                 const std::filesystem::path& modelDirectory,
-                                                 ModelLoader::ImageCache& imageCache) {
+ModelLoader::LoadedMesh ModelLoader::ProcessMesh(aiMesh* mesh, const aiMatrix4x4& transform) {
     // Normals must be transformed by the inverse-transpose of the upper 3x3 so non-uniform scales stay correct.
     aiMatrix3x3 normalTransform(transform);
     normalTransform.Inverse().Transpose();
 
-    LoadedMesh loaded;
-    loaded.SourceMaterial = scene->mMaterials[mesh->mMaterialIndex];
-    loaded.Material = LoadMaterial(loaded.SourceMaterial, scene, modelDirectory, imageCache);
+    LoadedMesh loaded{
+        .SourceMaterial = m_Scene->mMaterials[mesh->mMaterialIndex],
+        .Material = LoadMaterial(loaded.SourceMaterial),
+    };
 
     loaded.Geometry.Vertices.reserve(mesh->mNumVertices);
     loaded.Geometry.Indices.reserve(mesh->mNumFaces * 3);
 
-    for (UINT i{}; i < mesh->mNumVertices; ++i) {
+    for (uint32_t i{}; i < mesh->mNumVertices; ++i) {
         Vertex vertex{};
 
         aiVector3D position = mesh->mVertices[i];
@@ -102,29 +93,25 @@ ModelLoader::LoadedMesh ModelLoader::ProcessMesh(aiMesh* mesh, const aiScene* sc
         loaded.Geometry.Vertices.push_back(vertex);
     }
 
-    for (UINT i{}; i < mesh->mNumFaces; ++i) {
+    for (uint32_t i{}; i < mesh->mNumFaces; ++i) {
         aiFace face = mesh->mFaces[i];
 
-        for (UINT j{}; j < face.mNumIndices; ++j)
+        for (uint32_t j{}; j < face.mNumIndices; ++j)
             loaded.Geometry.Indices.push_back(static_cast<uint32_t>(face.mIndices[j]));
     }
 
     return loaded;
 }
 
-Material ModelLoader::LoadMaterial(const aiMaterial* material, const aiScene* scene,
-                                   const std::filesystem::path& modelDirectory, ModelLoader::ImageCache& imageCache) {
+Material ModelLoader::LoadMaterial(const aiMaterial* material) {
     Material mat;
-    mat.Albedo = LoadTexture(material, aiTextureType_BASE_COLOR, scene, modelDirectory, imageCache, /*isSRGB*/ true);
-    mat.Normal = LoadTexture(material, aiTextureType_NORMALS, scene, modelDirectory, imageCache);
-    mat.RoughnessMetallic =
-        LoadTexture(material, aiTextureType_GLTF_METALLIC_ROUGHNESS, scene, modelDirectory, imageCache);
+    mat.Albedo = LoadTexture(material, aiTextureType_BASE_COLOR, /*isSRGB*/ true);
+    mat.Normal = LoadTexture(material, aiTextureType_NORMALS);
+    mat.RoughnessMetallic = LoadTexture(material, aiTextureType_GLTF_METALLIC_ROUGHNESS);
     return mat;
 }
 
-TextureSource ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType type, const aiScene* scene,
-                                       const std::filesystem::path& modelDirectory, ModelLoader::ImageCache& imageCache,
-                                       bool isSRGB) {
+TextureSource ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType type, bool isSRGB) {
     aiString texturePath;
     if (aiGetMaterialTexture(material, type, 0, &texturePath, nullptr, nullptr, nullptr, nullptr, nullptr) !=
         AI_SUCCESS)
@@ -143,17 +130,17 @@ TextureSource ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType
         cacheKey = pathString;
     } else {
         textureFile = std::filesystem::path(pathString).is_absolute() ? std::filesystem::path(pathString)
-                                                                      : modelDirectory / pathString;
+                                                                      : m_ModelDirectory / pathString;
         cacheKey = textureFile.lexically_normal().string();
     }
 
     if (pathString[0] == '*') {
-        // Embedded textures are referenced as "*<index>" into scene->mTextures.
+        // Embedded textures are referenced as "*<index>" into m_Scene->mTextures.
         const int index = std::atoi(pathString.c_str() + 1);
-        if (index < 0 || static_cast<unsigned int>(index) >= scene->mNumTextures)
+        if (index < 0 || static_cast<unsigned int>(index) >= m_Scene->mNumTextures)
             return {};
 
-        const aiTexture* embedded = scene->mTextures[index];
+        const aiTexture* embedded = m_Scene->mTextures[index];
         try {
             if (embedded->mHeight != 0) {
                 // Uncompressed RGBA pixels (mWidth * mHeight * 4 bytes).
@@ -170,14 +157,14 @@ TextureSource ModelLoader::LoadTexture(const aiMaterial* material, aiTextureType
     }
 
     source.Path = textureFile;
-    if (const auto it = imageCache.find(cacheKey); it != imageCache.end()) {
+    if (const auto it = m_ImageCache.find(cacheKey); it != m_ImageCache.end()) {
         source.Decoded = it->second;
         return source;
     }
 
     try {
         source.Decoded = std::make_shared<Image>(textureFile);
-        imageCache.emplace(cacheKey, source.Decoded);
+        m_ImageCache.emplace(cacheKey, source.Decoded);
     } catch (const std::exception&) {
         return {};
     }

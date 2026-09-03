@@ -1,5 +1,14 @@
 #pragma once
 
+#include "Core/Utility/Defines.hpp"
+#include "Core/Utility/Image.hpp"
+#include "Model.hpp"
+
+#include <assimp/Importer.hpp>
+#include <assimp/material.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+
 #include <expected>
 #include <filesystem>
 #include <memory>
@@ -7,35 +16,34 @@
 #include <unordered_map>
 #include <vector>
 
-#include <assimp/Importer.hpp>
-#include <assimp/material.h>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-
-#include "Core/Utility/Image.hpp"
-#include "Model.hpp"
-
 namespace GEngine {
 
 class ModelLoader {
   public:
-    using ImageCache = std::unordered_map<std::string, std::shared_ptr<const Image>>;
+    explicit ModelLoader(const std::filesystem::path& filepath);
 
-    static std::expected<Model, std::string> Load(const std::filesystem::path& filepath);
+    GE_NO_COPY_NO_MOVE(ModelLoader);
+
+    std::expected<Model, std::string> Load();
 
   private:
-    struct LoadedMesh;
+    struct LoadedMesh {
+        Mesh Geometry;
+        const aiMaterial* SourceMaterial{};
+        Material Material;
+    };
 
-    static void ProcessNode(aiNode* node, const aiScene* scene, const aiMatrix4x4& parentTransform,
-                            const std::filesystem::path& modelDirectory, ImageCache& imageCache,
-                            std::vector<LoadedMesh>& outMeshes);
-    static LoadedMesh ProcessMesh(aiMesh* mesh, const aiScene* scene, const aiMatrix4x4& transform,
-                                  const std::filesystem::path& modelDirectory, ImageCache& imageCache);
-    static Material LoadMaterial(const aiMaterial* material, const aiScene* scene,
-                                 const std::filesystem::path& modelDirectory, ImageCache& imageCache);
-    static TextureSource LoadTexture(const aiMaterial* material, aiTextureType type, const aiScene* scene,
-                                     const std::filesystem::path& modelDirectory, ImageCache& imageCache,
-                                     bool isSRGB = false);
+    void ProcessNode(aiNode* node, const aiMatrix4x4& parentTransform);
+    LoadedMesh ProcessMesh(aiMesh* mesh, const aiMatrix4x4& transform);
+    Material LoadMaterial(const aiMaterial* material);
+    TextureSource LoadTexture(const aiMaterial* material, aiTextureType type, bool isSRGB = false);
+
+    const std::filesystem::path m_ModelPath{};
+    const std::filesystem::path m_ModelDirectory{};
+    std::unordered_map<std::string, std::shared_ptr<const Image>> m_ImageCache;
+    std::vector<LoadedMesh> m_LoadedMeshes;
+    const aiScene* m_Scene{};
+    bool m_Loaded{};
 };
 
 } // namespace GEngine

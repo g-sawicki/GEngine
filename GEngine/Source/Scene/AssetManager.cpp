@@ -15,24 +15,31 @@ namespace GEngine {
 
     ModelHandle handle{m_NextModelId++};
     m_PathToHandle[path] = handle;
-    m_Models[handle.Id] = std::async(std::launch::async, [this, path]() -> std::optional<Model> {
-        const std::filesystem::path cacheFile = path.filename().replace_extension(".gemb");
-        {
-            GE_SCOPED_TIMER(std::format("Loaded {} from binary cache", cacheFile.string()));
+    std::shared_future<std::optional<Model>> loadFuture =
+        std::async(std::launch::async, [this, path]() -> std::optional<Model> {
+            const std::filesystem::path cacheFile = path.filename().replace_extension(".gemb");
+
+            Timer cacheTimer;
             if (auto cached = m_AssetCache.LoadBinaryModel(cacheFile); cached.has_value()) {
+                const float cacheMs = cacheTimer.Elapsed<std::milli>();
+                GE_CORE_INFO("Loaded {} from binary cache in {:.2f} ms", cacheFile.string(), cacheMs);
                 return cached.value();
             }
-        }
 
-        std::expected<Model, std::string> result = ModelLoader::Load(path);
-        if (!result.has_value()) {
-            GE_CORE_WARN("Failed to load model {}: {}", path.string(), result.error());
-            return std::nullopt;
-        }
+            Timer importTimer;
+            ModelLoader modelLoader(path);
+            std::expected<Model, std::string> result = modelLoader.Load();
+            if (!result.has_value()) {
+                GE_CORE_WARN("Failed to load model {}: {}", path.string(), result.error());
+                return std::nullopt;
+            }
+            const float importMs = importTimer.Elapsed<std::milli>();
+            GE_CORE_INFO("Loaded {} with assimp in {:.2f} ms", path.string(), importMs);
 
-        m_AssetCache.SaveBinaryModel(cacheFile, *result);
-        return result.value();
-    }).share();
+            m_AssetCache.SaveBinaryModel(cacheFile, *result);
+            return result.value();
+        });
+    m_Models[handle.Id] = std::move(loadFuture);
     return handle;
 }
 
