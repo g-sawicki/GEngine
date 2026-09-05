@@ -11,12 +11,15 @@ namespace GEngine {
 
 class MeshBuffer {
   public:
-    MeshBuffer(Device& device, CommandQueue& commandQueue, const Mesh& mesh);
+    MeshBuffer(Device& device, CommandQueue& uploadQueue, const Mesh& mesh);
 
     GE_NO_COPY_DEFAULT_MOVE(MeshBuffer)
 
     void Draw(CommandList& commandList) const;
 
+    [[nodiscard]] Buffer& GetVertexBuffer() noexcept { return m_VertexBuffer; }
+    [[nodiscard]] Buffer& GetIndexBuffer() noexcept { return m_IndexBuffer; }
+    [[nodiscard]] UINT GetVertexStride() const noexcept { return m_VertexStride; }
     [[nodiscard]] UINT GetIndexCount() const noexcept { return m_IndexCount; }
 
   private:

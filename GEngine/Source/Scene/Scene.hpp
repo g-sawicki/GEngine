@@ -7,7 +7,6 @@
 #include "Scene/Camera.hpp"
 #include "Scene/EntityRegistry.hpp"
 #include "Scene/Light.hpp"
-#include "Scene/Material.hpp"
 #include "Scene/Skybox.hpp"
 
 #include <cassert>
@@ -79,8 +78,6 @@ class Scene {
 
     [[nodiscard]] ComponentRegistry& GetEntityRegistry() noexcept { return m_EntityRegistry; }
     [[nodiscard]] const ComponentRegistry& GetEntityRegistry() const noexcept { return m_EntityRegistry; }
-    [[nodiscard]] AssetManager& GetAssetManager() noexcept { return m_AssetManager; }
-    [[nodiscard]] const AssetManager& GetAssetManager() const noexcept { return m_AssetManager; }
 
   private:
     std::optional<Camera> m_Camera{};
@@ -93,7 +90,6 @@ class Scene {
     std::vector<SpotLight> m_SpotLights;
 
     ComponentRegistry m_EntityRegistry{};
-    AssetManager m_AssetManager{};
 };
 
 } // namespace GEngine

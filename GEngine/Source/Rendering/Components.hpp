@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Graphics/D3D12/Buffer.hpp"
-#include "Graphics/Vertex.hpp"
 
 #include <DirectXMath.h>
 #include <d3d12.h>
@@ -36,6 +35,18 @@ struct RenderItem {
     const Buffer* TransformCB{};
     MaterialGPU Material{};
     bool ShadowCaster{true};
+};
+
+struct ModelHandle {
+    uint32_t Id{};
+
+    bool IsValid() const { return Id != 0; }
+    bool operator==(const ModelHandle& other) const { return Id == other.Id; }
+};
+
+struct ModelComponent {
+    ModelHandle Model{};
+    bool CastsShadow{true};
 };
 
 } // namespace GEngine

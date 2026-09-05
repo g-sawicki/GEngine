@@ -20,6 +20,8 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, ui
     m_TearingSupported = SwapChain::CheckTearingSupport(dxgiFactory.Get());
 
     m_CommandQueue = std::make_unique<CommandQueue>(*m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+    m_UploadQueue = std::make_unique<CommandQueue>(*m_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+    m_GPUResourceManager = std::make_unique<GPUResourceManager>(*m_Device, *m_UploadQueue);
 
     m_SwapChain =
         std::make_unique<SwapChain>(dxgiFactory.Get(), hwnd, *m_CommandQueue, width, height, SwapChain::NumFrames);
@@ -68,7 +70,10 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, ui
     m_ForwardLighting = std::make_unique<RenderPass::ForwardLightingPass>(*m_Device, m_HdrTexture, m_DepthTexture);
     m_ToneMapPass = std::make_unique<RenderPass::ToneMapPass>(*m_Device);
     m_SkyboxPass = std::make_unique<RenderPass::SkyboxPass>(*m_Device, m_HdrTexture, m_DepthTexture);
-    m_SkyboxMeshBuffer = CreateMeshBuffer(MeshFactory::Cube());
+
+    m_GPUResourceManager->BeginCopyPass();
+    m_SkyboxMeshBuffer = m_GPUResourceManager->StageMeshBuffer(MeshFactory::Cube());
+    m_GPUResourceManager->EndAndSubmitCopyPass();
 }
 
 void Renderer::CreateRenderTargets(uint32_t width, uint32_t height) {
@@ -115,20 +120,21 @@ void Renderer::Destroy() {
     }
     m_Fence.reset();
     m_SwapChain.reset();
-    m_CommandQueue.reset();
     m_ToneMapPass.reset();
     m_ForwardLighting.reset();
     m_ShadowPass.reset();
     m_SkyboxPass.reset();
     m_SkyboxMeshBuffer.reset();
+    m_SkyboxTexture.reset();
+    m_GPUResourceManager->Shutdown();
+    m_GPUResourceManager.reset();
+    m_UploadQueue.reset();
+    m_CommandQueue.reset();
 
     m_PresentTarget.Reset();
     m_HdrTexture.Reset();
     m_ShadowMapTexture.Reset();
     m_DepthTexture.Reset();
-    m_DefaultNormal.Reset();
-    m_DefaultAlbedo.Reset();
-    m_DefaultRoughnessMetallic.Reset();
 
     m_Device.reset();
 
@@ -149,75 +155,6 @@ std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
     return std::make_unique<Buffer>(*m_Device, *m_CommandQueue, desc);
 }
 
-std::unique_ptr<MeshBuffer> Renderer::CreateMeshBuffer(const Mesh& mesh) {
-    return std::make_unique<MeshBuffer>(*m_Device, *m_CommandQueue, mesh);
-}
-
-std::unique_ptr<Texture> Renderer::CreateTexture(const Image& image, bool isSRGB) {
-    DXGI_FORMAT format = image.GetFormat();
-    if (isSRGB && format == DXGI_FORMAT_R8G8B8A8_UNORM)
-        format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-
-    TextureDesc desc{.Width = image.GetWidth(),
-                     .Height = image.GetHeight(),
-                     .Format = format,
-                     .Usage = TextureUsage::ShaderResource};
-    auto texture = std::make_unique<Texture>();
-    texture->CreateFromImage(*m_Device, *m_CommandQueue, desc, image);
-    return texture;
-}
-
-void Renderer::EnsureDefaultMaterial() {
-    if (m_DefaultAlbedo.GetSrvIndex() != INVALID_BINDLESS_INDEX)
-        return;
-    static constexpr uint8_t kWhitePixel[]{255, 255, 255, 255};
-    static constexpr uint8_t kFlatNormalPixel[]{128, 128, 255, 255};
-    static constexpr uint8_t kDefaultRoughnessMetallicPixel[]{255, 255, 0, 255};
-    m_DefaultAlbedo.CreateFromRGBA8(*m_Device, *m_CommandQueue, 1, 1, kWhitePixel);
-    m_DefaultNormal.CreateFromRGBA8(*m_Device, *m_CommandQueue, 1, 1, kFlatNormalPixel);
-    m_DefaultRoughnessMetallic.CreateFromRGBA8(*m_Device, *m_CommandQueue, 1, 1, kDefaultRoughnessMetallicPixel);
-    m_DefaultMaterial = {.AlbedoIndex = m_DefaultAlbedo.GetSrvIndex(),
-                         .NormalIndex = m_DefaultNormal.GetSrvIndex(),
-                         .RoughnessMetallicIndex = m_DefaultRoughnessMetallic.GetSrvIndex()};
-}
-
-const Renderer::ModelResources& Renderer::EnsureModelResources(const Model& model) {
-    auto [it, inserted] = m_ModelCache.try_emplace(&model);
-    if (!inserted)
-        return it->second;
-
-    ModelResources& resources = it->second;
-    resources.Meshes.reserve(model.Meshes.size());
-    for (const auto& mesh : model.Meshes)
-        resources.Meshes.push_back(CreateMeshBuffer(mesh));
-
-    EnsureDefaultMaterial();
-    resources.Materials.reserve(model.Materials.size());
-    resources.Textures.reserve(model.Materials.size() * 3);
-    for (const auto& material : model.Materials) {
-        auto albedo =
-            material.Albedo.Decoded ? CreateTexture(*material.Albedo.Decoded, material.Albedo.IsSRGB) : nullptr;
-        auto normal =
-            material.Normal.Decoded ? CreateTexture(*material.Normal.Decoded, material.Normal.IsSRGB) : nullptr;
-        auto roughnessMetallic = material.RoughnessMetallic.Decoded ? CreateTexture(*material.RoughnessMetallic.Decoded,
-                                                                                    material.RoughnessMetallic.IsSRGB)
-                                                                    : nullptr;
-        resources.Materials.push_back({
-            .AlbedoIndex = albedo ? albedo->GetSrvIndex() : m_DefaultMaterial.AlbedoIndex,
-            .NormalIndex = normal ? normal->GetSrvIndex() : m_DefaultMaterial.NormalIndex,
-            .RoughnessMetallicIndex =
-                roughnessMetallic ? roughnessMetallic->GetSrvIndex() : m_DefaultMaterial.RoughnessMetallicIndex,
-        });
-        if (albedo)
-            resources.Textures.push_back(std::move(albedo));
-        if (normal)
-            resources.Textures.push_back(std::move(normal));
-        if (roughnessMetallic)
-            resources.Textures.push_back(std::move(roughnessMetallic));
-    }
-    return it->second;
-}
-
 void Renderer::OnResize(uint32_t width, uint32_t height) {
     width = std::max(1u, width);
     height = std::max(1u, height);
@@ -228,7 +165,43 @@ void Renderer::OnResize(uint32_t width, uint32_t height) {
     CreateRenderTargets(width, height);
 }
 
-void Renderer::Render(const Scene& scene) {
+void Renderer::FlushPendingUploads(const Scene& scene, const AssetManager& assetManager) {
+    bool copyPassOpen = false;
+    auto openPass = [&]() {
+        if (!copyPassOpen) {
+            m_GPUResourceManager->BeginCopyPass();
+            copyPassOpen = true;
+        }
+    };
+
+    for (const auto& [entity, modelComponent] : scene.GetEntityRegistry().View<ModelComponent>()) {
+        if (!modelComponent.Model.IsValid())
+            continue;
+        if (m_GPUResourceManager->GetGPUHandle(modelComponent.Model).IsValid())
+            continue;
+
+        const Model* model = assetManager.GetModel(modelComponent.Model);
+        if (!model)
+            continue;
+
+        openPass();
+        const GPUModelHandle gpuModel = m_GPUResourceManager->StageModelToVRAM(*model);
+        m_GPUResourceManager->RegisterModelHandle(modelComponent.Model, gpuModel);
+    }
+
+    const Image& panorama = scene.GetSkybox().Panorama;
+    if (m_SkyboxSource != &panorama && panorama.GetWidth() != 0) {
+        openPass();
+        m_SkyboxTexture = m_GPUResourceManager->StageTexture(panorama, /*isSRGB*/ false);
+        m_SkyboxSource = &panorama;
+    }
+
+    if (copyPassOpen) {
+        m_GPUResourceManager->EndAndSubmitCopyPass();
+    }
+}
+
+void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
 
@@ -239,7 +212,8 @@ void Renderer::Render(const Scene& scene) {
     frame.CommandList->Reset(frame.CommandAllocator.Get());
     auto* cmdList{frame.CommandList->GetHandle()};
 
-    // Build one RenderItem per entity mesh; GPU resources are uploaded on first use and cached per Model asset.
+    FlushPendingUploads(scene, assetManager);
+
     auto& objectConstantBuffers{frame.ObjectConstantBuffers};
     m_RenderItems.clear();
     uint32_t objectIndex{};
@@ -247,7 +221,7 @@ void Renderer::Render(const Scene& scene) {
         if (!modelComponent.Model.IsValid())
             continue;
 
-        const Model* model = scene.GetAssetManager().GetModel(modelComponent.Model);
+        const Model* model = assetManager.GetModel(modelComponent.Model);
         if (!model)
             continue;
 
@@ -261,12 +235,17 @@ void Renderer::Render(const Scene& scene) {
         DirectX::XMStoreFloat4x4(&worldMatrix, transform ? transform->GetMatrix() : DirectX::XMMatrixIdentity());
         objectConstantBuffers[objectIndex]->Write(&worldMatrix, sizeof(worldMatrix));
 
-        const ModelResources& resources = EnsureModelResources(*model);
-        for (size_t m{}; m < model->Meshes.size(); ++m) {
+        const GPUModelHandle gpuModel = m_GPUResourceManager->GetGPUHandle(modelComponent.Model);
+        if (!gpuModel.IsValid())
+            continue;
+
+        const uint32_t submeshCount = m_GPUResourceManager->GetSubmeshCount(gpuModel);
+        for (uint32_t m{}; m < submeshCount; ++m) {
+            const GPUSubmesh& submesh = m_GPUResourceManager->GetSubmesh(gpuModel, m);
             m_RenderItems.push_back({
-                .Mesh = resources.Meshes[m].get(),
+                .Mesh = submesh.Mesh.get(),
                 .TransformCB = objectConstantBuffers[objectIndex].get(),
-                .Material = resources.Materials[model->Meshes[m].MaterialIndex],
+                .Material = submesh.Material,
                 .ShadowCaster = modelComponent.CastsShadow,
             });
         }
@@ -341,10 +320,9 @@ void Renderer::Render(const Scene& scene) {
     }
 
     // Skybox pass
-    const Skybox& skybox = scene.GetSkybox();
-    if (skybox.Panorama.GetSrvIndex() != INVALID_BINDLESS_INDEX) {
+    if (m_SkyboxTexture && m_SkyboxTexture->GetSrvIndex() != INVALID_BINDLESS_INDEX) {
         m_SkyboxPass->OnRender(*frame.CommandList, *m_SkyboxMeshBuffer, m_HdrTexture, m_DepthTexture,
-                               skybox.Panorama.GetSrvIndex(), *frame.SceneInfoConstantBuffer);
+                               m_SkyboxTexture->GetSrvIndex(), *frame.SceneInfoConstantBuffer);
     }
 
     m_RenderItems.clear();

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "AssetCache.hpp"
+// #include "AssetCache.hpp"
 #include "Core/Utility/Defines.hpp"
 #include "Model.hpp"
+#include "Rendering/Components.hpp"
 
 #include <filesystem>
 #include <future>
@@ -26,7 +27,7 @@ class AssetManager {
     std::unordered_map<std::filesystem::path, ModelHandle> m_PathToHandle;
     std::unordered_map<uint32_t, std::shared_future<std::optional<Model>>> m_Models;
 
-    AssetCache m_AssetCache{"AssetCache"};
+    // AssetCache m_AssetCache{"AssetCache"};
 
     mutable std::mutex m_Mutex{};
 };

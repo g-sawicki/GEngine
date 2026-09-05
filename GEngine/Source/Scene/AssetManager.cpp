@@ -17,14 +17,13 @@ namespace GEngine {
     m_PathToHandle[path] = handle;
     std::shared_future<std::optional<Model>> loadFuture =
         std::async(std::launch::async, [this, path]() -> std::optional<Model> {
-            const std::filesystem::path cacheFile = path.filename().replace_extension(".gemb");
-
-            Timer cacheTimer;
-            if (auto cached = m_AssetCache.LoadBinaryModel(cacheFile); cached.has_value()) {
-                const float cacheMs = cacheTimer.Elapsed<std::milli>();
-                GE_CORE_INFO("Loaded {} from binary cache in {:.2f} ms", cacheFile.string(), cacheMs);
-                return cached.value();
-            }
+            // const std::filesystem::path cacheFile = path.filename().replace_extension(".gemb");
+            // Timer cacheTimer;
+            // if (auto cached = m_AssetCache.LoadBinaryModel(cacheFile); cached.has_value()) {
+            //     const float cacheMs = cacheTimer.Elapsed<std::milli>();
+            //     GE_CORE_INFO("Loaded {} from binary cache in {:.2f} ms", cacheFile.string(), cacheMs);
+            //     return cached.value();
+            // }
 
             Timer importTimer;
             ModelLoader modelLoader(path);
@@ -36,7 +35,7 @@ namespace GEngine {
             const float importMs = importTimer.Elapsed<std::milli>();
             GE_CORE_INFO("Loaded {} with assimp in {:.2f} ms", path.string(), importMs);
 
-            m_AssetCache.SaveBinaryModel(cacheFile, *result);
+            // m_AssetCache.SaveBinaryModel(cacheFile, *result);
             return result.value();
         });
     m_Models[handle.Id] = std::move(loadFuture);

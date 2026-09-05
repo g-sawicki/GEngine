@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Graphics/D3D12/Texture.hpp"
+#include "Core/Utility/Image.hpp"
 
 namespace GEngine {
 
 struct Skybox {
-    Texture Panorama{};
+    Image Panorama{};
 };
 
 } // namespace GEngine

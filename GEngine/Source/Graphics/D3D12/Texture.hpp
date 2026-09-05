@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/Utility/Defines.hpp"
-#include "Core/Utility/Image.hpp"
 #include "D3D12Common.hpp"
 #include "DescriptorHeap.hpp"
 #include "Device.hpp"
@@ -9,13 +8,12 @@
 #include <cstdint>
 #include <d3d12.h>
 #include <dxgiformat.h>
+#include <span>
 #include <wrl/client.h>
 
 namespace GEngine {
 
-class CommandQueue;
 class CommandList;
-class Image;
 
 enum class TextureUsage : uint32_t {
     None = 0,
@@ -41,6 +39,11 @@ struct TextureDesc {
     DXGI_FORMAT Format{DXGI_FORMAT_UNKNOWN};
     TextureUsage Usage{TextureUsage::None};
     D3D12_CLEAR_VALUE ClearValue{};
+};
+
+struct SubresourceData {
+    const void* Data{};
+    UINT64 RowPitch{};
 };
 
 struct TextureFormatInfo {
@@ -70,14 +73,12 @@ struct TextureFormatInfo {
 class Texture {
   public:
     Texture() = default;
+    Texture(ID3D12Resource* resource, const TextureDesc& desc, D3D12_RESOURCE_STATES initialState);
 
     GE_NO_COPY_DEFAULT_MOVE(Texture)
 
-    void Create(Device& device, const TextureDesc& desc);
-    void CreateFromResource(ID3D12Resource* resource, const TextureDesc& desc, D3D12_RESOURCE_STATES initialState);
-    void CreateFromImage(Device& device, CommandQueue& commandQueue, const TextureDesc& desc, const Image& image);
-    void CreateFromRGBA8(Device& device, CommandQueue& commandQueue, uint32_t width, uint32_t height,
-                         const void* rgba8);
+    void Create(Device& device, const TextureDesc& desc, std::span<const SubresourceData> initialData = {},
+                CommandList* copyCommandList = nullptr, Microsoft::WRL::ComPtr<ID3D12Resource>* outStaging = nullptr);
     void Reset() noexcept;
     void Transition(CommandList& commandList, D3D12_RESOURCE_STATES state);
 
@@ -92,9 +93,6 @@ class Texture {
     [[nodiscard]] uint32_t GetUavIndex() const noexcept { return m_UavIndex; }
 
   private:
-    void UploadPixels(Device& device, CommandQueue& commandQueue, const TextureDesc& desc, uint32_t sourceRowPitch,
-                      const void* pixels);
-
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
     TextureDesc m_Desc{};
     D3D12_RESOURCE_STATES m_State{D3D12_RESOURCE_STATE_COMMON};

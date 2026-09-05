@@ -2,11 +2,11 @@
 
 #include "Core/Input.hpp"
 #include "Core/Log.hpp"
+#include "Core/Utility/Image.hpp"
 #include "Core/Utility/MersenneTwister.hpp"
 #include "Rendering/Components.hpp"
 #include "Rendering/MeshFactory.hpp"
 #include "Scene/Light.hpp"
-#include "Scene/Material.hpp"
 #include "Scene/Model.hpp"
 
 #include <cmath>
@@ -50,26 +50,25 @@ void Playground::OnInit() {
 
     const std::filesystem::path containerTexturePath{"Assets\\Textures\\Container\\container2.png"};
     const GEngine::Material containerMaterial{
-        .Albedo = {.Path = containerTexturePath,
-                   .IsSRGB = true,
-                   .Decoded = std::make_shared<GEngine::Image>(containerTexturePath)},
-    };
+        .BaseColorTextureIndex = 0, .NormalTextureIndex = -1, .RoughnessMetallic = -1};
+    const GEngine::TexturePath containerTexture{.Path = containerTexturePath, .IsSRGB = true};
 
-    GEngine::AssetManager& assetManager = m_Scene.GetAssetManager();
+    GEngine::AssetManager& assetManager = m_AssetManager;
 
     const GEngine::ModelHandle cubeModel = assetManager.AddModel(GEngine::Model{
         .Meshes = {GEngine::MeshFactory::Cube()},
         .Materials = {containerMaterial},
+        .Textures = {containerTexture},
     });
     const GEngine::ModelHandle planeModel = assetManager.AddModel(GEngine::Model{
         .Meshes = {GEngine::MeshFactory::Plane()},
         .Materials = {containerMaterial},
+        .Textures = {containerTexture},
     });
 
     const GEngine::ModelHandle porscheModel =
-        m_Scene.GetAssetManager().LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
-    const GEngine::ModelHandle sponzaModel =
-        m_Scene.GetAssetManager().LoadModel("Assets\\Models\\Sponza\\glTF\\Sponza.gltf");
+        m_AssetManager.LoadModel("Assets\\Models\\1975_porsche_911_930_turbo\\scene.gltf");
+    const GEngine::ModelHandle sponzaModel = m_AssetManager.LoadModel("Assets\\Models\\Sponza\\glTF\\Sponza.gltf");
 
     auto& ecs = m_Scene.GetEntityRegistry();
 
@@ -102,9 +101,8 @@ void Playground::OnInit() {
     ecs.AddComponent<GEngine::Transform>(sponza, GEngine::Transform{.Position = {20.0f, 5.0f, 20.0f}});
     ecs.AddComponent<GEngine::ModelComponent>(sponza, GEngine::ModelComponent{.Model = sponzaModel});
 
-    auto skyboxTexture =
-        m_Renderer.CreateTexture(GEngine::Image("Assets\\Textures\\Skybox\\citrus_orchard_road_puresky_4k.hdr"));
-    m_Scene.SetSkybox(GEngine::Skybox{.Panorama = std::move(*skyboxTexture)});
+    m_Scene.SetSkybox(
+        GEngine::Skybox{.Panorama = GEngine::Image("Assets\\Textures\\Skybox\\citrus_orchard_road_puresky_4k.hdr")});
 
     GE_INFO("Playground initialized successfully.");
 }

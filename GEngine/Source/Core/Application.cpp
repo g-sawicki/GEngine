@@ -76,7 +76,7 @@ void Application::HandleResize(uint32_t width, uint32_t height) {
 }
 
 void Application::Render() {
-    m_Renderer.Render(m_Scene);
+    m_Renderer.Render(m_Scene, m_AssetManager);
 }
 
 LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPARAM wParam,

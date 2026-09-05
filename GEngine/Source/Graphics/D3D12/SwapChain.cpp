@@ -64,7 +64,7 @@ void SwapChain::RetrieveBackBuffers() {
     for (uint32_t i{}; i < NumFrames; ++i) {
         ComPtr<ID3D12Resource> backBuffer;
         ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
-        m_BackBuffers[i].CreateFromResource(
+        m_BackBuffers[i] = Texture(
             backBuffer.Get(),
             {.Width = m_Width, .Height = m_Height, .Format = BackBufferFormat, .Usage = TextureUsage::RenderTarget},
             D3D12_RESOURCE_STATE_PRESENT);

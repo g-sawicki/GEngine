@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/Utility/Defines.hpp"
-#include "Core/Utility/Image.hpp"
 #include "Model.hpp"
 
 #include <assimp/Importer.hpp>
@@ -11,7 +10,6 @@
 
 #include <expected>
 #include <filesystem>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,21 +25,17 @@ class ModelLoader {
     std::expected<Model, std::string> Load();
 
   private:
-    struct LoadedMesh {
-        Mesh Geometry;
-        const aiMaterial* SourceMaterial{};
-        Material Material;
-    };
-
     void ProcessNode(aiNode* node, const aiMatrix4x4& parentTransform);
-    LoadedMesh ProcessMesh(aiMesh* mesh, const aiMatrix4x4& transform);
-    Material LoadMaterial(const aiMaterial* material);
-    TextureSource LoadTexture(const aiMaterial* material, aiTextureType type, bool isSRGB = false);
+    void ProcessMesh(aiMesh* mesh, const aiMatrix4x4& transform);
+    int32_t ProcessMaterial(const aiMaterial* material);
+    int32_t ProcessTexture(const aiMaterial* material, aiTextureType type, bool isSRGB);
 
+    std::unordered_map<const aiMaterial*, int32_t> m_MaterialToIndexMap;
+    std::unordered_map<const aiTexture*, int32_t> m_TextureEmbeddedToIndexMap;
+    std::unordered_map<std::string, int32_t> m_TexturePathToIndexMap;
     const std::filesystem::path m_ModelPath{};
     const std::filesystem::path m_ModelDirectory{};
-    std::unordered_map<std::string, std::shared_ptr<const Image>> m_ImageCache;
-    std::vector<LoadedMesh> m_LoadedMeshes;
+    Model m_Model{};
     const aiScene* m_Scene{};
     bool m_Loaded{};
 };

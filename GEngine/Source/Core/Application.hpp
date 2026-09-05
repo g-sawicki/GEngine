@@ -33,18 +33,19 @@ class Application {
     LRESULT HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
   protected:
-    Renderer m_Renderer;
-    Scene m_Scene;
+    AssetManager m_AssetManager{};
+    Renderer m_Renderer{};
+    Scene m_Scene{};
 
   private:
     std::unique_ptr<Window> m_Window;
 
-    Specification m_Specification;
+    Specification m_Specification{};
     bool m_UseWarp{};
 
     // Timing
-    uint64_t m_FrameCounter{0};
-    double m_ElapsedSeconds{0.0};
+    uint64_t m_FrameCounter{};
+    double m_ElapsedSeconds{};
     std::chrono::high_resolution_clock::time_point m_PrevTime{std::chrono::high_resolution_clock::now()};
 };
 

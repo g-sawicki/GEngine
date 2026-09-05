@@ -4,21 +4,21 @@
 
 namespace GEngine {
 
-MeshBuffer::MeshBuffer(Device& device, CommandQueue& commandQueue, const Mesh& mesh)
+MeshBuffer::MeshBuffer(Device& device, CommandQueue& uploadQueue, const Mesh& mesh)
     : m_VertexStride(static_cast<UINT>(sizeof(mesh.Vertices[0]))),
       m_IndexCount(static_cast<UINT>(mesh.Indices.size())) {
 
     const BufferDesc vertexBufferDesc{
-        .Size = mesh.Vertices.size() * m_VertexStride,
+        .Size = static_cast<UINT64>(mesh.Vertices.size()) * m_VertexStride,
         .HeapType = D3D12_HEAP_TYPE_DEFAULT,
     };
-    m_VertexBuffer = Buffer{device, commandQueue, vertexBufferDesc, mesh.Vertices.data()};
+    m_VertexBuffer = Buffer{device, uploadQueue, vertexBufferDesc};
 
     const BufferDesc indexBufferDesc{
-        .Size = mesh.Indices.size() * sizeof(mesh.Indices[0]),
+        .Size = static_cast<UINT64>(mesh.Indices.size()) * sizeof(mesh.Indices[0]),
         .HeapType = D3D12_HEAP_TYPE_DEFAULT,
     };
-    m_IndexBuffer = Buffer{device, commandQueue, indexBufferDesc, mesh.Indices.data()};
+    m_IndexBuffer = Buffer{device, uploadQueue, indexBufferDesc};
 }
 
 void MeshBuffer::Draw(CommandList& commandList) const {
