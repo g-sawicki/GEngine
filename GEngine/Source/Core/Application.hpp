@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Core/Utility/Defines.hpp"
-#include "Graphics/Renderer.hpp"
 #include "Platform/Windows/Window.hpp"
+#include "Rendering/Renderer.hpp"
 #include "Scene/Scene.hpp"
 
 namespace GEngine {

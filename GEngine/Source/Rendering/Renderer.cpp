@@ -1,6 +1,6 @@
 #include "PCH.hpp"
 
-#include "Graphics/Renderer.hpp"
+#include "Rendering/Renderer.hpp"
 
 #include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/D3D12Common.hpp"

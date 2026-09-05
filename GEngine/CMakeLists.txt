@@ -66,12 +66,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Graphics/D3D12/Texture.cpp"
     "Source/Graphics/D3D12/Texture.hpp"
 
-    "Source/Graphics/Renderer.cpp"
-    "Source/Graphics/Renderer.hpp"
-
     "Source/Platform/Windows/Window.cpp"
     "Source/Platform/Windows/Window.hpp"
-
+    
     "Source/Rendering/RenderPass/ForwardLightingPass.cpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
     "Source/Rendering/RenderPass/ShadowPass.cpp"
@@ -80,7 +77,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/RenderPass/SkyboxPass.hpp"
     "Source/Rendering/RenderPass/ToneMapPass.cpp"
     "Source/Rendering/RenderPass/ToneMapPass.hpp"
-
+    
     "Source/Rendering/CascadedShadowMaps.cpp"
     "Source/Rendering/CascadedShadowMaps.hpp"
     "Source/Rendering/Components.hpp"
@@ -90,6 +87,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/MeshBuffer.hpp"
     "Source/Rendering/MeshFactory.cpp"
     "Source/Rendering/MeshFactory.hpp"
+    "Source/Rendering/Renderer.cpp"
+    "Source/Rendering/Renderer.hpp"
     "Source/Rendering/TextureManager.cpp"
     "Source/Rendering/TextureManager.hpp"
 
