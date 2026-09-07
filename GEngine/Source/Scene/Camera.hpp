@@ -25,6 +25,7 @@ enum class ProjectionType {
 
 class Camera {
   public:
+    Camera() = default;
     Camera(const PerspectiveDesc& desc);
     Camera(const OrthographicDesc& desc);
 
@@ -71,12 +72,12 @@ class Camera {
     float m_Pitch{};
     float m_Yaw{};
 
-    float m_Fov{};
-    float m_AspectRatio{};
+    float m_Fov{60.0f};
+    float m_AspectRatio{16.0f / 9.0f};
     float m_OrthoWidth{};
     float m_OrthoHeight{};
-    float m_NearZ{};
-    float m_FarZ{};
+    float m_NearZ{0.1f};
+    float m_FarZ{1000.0f};
 
     mutable bool m_ViewDirty{true};
     mutable bool m_ProjectionDirty{true};

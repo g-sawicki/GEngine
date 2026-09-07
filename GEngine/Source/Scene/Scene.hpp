@@ -39,14 +39,8 @@ class Scene {
     GE_NO_COPY_NO_MOVE(Scene)
 
     Camera& CreateCamera(const PerspectiveDesc& desc);
-    [[nodiscard]] Camera& GetActiveCamera() noexcept {
-        assert(m_Camera);
-        return *m_Camera;
-    }
-    [[nodiscard]] const Camera& GetActiveCamera() const noexcept {
-        assert(m_Camera);
-        return *m_Camera;
-    }
+    [[nodiscard]] Camera& GetActiveCamera() noexcept { return m_Camera; }
+    [[nodiscard]] const Camera& GetActiveCamera() const noexcept { return m_Camera; }
 
     void SetSkybox(Skybox skybox) noexcept { m_Skybox = std::move(skybox); }
     const Skybox& GetSkybox() const noexcept { return m_Skybox; }
@@ -78,7 +72,7 @@ class Scene {
     [[nodiscard]] const ComponentRegistry& GetEntityRegistry() const noexcept { return m_EntityRegistry; }
 
   private:
-    std::optional<Camera> m_Camera{};
+    Camera m_Camera{};
     Skybox m_Skybox{};
 
     ShadowConfig m_ShadowConfig{};
