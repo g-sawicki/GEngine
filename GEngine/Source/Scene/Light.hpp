@@ -43,6 +43,7 @@ struct ShadowConfig {
     float SlopeScaleBias{4.0f};
     float NormalOffsetScale{1.0f};
     float MaxFarZ{200.0f};
+    uint8_t CascadeCount{4};
 };
 
 struct CascadedShadowMapsData {

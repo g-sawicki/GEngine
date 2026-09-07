@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/Utility/Defines.hpp"
-#include "Rendering/CascadedShadowMaps.hpp"
 #include "Rendering/Components.hpp"
 #include "Scene/AssetManager.hpp"
 #include "Scene/Camera.hpp"
@@ -71,7 +70,6 @@ class Scene {
 
     void SetShadowConfig(const ShadowConfig& shadowConfig) noexcept { m_ShadowConfig = shadowConfig; }
     [[nodiscard]] const ShadowConfig& GetShadowConfig() const noexcept { return m_ShadowConfig; }
-    [[nodiscard]] uint8_t GetCascadeCount() const noexcept { return m_CSM.GetCascadeCount(); }
 
     CascadedShadowMapsData GetCascadedShadowMapsData() const noexcept;
     SceneInfo GetSceneInfo() const noexcept;
@@ -83,7 +81,6 @@ class Scene {
     std::optional<Camera> m_Camera{};
     Skybox m_Skybox{};
 
-    CascadedShadowMaps m_CSM{};
     ShadowConfig m_ShadowConfig{};
     DirectionalLight m_DirectionalLight{};
     std::vector<PointLight> m_PointLights;

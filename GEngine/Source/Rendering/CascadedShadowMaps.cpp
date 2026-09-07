@@ -2,21 +2,85 @@
 
 #include "CascadedShadowMaps.hpp"
 
+#include <array>
 #include <cassert>
 #include <cmath>
 
-namespace GEngine {
+namespace GEngine::CSM {
 
-CascadedShadowMaps::CascadeData CascadedShadowMaps::Update(const Camera& camera,
-                                                           const DirectionalLight& directionalLight,
-                                                           const ShadowConfig& shadowConfig) const {
+namespace {
+
+struct CascadePlane {
+    std::array<DirectX::XMVECTOR, 4> Corners{};
+};
+
+std::vector<float> DivideFrustumIntoCascades(int cascadeCount, float nearZ, float farZ) {
+    std::vector<float> result;
+    result.reserve(cascadeCount + 1);
+
+    constexpr float kPracticalSplitLambda = 0.85f;
+    for (uint8_t i = 0; i <= cascadeCount; ++i) {
+        const float fraction = static_cast<float>(i) / static_cast<float>(cascadeCount);
+        const float linearDepth = nearZ + (farZ - nearZ) * fraction;
+        const float logarithmicDepth = nearZ * std::pow(farZ / nearZ, fraction);
+        const float depth = linearDepth * (1.0f - kPracticalSplitLambda) + logarithmicDepth * kPracticalSplitLambda;
+        result.push_back(depth);
+    }
+    return result;
+}
+
+std::vector<CascadePlane> CalculateRectangleForEachCascadeBoundary(const Camera& camera,
+                                                                   const std::vector<float>& cascadeDepths) {
+    const DirectX::XMMATRIX inverseViewMatrix = DirectX::XMMatrixInverse(nullptr, camera.GetViewMatrix());
+    const float fovRadians = DirectX::XMConvertToRadians(camera.GetFov());
+    const float aspectRatio = camera.GetAspectRatio();
+
+    std::vector<CascadePlane> worldSpaceCorners;
+    worldSpaceCorners.reserve(cascadeDepths.size());
+
+    for (const float depth : cascadeDepths) {
+        auto halfHeight = std::tan(fovRadians / 2.0f) * depth;
+        auto halfWidth = halfHeight * aspectRatio;
+
+        DirectX::XMVECTOR bottomLeftViewSpace = DirectX::XMVectorSet(-halfWidth, -halfHeight, depth, 1.0f);
+        DirectX::XMVECTOR bottomRightViewSpace = DirectX::XMVectorSet(halfWidth, -halfHeight, depth, 1.0f);
+        DirectX::XMVECTOR topLeftViewSpace = DirectX::XMVectorSet(-halfWidth, halfHeight, depth, 1.0f);
+        DirectX::XMVECTOR topRightViewSpace = DirectX::XMVectorSet(halfWidth, halfHeight, depth, 1.0f);
+
+        worldSpaceCorners.emplace_back(
+            CascadePlane{.Corners = {
+                             DirectX::XMVector3Transform(bottomLeftViewSpace, inverseViewMatrix),
+                             DirectX::XMVector3Transform(bottomRightViewSpace, inverseViewMatrix),
+                             DirectX::XMVector3Transform(topLeftViewSpace, inverseViewMatrix),
+                             DirectX::XMVector3Transform(topRightViewSpace, inverseViewMatrix),
+                         }});
+    }
+    return worldSpaceCorners;
+}
+
+DirectX::XMVECTOR CalculateShadowCameraCenter(const CascadePlane& nearPlane, const CascadePlane& farPlane) {
+    DirectX::XMVECTOR totalSum = DirectX::XMVectorZero();
+    for (const auto& corner : nearPlane.Corners)
+        totalSum = DirectX::XMVectorAdd(totalSum, corner);
+    for (const auto& corner : farPlane.Corners)
+        totalSum = DirectX::XMVectorAdd(totalSum, corner);
+
+    DirectX::XMVECTOR center = DirectX::XMVectorScale(totalSum, 0.125f); // Average of 8 corners
+    return center;
+}
+
+} // namespace
+
+CascadeData CalculateCascadeData(const Camera& camera, const DirectionalLight& directionalLight,
+                                 const ShadowConfig& shadowConfig) {
+    assert(shadowConfig.CascadeCount <= kMaxCascades);
     float farZ = std::min(camera.GetFarZ(), shadowConfig.MaxFarZ);
-    std::vector<float> cascadeDepths = DivideFrustumIntoCascades(camera.GetNearZ(), farZ);
+    std::vector<float> cascadeDepths = DivideFrustumIntoCascades(shadowConfig.CascadeCount, camera.GetNearZ(), farZ);
     std::vector<CascadePlane> planes = CalculateRectangleForEachCascadeBoundary(camera, cascadeDepths);
 
     CascadeData result{};
-    result.ViewProjection.reserve(m_Cascades);
-    result.FarSplits.reserve(m_Cascades);
+    result.ViewProjection.reserve(shadowConfig.CascadeCount);
+    result.FarSplits.reserve(shadowConfig.CascadeCount);
 
     for (uint8_t i{}; i < planes.size() - 1; ++i) {
         DirectX::XMVECTOR center = CalculateShadowCameraCenter(planes[i], planes[i + 1]);
@@ -75,60 +139,4 @@ CascadedShadowMaps::CascadeData CascadedShadowMaps::Update(const Camera& camera,
     return result;
 }
 
-std::vector<float> CascadedShadowMaps::DivideFrustumIntoCascades(float nearZ, float farZ) const {
-    std::vector<float> result;
-    result.reserve(m_Cascades);
-
-    constexpr float kPracticalSplitLambda = 0.85f;
-    for (uint8_t i = 0; i <= m_Cascades; ++i) {
-        const float fraction = static_cast<float>(i) / static_cast<float>(m_Cascades);
-        const float linearDepth = nearZ + (farZ - nearZ) * fraction;
-        const float logarithmicDepth = nearZ * std::pow(farZ / nearZ, fraction);
-        const float depth = linearDepth * (1.0f - kPracticalSplitLambda) + logarithmicDepth * kPracticalSplitLambda;
-        result.push_back(depth);
-    }
-    return result;
-}
-
-std::vector<CascadePlane>
-CascadedShadowMaps::CalculateRectangleForEachCascadeBoundary(const Camera& camera,
-                                                             const std::vector<float>& cascadeDepths) const {
-    const DirectX::XMMATRIX inverseViewMatrix = DirectX::XMMatrixInverse(nullptr, camera.GetViewMatrix());
-    const float fovRadians = DirectX::XMConvertToRadians(camera.GetFov());
-    const float aspectRatio = camera.GetAspectRatio();
-
-    std::vector<CascadePlane> worldSpaceCorners;
-    worldSpaceCorners.reserve(cascadeDepths.size());
-
-    for (const float depth : cascadeDepths) {
-        auto halfHeight = std::tan(fovRadians / 2.0f) * depth;
-        auto halfWidth = halfHeight * aspectRatio;
-
-        DirectX::XMVECTOR bottomLeftViewSpace = DirectX::XMVectorSet(-halfWidth, -halfHeight, depth, 1.0f);
-        DirectX::XMVECTOR bottomRightViewSpace = DirectX::XMVectorSet(halfWidth, -halfHeight, depth, 1.0f);
-        DirectX::XMVECTOR topLeftViewSpace = DirectX::XMVectorSet(-halfWidth, halfHeight, depth, 1.0f);
-        DirectX::XMVECTOR topRightViewSpace = DirectX::XMVectorSet(halfWidth, halfHeight, depth, 1.0f);
-
-        worldSpaceCorners.emplace_back(std::array<DirectX::XMVECTOR, 4>{
-            DirectX::XMVector3Transform(bottomLeftViewSpace, inverseViewMatrix),
-            DirectX::XMVector3Transform(bottomRightViewSpace, inverseViewMatrix),
-            DirectX::XMVector3Transform(topLeftViewSpace, inverseViewMatrix),
-            DirectX::XMVector3Transform(topRightViewSpace, inverseViewMatrix),
-        });
-    }
-    return worldSpaceCorners;
-}
-
-DirectX::XMVECTOR CascadedShadowMaps::CalculateShadowCameraCenter(const CascadePlane& nearPlane,
-                                                                  const CascadePlane& farPlane) const {
-    DirectX::XMVECTOR totalSum = DirectX::XMVectorZero();
-    for (const auto& corner : nearPlane.Corners)
-        totalSum = DirectX::XMVectorAdd(totalSum, corner);
-    for (const auto& corner : farPlane.Corners)
-        totalSum = DirectX::XMVectorAdd(totalSum, corner);
-
-    DirectX::XMVECTOR center = DirectX::XMVectorScale(totalSum, 0.125f); // Average of 8 corners
-    return center;
-}
-
-} // namespace GEngine
+} // namespace GEngine::CSM

@@ -34,13 +34,14 @@ struct Material {
 };
 
 uint SelectCascade(CascadedShadowMapsData csmData, float viewDepth) {
-    if (viewDepth <= csmData.cascadeSplits.x)
-        return 0;
-    if (viewDepth <= csmData.cascadeSplits.y)
-        return 1;
-    if (viewDepth <= csmData.cascadeSplits.z)
-        return 2;
-    return 3;
+    uint cascade = 0;
+    if (viewDepth > csmData.cascadeSplits.x)
+        cascade = 1;
+    if (viewDepth > csmData.cascadeSplits.y)
+        cascade = 2;
+    if (viewDepth > csmData.cascadeSplits.z)
+        cascade = 3;
+    return min(cascade, csmData.cascadeCount - 1);
 }
 
 float SampleCascadeShadow(CascadedShadowMapsData csmData, SamplerComparisonState shadowSampler, float3 worldPos,

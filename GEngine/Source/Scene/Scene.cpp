@@ -2,6 +2,7 @@
 
 #include "Scene.hpp"
 
+#include "Rendering/CascadedShadowMaps.hpp"
 #include "Scene/ModelLoader.hpp"
 
 #include <cfloat>
@@ -41,7 +42,7 @@ CascadedShadowMapsData Scene::GetCascadedShadowMapsData() const noexcept {
     };
 
     if (m_ShadowConfig.Enabled) {
-        const CascadedShadowMaps::CascadeData cascadeData = m_CSM.Update(*m_Camera, m_DirectionalLight, m_ShadowConfig);
+        const CSM::CascadeData cascadeData = CSM::CalculateCascadeData(*m_Camera, m_DirectionalLight, m_ShadowConfig);
         cascadedShadowMapsData.CascadeCount = static_cast<uint32_t>(cascadeData.ViewProjection.size());
         for (uint32_t i{}; i < cascadedShadowMapsData.CascadeCount && i < kMaxCascades; ++i) {
             DirectX::XMStoreFloat4x4(&cascadedShadowMapsData.LightViewProjection[i], cascadeData.ViewProjection[i]);
