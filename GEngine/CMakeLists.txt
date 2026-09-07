@@ -10,6 +10,8 @@ compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_6" "shadow_pass_ps.cso")
 compile_shader("tonemap.hlsl" "ToneMapCS" "cs_6_6" "tonemap_cs.cso")
 compile_shader("skybox.hlsl" "VSMain" "vs_6_6" "skybox_vs.cso")
 compile_shader("skybox.hlsl" "PSMain" "ps_6_6" "skybox_ps.cso")
+compile_shader("equirectangular_to_cubemap.hlsl" "VSMain" "vs_6_6" "equirectangular_to_cubemap_vs.cso")
+compile_shader("equirectangular_to_cubemap.hlsl" "PSMain" "ps_6_6" "equirectangular_to_cubemap_ps.cso")
 
 set(GENGINE_SHADERS
     "${SHADER_GEN_DIR}/default_vs.cso"
@@ -19,6 +21,8 @@ set(GENGINE_SHADERS
     "${SHADER_GEN_DIR}/tonemap_cs.cso"
     "${SHADER_GEN_DIR}/skybox_vs.cso"
     "${SHADER_GEN_DIR}/skybox_ps.cso"
+    "${SHADER_GEN_DIR}/equirectangular_to_cubemap_vs.cso"
+    "${SHADER_GEN_DIR}/equirectangular_to_cubemap_ps.cso"
 )
 set(GENGINE_SHADERS "${GENGINE_SHADERS}" PARENT_SCOPE)
 
@@ -68,7 +72,9 @@ target_sources(${PROJECT_NAME} PRIVATE
 
     "Source/Platform/Windows/Window.cpp"
     "Source/Platform/Windows/Window.hpp"
-    
+
+    "Source/Rendering/RenderPass/EquirectangularToCubeMapPass.cpp"
+    "Source/Rendering/RenderPass/EquirectangularToCubeMapPass.hpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.cpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
     "Source/Rendering/RenderPass/ShadowPass.cpp"
@@ -83,8 +89,6 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/Components.hpp"
     "Source/Rendering/GPUResourceManager.cpp"
     "Source/Rendering/GPUResourceManager.hpp"
-    "Source/Rendering/MeshBuffer.cpp"
-    "Source/Rendering/MeshBuffer.hpp"
     "Source/Rendering/MeshFactory.cpp"
     "Source/Rendering/MeshFactory.hpp"
     "Source/Rendering/Renderer.cpp"

@@ -4,6 +4,7 @@
 #include "Core/Log.hpp"
 #include "Core/Utility/Image.hpp"
 #include "Core/Utility/MersenneTwister.hpp"
+#include "Core/Utility/Timer.hpp"
 #include "Rendering/Components.hpp"
 #include "Rendering/MeshFactory.hpp"
 #include "Scene/Light.hpp"
@@ -25,6 +26,8 @@ Playground::Playground(Specification specification) : Application(specification)
 }
 
 void Playground::OnInit() {
+    GE_SCOPED_TIMER("Playground initialized successfully");
+
     XMFLOAT3 lightDirection;
     XMStoreFloat3(&lightDirection, XMVector3Normalize(XMVectorSet(1.0f, -4.0f, 2.0f, 0.0f)));
     m_Scene.SetDirectionalLight({
@@ -103,8 +106,6 @@ void Playground::OnInit() {
 
     m_Scene.SetSkybox(
         GEngine::Skybox{.Panorama = GEngine::Image("Assets\\Textures\\Skybox\\citrus_orchard_road_puresky_4k.hdr")});
-
-    GE_INFO("Playground initialized successfully.");
 }
 
 void Playground::OnUpdate(float deltaTime) {

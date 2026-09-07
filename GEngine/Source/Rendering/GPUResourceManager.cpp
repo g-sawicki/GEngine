@@ -5,7 +5,6 @@
 #include "Core/Utility/Image.hpp"
 #include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Fence.hpp"
-#include "Rendering/MeshBuffer.hpp"
 
 namespace GEngine {
 
@@ -62,19 +61,32 @@ void GPUResourceManager::StageBuffer(Buffer& destination, const void* data, UINT
     cmdList->ResourceBarrier(1, &toGenericRead);
 }
 
-std::unique_ptr<MeshBuffer> GPUResourceManager::StageMeshBuffer(const Mesh& mesh) {
-    assert(m_CopyPassActive && "StageMeshBuffer must run inside a copy pass");
-    auto meshBuffer = std::make_unique<MeshBuffer>(m_Device, m_UploadQueue, mesh);
+MeshGPU GPUResourceManager::StageMeshGPU(const Mesh& mesh) {
+    assert(m_CopyPassActive && "StageMeshGPU must run inside a copy pass");
+    MeshGPU meshGPU{.VertexStride = static_cast<UINT>(sizeof(mesh.Vertices[0])),
+                    .IndexCount = static_cast<UINT>(mesh.Indices.size())};
+
+    const BufferDesc vertexBufferDesc{
+        .Size = static_cast<UINT64>(mesh.Vertices.size()) * meshGPU.VertexStride,
+        .HeapType = D3D12_HEAP_TYPE_DEFAULT,
+    };
+    meshGPU.VertexBuffer = Buffer{m_Device, m_UploadQueue, vertexBufferDesc};
+
+    const BufferDesc indexBufferDesc{
+        .Size = static_cast<UINT64>(mesh.Indices.size()) * sizeof(mesh.Indices[0]),
+        .HeapType = D3D12_HEAP_TYPE_DEFAULT,
+    };
+    meshGPU.IndexBuffer = Buffer{m_Device, m_UploadQueue, indexBufferDesc};
 
     const UINT64 vertexBytes = mesh.Vertices.size() * sizeof(Vertex);
     if (vertexBytes != 0)
-        StageBuffer(meshBuffer->GetVertexBuffer(), mesh.Vertices.data(), vertexBytes);
+        StageBuffer(meshGPU.VertexBuffer, mesh.Vertices.data(), vertexBytes);
 
     const UINT64 indexBytes = mesh.Indices.size() * sizeof(uint32_t);
     if (indexBytes != 0)
-        StageBuffer(meshBuffer->GetIndexBuffer(), mesh.Indices.data(), indexBytes);
+        StageBuffer(meshGPU.IndexBuffer, mesh.Indices.data(), indexBytes);
 
-    return meshBuffer;
+    return meshGPU;
 }
 
 std::unique_ptr<Texture> GPUResourceManager::StageTexture(const Image& image, bool isSRGB) {
@@ -141,7 +153,7 @@ GPUModelHandle GPUResourceManager::StageModelToVRAM(const Model& cpuModel) {
                 resolveTexture(cpuMaterial.RoughnessMetallic, material.RoughnessMetallicIndex);
         }
 
-        record.Submeshes.push_back({StageMeshBuffer(mesh), material});
+        record.Submeshes.push_back({StageMeshGPU(mesh), material});
     }
 
     m_GPUModels[handle.Id] = std::move(record);

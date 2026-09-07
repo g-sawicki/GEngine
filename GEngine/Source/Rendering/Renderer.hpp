@@ -17,7 +17,7 @@
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
 #include "Rendering/GPUResourceManager.hpp"
-#include "Rendering/MeshBuffer.hpp"
+#include "Rendering/RenderPass/EquirectangularToCubeMapPass.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
 #include "Rendering/RenderPass/SkyboxPass.hpp"
@@ -36,6 +36,7 @@ class Renderer {
         std::unique_ptr<Buffer> SceneInfoConstantBuffer;
         std::unique_ptr<Buffer> CascadedShadowMapsDataConstantBuffer;
         std::unique_ptr<Buffer> LightDataStructuredBuffer;
+        std::unique_ptr<Buffer> EquirectangularToCubeMapCameraConstantBuffer;
         std::vector<std::unique_ptr<Buffer>> ObjectConstantBuffers;
         uint64_t FenceValue{};
     };
@@ -62,6 +63,7 @@ class Renderer {
     void CreateRenderTargets(uint32_t width, uint32_t height);
 
     void FlushPendingUploads(const Scene& scene, const AssetManager& assetManager);
+    void EnsureEquirectangularToCubeMapPass(const Texture& sourceTexture);
 
     std::unique_ptr<Device> m_Device;
     std::unique_ptr<CommandQueue> m_CommandQueue;
@@ -81,13 +83,18 @@ class Renderer {
 
     // Render passes
     std::unique_ptr<RenderPass::ShadowPass> m_ShadowPass;
-    std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLighting;
+    std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLightingPass;
     std::unique_ptr<RenderPass::SkyboxPass> m_SkyboxPass;
     std::unique_ptr<RenderPass::ToneMapPass> m_ToneMapPass;
 
-    std::unique_ptr<MeshBuffer> m_SkyboxMeshBuffer;
+    // Utility render passes
+    std::unique_ptr<RenderPass::EquirectangularToCubeMapPass> m_EquirectangularToCubeMapPass;
+
+    MeshGPU m_SkyboxMeshGPU;
     std::unique_ptr<Texture> m_SkyboxTexture;
+    std::unique_ptr<Texture> m_SkyboxCubeMapTexture;
     const Image* m_SkyboxSource{};
+    bool m_SkyboxNeedsUpdate{false};
 
     std::vector<RenderItem> m_RenderItems;
 

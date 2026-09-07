@@ -3,7 +3,6 @@
 #include "ShadowPass.hpp"
 
 #include "Graphics/D3D12/Shader.hpp"
-#include "Rendering/MeshBuffer.hpp"
 
 namespace GEngine::RenderPass {
 
@@ -73,7 +72,15 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
             if (!item.ShadowCaster)
                 continue;
             cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
-            item.Mesh->Draw(commandList);
+
+            auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};
+            cmdList->IASetVertexBuffers(0, 1, &vbv);
+
+            auto ibv{item.Mesh->IndexBuffer.GetIBV()};
+            cmdList->IASetIndexBuffer(&ibv);
+
+            cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            cmdList->DrawIndexedInstanced(item.Mesh->IndexCount, 1, 0, 0, 0);
         }
     }
 }

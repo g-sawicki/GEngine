@@ -9,6 +9,7 @@
 namespace GEngine {
 
 void Shader::Load(const std::filesystem::path& path) {
+    assert(std::filesystem::exists(path));
     ThrowIfFailed(D3DReadFileToBlob(path.c_str(), &m_Blob));
 }
 

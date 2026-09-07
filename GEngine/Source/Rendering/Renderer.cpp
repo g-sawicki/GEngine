@@ -4,12 +4,40 @@
 
 #include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/D3D12Common.hpp"
-#include "Rendering/MeshBuffer.hpp"
 #include "Rendering/MeshFactory.hpp"
 
 namespace GEngine {
 
 using namespace Microsoft::WRL;
+
+namespace {
+
+constexpr DirectX::XMFLOAT3 kCubeMapFaceDirections[6] = {
+    {1.0f, 0.0f, 0.0f},  {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
+    {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f},  {0.0f, 0.0f, -1.0f},
+};
+
+constexpr DirectX::XMFLOAT3 kCubeMapFaceUpVectors[6] = {
+    {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, -1.0f},
+    {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
+};
+
+RenderPass::EquirectangularToCubeMapCameraData BuildEquirectangularToCubeMapCameras() {
+    RenderPass::EquirectangularToCubeMapCameraData cameraData{};
+
+    const float fovY = DirectX::XMConvertToRadians(90.0f);
+    for (uint32_t i{}; i < std::size(kCubeMapFaceDirections); ++i) {
+        const DirectX::XMMATRIX view =
+            DirectX::XMMatrixLookToLH(DirectX::XMVectorZero(), DirectX::XMLoadFloat3(&kCubeMapFaceDirections[i]),
+                                      DirectX::XMLoadFloat3(&kCubeMapFaceUpVectors[i]));
+        const DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(fovY, 1.0f, 0.01f, 100.0f);
+        DirectX::XMStoreFloat4x4(&cameraData.ViewProjection[i], DirectX::XMMatrixMultiply(view, projection));
+    }
+
+    return cameraData;
+}
+
+} // namespace
 
 void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize) {
     Device::EnableDebugLayer();
@@ -57,6 +85,12 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, ui
         m_FrameResources[i].CascadedShadowMapsDataConstantBuffer =
             std::make_unique<Buffer>(*m_Device, *m_CommandQueue, cascadedShadowMapsDataCbDesc);
 
+        const BufferDesc equirectToCubeMapCbDesc{.Size = sizeof(RenderPass::EquirectangularToCubeMapCameraData),
+                                                 .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+                                                 .MiscFlags = BufferMiscFlags::ConstantBuffer};
+        m_FrameResources[i].EquirectangularToCubeMapCameraConstantBuffer =
+            std::make_unique<Buffer>(*m_Device, *m_CommandQueue, equirectToCubeMapCbDesc);
+
         const BufferDesc LightDataSbDesc{.Size = kMaxLights * sizeof(LightData), .HeapType = D3D12_HEAP_TYPE_UPLOAD};
         m_FrameResources[i].LightDataStructuredBuffer =
             std::make_unique<Buffer>(*m_Device, *m_CommandQueue, LightDataSbDesc);
@@ -67,12 +101,12 @@ void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, ui
     m_Fence = std::make_unique<Fence>(*m_Device);
 
     m_ShadowPass = std::make_unique<RenderPass::ShadowPass>(*m_Device, m_ShadowMapTexture.GetDesc().Format);
-    m_ForwardLighting = std::make_unique<RenderPass::ForwardLightingPass>(*m_Device, m_HdrTexture, m_DepthTexture);
+    m_ForwardLightingPass = std::make_unique<RenderPass::ForwardLightingPass>(*m_Device, m_HdrTexture, m_DepthTexture);
     m_ToneMapPass = std::make_unique<RenderPass::ToneMapPass>(*m_Device);
     m_SkyboxPass = std::make_unique<RenderPass::SkyboxPass>(*m_Device, m_HdrTexture, m_DepthTexture);
 
     m_GPUResourceManager->BeginCopyPass();
-    m_SkyboxMeshBuffer = m_GPUResourceManager->StageMeshBuffer(MeshFactory::Cube());
+    m_SkyboxMeshGPU = m_GPUResourceManager->StageMeshGPU(MeshFactory::Cube());
     m_GPUResourceManager->EndAndSubmitCopyPass();
 }
 
@@ -116,16 +150,21 @@ void Renderer::Destroy() {
         frame.SceneInfoConstantBuffer.reset();
         frame.CascadedShadowMapsDataConstantBuffer.reset();
         frame.LightDataStructuredBuffer.reset();
+        frame.EquirectangularToCubeMapCameraConstantBuffer.reset();
         frame.ObjectConstantBuffers.clear();
     }
     m_Fence.reset();
     m_SwapChain.reset();
     m_ToneMapPass.reset();
-    m_ForwardLighting.reset();
+    m_ForwardLightingPass.reset();
     m_ShadowPass.reset();
     m_SkyboxPass.reset();
-    m_SkyboxMeshBuffer.reset();
+    m_EquirectangularToCubeMapPass.reset();
+    m_SkyboxMeshGPU = {};
+    m_SkyboxCubeMapTexture.reset();
     m_SkyboxTexture.reset();
+    m_SkyboxSource = nullptr;
+    m_SkyboxNeedsUpdate = false;
     m_GPUResourceManager->Shutdown();
     m_GPUResourceManager.reset();
     m_UploadQueue.reset();
@@ -194,11 +233,37 @@ void Renderer::FlushPendingUploads(const Scene& scene, const AssetManager& asset
         openPass();
         m_SkyboxTexture = m_GPUResourceManager->StageTexture(panorama, /*isSRGB*/ false);
         m_SkyboxSource = &panorama;
+
+        const uint32_t cubeMapSize = m_SkyboxTexture->GetDesc().Height;
+        TextureDesc cubeMapDesc{.Width = cubeMapSize,
+                                .Height = cubeMapSize,
+                                .Depth = 6,
+                                .Format = m_SkyboxTexture->GetDesc().Format,
+                                .Usage = TextureUsage::ShaderResource | TextureUsage::RenderTarget,
+                                .IsCubeMap = true,
+                                .ClearValue = {
+                                    .Format = m_SkyboxTexture->GetDesc().Format,
+                                    .Color = {0.0f, 0.0f, 0.0f, 1.0f},
+                                }};
+        if (!m_SkyboxCubeMapTexture)
+            m_SkyboxCubeMapTexture = std::make_unique<Texture>();
+        m_SkyboxCubeMapTexture->Create(*m_Device, cubeMapDesc);
+        m_SkyboxNeedsUpdate = true;
     }
 
     if (copyPassOpen) {
         m_GPUResourceManager->EndAndSubmitCopyPass();
     }
+}
+
+void Renderer::EnsureEquirectangularToCubeMapPass(const Texture& sourceTexture) {
+    if (m_EquirectangularToCubeMapPass &&
+        sourceTexture.GetDesc().Format == m_EquirectangularToCubeMapPass->GetOutputFormat()) {
+        return;
+    }
+
+    m_EquirectangularToCubeMapPass =
+        std::make_unique<RenderPass::EquirectangularToCubeMapPass>(*m_Device, sourceTexture);
 }
 
 void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
@@ -243,7 +308,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
         for (uint32_t m{}; m < submeshCount; ++m) {
             const GPUSubmesh& submesh = m_GPUResourceManager->GetSubmesh(gpuModel, m);
             m_RenderItems.push_back({
-                .Mesh = submesh.Mesh.get(),
+                .Mesh = &submesh.Mesh,
                 .TransformCB = objectConstantBuffers[objectIndex].get(),
                 .Material = submesh.Material,
                 .ShadowCaster = modelComponent.CastsShadow,
@@ -301,6 +366,22 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
 
     m_Device->SetDescriptorHeaps(*frame.CommandList);
 
+    if (m_SkyboxNeedsUpdate) {
+        EnsureEquirectangularToCubeMapPass(*m_SkyboxTexture);
+
+        const RenderPass::EquirectangularToCubeMapCameraData cameraData = BuildEquirectangularToCubeMapCameras();
+        frame.EquirectangularToCubeMapCameraConstantBuffer->Write(&cameraData, sizeof(cameraData));
+
+        const RenderItem cubeRenderItem{.Mesh = &m_SkyboxMeshGPU};
+
+        m_SkyboxCubeMapTexture->Transition(*frame.CommandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        m_EquirectangularToCubeMapPass->OnRender(*frame.CommandList, *m_SkyboxCubeMapTexture,
+                                                 m_SkyboxTexture->GetSrvIndex(),
+                                                 *frame.EquirectangularToCubeMapCameraConstantBuffer, cubeRenderItem);
+        m_SkyboxCubeMapTexture->Transition(*frame.CommandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        m_SkyboxNeedsUpdate = false;
+    }
+
     // Cascaded shadow maps
     {
         m_ShadowMapTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -314,18 +395,18 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
         m_HdrTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
         m_ShadowMapTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-        m_ForwardLighting->OnRender(*frame.CommandList, m_HdrTexture, m_DepthTexture, m_ShadowMapTexture,
-                                    *frame.SceneInfoConstantBuffer, *frame.CascadedShadowMapsDataConstantBuffer,
-                                    m_RenderItems);
-    }
-
-    // Skybox pass
-    if (m_SkyboxTexture && m_SkyboxTexture->GetSrvIndex() != INVALID_BINDLESS_INDEX) {
-        m_SkyboxPass->OnRender(*frame.CommandList, *m_SkyboxMeshBuffer, m_HdrTexture, m_DepthTexture,
-                               m_SkyboxTexture->GetSrvIndex(), *frame.SceneInfoConstantBuffer);
+        m_ForwardLightingPass->OnRender(*frame.CommandList, m_HdrTexture, m_DepthTexture, m_ShadowMapTexture,
+                                        *frame.SceneInfoConstantBuffer, *frame.CascadedShadowMapsDataConstantBuffer,
+                                        m_RenderItems);
     }
 
     m_RenderItems.clear();
+
+    // Skybox pass
+    if (m_SkyboxCubeMapTexture && m_SkyboxCubeMapTexture->GetSrvIndex() != INVALID_BINDLESS_INDEX) {
+        m_SkyboxPass->OnRender(*frame.CommandList, m_SkyboxMeshGPU, m_HdrTexture, m_DepthTexture,
+                               m_SkyboxCubeMapTexture->GetSrvIndex(), *frame.SceneInfoConstantBuffer);
+    }
 
     // Post-processing
     {

@@ -141,29 +141,40 @@ void Texture::Create(Device& device, const TextureDesc& desc, std::span<const Su
         if (m_SrvIndex == INVALID_BINDLESS_INDEX)
             m_SrvIndex = device.GetShaderResourceDescriptorHeap().Allocate().Index;
 
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{
-            .Format = formatInfo.ShaderResource,
-            .ViewDimension = desc.Depth > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DARRAY : D3D12_SRV_DIMENSION_TEXTURE2D,
-            .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-            .Texture2D = {.MipLevels = desc.MipCount},
-        };
-        if (desc.Depth > 1)
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+        srvDesc.Format = formatInfo.ShaderResource;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        if (desc.IsCubeMap) {
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+            srvDesc.TextureCube = {.MostDetailedMip = 0, .MipLevels = desc.MipCount, .ResourceMinLODClamp = 0.0f};
+        } else if (desc.Depth > 1) {
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
             srvDesc.Texture2DArray = {.MipLevels = desc.MipCount, .ArraySize = desc.Depth};
+        } else {
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D = {.MipLevels = desc.MipCount};
+        }
 
         const D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = device.GetShaderResourceDescriptorHeap().GetCpuHandle(m_SrvIndex);
         device.Get()->CreateShaderResourceView(m_Resource.Get(), &srvDesc, srvHandle);
     }
 
     if (HasUsage(desc.Usage, TextureUsage::RenderTarget)) {
-        if (m_RtvHandle.ptr == INVALID_HANDLE)
-            m_RtvHandle = device.GetRtvDescriptorHeap().Allocate().CpuHandle;
+        if (m_RtvRange.Base.ptr == 0)
+            m_RtvRange = device.GetRtvDescriptorHeap().AllocateRange(desc.Depth > 1 ? desc.Depth : 1);
 
         D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{
             .Format = formatInfo.RenderTarget,
-            .ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+            .ViewDimension = desc.Depth > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DARRAY : D3D12_RTV_DIMENSION_TEXTURE2D,
         };
-
-        device.Get()->CreateRenderTargetView(m_Resource.Get(), &rtvDesc, m_RtvHandle);
+        if (desc.Depth > 1) {
+            for (uint32_t slice{}; slice < desc.Depth; ++slice) {
+                rtvDesc.Texture2DArray = {.MipSlice = 0, .FirstArraySlice = slice, .ArraySize = 1};
+                device.Get()->CreateRenderTargetView(m_Resource.Get(), &rtvDesc, m_RtvRange.GetCpuHandle(slice));
+            }
+        } else {
+            device.Get()->CreateRenderTargetView(m_Resource.Get(), &rtvDesc, m_RtvRange.GetCpuHandle(0));
+        }
     }
 
     if (HasUsage(desc.Usage, TextureUsage::UnorderedAccess)) {
@@ -200,7 +211,7 @@ void Texture::Reset() noexcept {
     m_Resource.Reset();
     m_Desc = {};
     m_State = D3D12_RESOURCE_STATE_COMMON;
-    m_RtvHandle = {INVALID_HANDLE};
+    m_RtvRange = {};
     m_DsvRange = {};
     m_SrvIndex = INVALID_BINDLESS_INDEX;
     m_UavIndex = INVALID_BINDLESS_INDEX;

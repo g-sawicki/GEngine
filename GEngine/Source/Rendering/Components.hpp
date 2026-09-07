@@ -22,7 +22,12 @@ struct Transform {
     }
 };
 
-class MeshBuffer;
+struct MeshGPU {
+    Buffer VertexBuffer{};
+    Buffer IndexBuffer{};
+    UINT VertexStride{};
+    UINT IndexCount{};
+};
 
 struct MaterialGPU {
     uint32_t AlbedoIndex{};
@@ -31,7 +36,7 @@ struct MaterialGPU {
 };
 
 struct RenderItem {
-    const MeshBuffer* Mesh{};
+    const MeshGPU* Mesh{};
     const Buffer* TransformCB{};
     MaterialGPU Material{};
     bool ShadowCaster{true};

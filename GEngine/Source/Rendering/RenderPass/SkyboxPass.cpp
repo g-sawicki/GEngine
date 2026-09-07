@@ -3,7 +3,6 @@
 #include "SkyboxPass.hpp"
 
 #include "Graphics/D3D12/Shader.hpp"
-#include "Rendering/MeshBuffer.hpp"
 
 namespace GEngine::RenderPass {
 
@@ -71,7 +70,7 @@ SkyboxPass::SkyboxPass(Device& device, const Texture& colorTexture, const Textur
     m_PipelineState = std::make_unique<PipelineState>(device, psoDesc);
 }
 
-void SkyboxPass::OnRender(CommandList& commandList, const MeshBuffer& cubeMesh, const Texture& colorTexture,
+void SkyboxPass::OnRender(CommandList& commandList, const MeshGPU& cubeMesh, const Texture& colorTexture,
                           const Texture& depthTexture, uint32_t skyboxSrvIndex, Buffer& sceneInfoCB) {
     auto* cmdList = commandList.GetHandle();
 
@@ -91,7 +90,15 @@ void SkyboxPass::OnRender(CommandList& commandList, const MeshBuffer& cubeMesh, 
 
     cmdList->SetGraphicsRootConstantBufferView(0, sceneInfoCB.GetGPUVirtualAddress());
     cmdList->SetGraphicsRoot32BitConstants(1, 1, &skyboxSrvIndex, 0);
-    cubeMesh.Draw(commandList);
+
+    auto vbv{cubeMesh.VertexBuffer.GetVBV(cubeMesh.VertexStride)};
+    cmdList->IASetVertexBuffers(0, 1, &vbv);
+
+    auto ibv{cubeMesh.IndexBuffer.GetIBV()};
+    cmdList->IASetIndexBuffer(&ibv);
+
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList->DrawIndexedInstanced(cubeMesh.IndexCount, 1, 0, 0, 0);
 }
 
 } // namespace GEngine::RenderPass

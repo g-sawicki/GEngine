@@ -38,6 +38,7 @@ struct TextureDesc {
     uint16_t MipCount{1};
     DXGI_FORMAT Format{DXGI_FORMAT_UNKNOWN};
     TextureUsage Usage{TextureUsage::None};
+    bool IsCubeMap{false};
     D3D12_CLEAR_VALUE ClearValue{};
 };
 
@@ -85,7 +86,9 @@ class Texture {
     [[nodiscard]] ID3D12Resource* GetResource() const noexcept { return m_Resource.Get(); }
     [[nodiscard]] const TextureDesc& GetDesc() const noexcept { return m_Desc; }
 
-    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const noexcept { return m_RtvHandle; }
+    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle(uint16_t arraySlice = 0) const noexcept {
+        return m_RtvRange.GetCpuHandle(arraySlice);
+    }
     [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE GetDsvHandle(uint16_t arraySlice = 0) const noexcept {
         return m_DsvRange.GetCpuHandle(arraySlice);
     }
@@ -97,7 +100,7 @@ class Texture {
     TextureDesc m_Desc{};
     D3D12_RESOURCE_STATES m_State{D3D12_RESOURCE_STATE_COMMON};
 
-    D3D12_CPU_DESCRIPTOR_HANDLE m_RtvHandle{INVALID_HANDLE};
+    DescriptorRange m_RtvRange;
     DescriptorRange m_DsvRange;
     uint32_t m_SrvIndex{INVALID_BINDLESS_INDEX};
     uint32_t m_UavIndex{INVALID_BINDLESS_INDEX};

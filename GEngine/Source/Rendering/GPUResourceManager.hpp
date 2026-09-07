@@ -7,7 +7,6 @@
 #include "Graphics/D3D12/Fence.hpp"
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
-#include "Rendering/MeshBuffer.hpp"
 #include "Rendering/TextureManager.hpp"
 #include "Scene/Model.hpp"
 
@@ -28,7 +27,7 @@ struct GPUModelHandle {
 };
 
 struct GPUSubmesh {
-    std::unique_ptr<MeshBuffer> Mesh{};
+    MeshGPU Mesh{};
     MaterialGPU Material{};
 };
 
@@ -42,7 +41,7 @@ class GPUResourceManager {
     [[nodiscard]] GPUModelHandle StageModelToVRAM(const Model& cpuModel);
     void EndAndSubmitCopyPass();
 
-    [[nodiscard]] std::unique_ptr<MeshBuffer> StageMeshBuffer(const Mesh& mesh);
+    [[nodiscard]] MeshGPU StageMeshGPU(const Mesh& mesh);
     [[nodiscard]] std::unique_ptr<Texture> StageTexture(const Image& image, bool isSRGB);
 
     void RegisterModelHandle(ModelHandle cpuHandle, GPUModelHandle gpuHandle);

@@ -3,7 +3,6 @@
 #include "ForwardLightingPass.hpp"
 
 #include "Graphics/D3D12/Shader.hpp"
-#include "Rendering/MeshBuffer.hpp"
 
 namespace GEngine::RenderPass {
 
@@ -89,8 +88,7 @@ void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colo
 
     auto* cmdList = commandList.GetHandle();
     cmdList->ClearRenderTargetView(colorTexture.GetRtvHandle(), colorTexture.GetDesc().ClearValue.Color, 0, nullptr);
-    cmdList->ClearDepthStencilView(depthTexture.GetDsvHandle(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0,
-                                   nullptr); // TODO: Use texture clear
+    cmdList->ClearDepthStencilView(depthTexture.GetDsvHandle(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
     D3D12_VIEWPORT viewport{
         0,    0,   static_cast<float>(colorTexture.GetDesc().Width), static_cast<float>(colorTexture.GetDesc().Height),
@@ -123,7 +121,15 @@ void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colo
         constants.NormalIndex = item.Material.NormalIndex;
         constants.RoughnessMetallicIndex = item.Material.RoughnessMetallicIndex;
         cmdList->SetGraphicsRoot32BitConstants(3, 4, &constants, 0);
-        item.Mesh->Draw(commandList);
+
+        auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};
+        cmdList->IASetVertexBuffers(0, 1, &vbv);
+
+        auto ibv{item.Mesh->IndexBuffer.GetIBV()};
+        cmdList->IASetIndexBuffer(&ibv);
+
+        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        cmdList->DrawIndexedInstanced(item.Mesh->IndexCount, 1, 0, 0, 0);
     }
 }
 

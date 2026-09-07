@@ -17,7 +17,7 @@ class SkyboxPass {
 
     GE_NO_COPY_NO_MOVE(SkyboxPass)
 
-    void OnRender(CommandList& commandList, const MeshBuffer& cubeMesh, const Texture& colorTexture,
+    void OnRender(CommandList& commandList, const MeshGPU& cubeMesh, const Texture& colorTexture,
                   const Texture& depthTexture, uint32_t skyboxSrvIndex, Buffer& sceneInfoCB);
 
   private:
