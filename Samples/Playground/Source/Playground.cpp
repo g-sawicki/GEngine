@@ -52,8 +52,7 @@ void Playground::OnInit() {
     });
 
     const std::filesystem::path containerTexturePath{"Assets\\Textures\\Container\\container2.png"};
-    const GEngine::Material containerMaterial{
-        .BaseColorTextureIndex = 0, .NormalTextureIndex = -1, .RoughnessMetallic = -1};
+    const GEngine::Material containerMaterial{.BaseColorTextureIndex = 0};
     const GEngine::TexturePath containerTexture{.Path = containerTexturePath, .IsSRGB = true};
 
     GEngine::AssetManager& assetManager = m_AssetManager;
@@ -104,8 +103,7 @@ void Playground::OnInit() {
     ecs.AddComponent<GEngine::Transform>(sponza, GEngine::Transform{.Position = {20.0f, 5.0f, 20.0f}});
     ecs.AddComponent<GEngine::ModelComponent>(sponza, GEngine::ModelComponent{.Model = sponzaModel});
 
-    m_Scene.SetSkybox(
-        GEngine::Skybox{.Panorama = GEngine::Image("Assets\\Textures\\Skybox\\citrus_orchard_road_puresky_4k.hdr")});
+    m_Scene.SetSkybox(GEngine::Skybox{.Path = "Assets\\Textures\\Skybox\\citrus_orchard_road_puresky_4k.hdr"});
 }
 
 void Playground::OnUpdate(float deltaTime) {

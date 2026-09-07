@@ -163,7 +163,7 @@ void Renderer::Destroy() {
     m_SkyboxMeshGPU = {};
     m_SkyboxCubeMapTexture.reset();
     m_SkyboxTexture.reset();
-    m_SkyboxSource = nullptr;
+    m_SkyboxPath.clear();
     m_SkyboxNeedsUpdate = false;
     m_GPUResourceManager->Shutdown();
     m_GPUResourceManager.reset();
@@ -228,11 +228,12 @@ void Renderer::FlushPendingUploads(const Scene& scene, const AssetManager& asset
         m_GPUResourceManager->RegisterModelHandle(modelComponent.Model, gpuModel);
     }
 
-    const Image& panorama = scene.GetSkybox().Panorama;
-    if (m_SkyboxSource != &panorama && panorama.GetWidth() != 0) {
+    const Skybox& skybox = scene.GetSkybox();
+    if (m_SkyboxPath != skybox.Path) {
         openPass();
+        Image panorama{skybox.Path};
         m_SkyboxTexture = m_GPUResourceManager->StageTexture(panorama, /*isSRGB*/ false);
-        m_SkyboxSource = &panorama;
+        m_SkyboxPath = skybox.Path;
 
         const uint32_t cubeMapSize = m_SkyboxTexture->GetDesc().Height;
         TextureDesc cubeMapDesc{.Width = cubeMapSize,

@@ -93,7 +93,7 @@ class Renderer {
     MeshGPU m_SkyboxMeshGPU;
     std::unique_ptr<Texture> m_SkyboxTexture;
     std::unique_ptr<Texture> m_SkyboxCubeMapTexture;
-    const Image* m_SkyboxSource{};
+    std::filesystem::path m_SkyboxPath{};
     bool m_SkyboxNeedsUpdate{false};
 
     std::vector<RenderItem> m_RenderItems;

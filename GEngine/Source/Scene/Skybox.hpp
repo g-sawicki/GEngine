@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Core/Utility/Image.hpp"
+#include <filesystem>
 
 namespace GEngine {
 
 struct Skybox {
-    Image Panorama{};
+    std::filesystem::path Path{};
 };
 
 } // namespace GEngine
