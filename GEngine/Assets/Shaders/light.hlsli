@@ -1,31 +1,6 @@
+#include "Interop/Light.h"
+
 #define PI 3.14159265358979323846264f
-
-enum LightType {
-    DIRECTIONAL_LIGHT,
-    POINT_LIGHT,
-    SPOT_LIGHT,
-};
-
-struct LightData {
-    float3   position;
-    uint32_t type;
-    float3   direction;
-    float3   color;
-    float    intensity;
-    float    cosInnerCone;
-    float    cosOuterCone;
-};
-
-struct CascadedShadowMapsData {
-    row_major float4x4 lightViewProjection[4];
-    float4 cascadeSplits;
-    float  shadowMapTexelSize;
-    float  shadowBias;
-    float  shadowSlopeScaleBias;
-    float  normalOffsetScale;
-    uint   shadowEnabled;
-    uint   cascadeCount;
-};
 
 struct Material {
     float4 albedo;
@@ -189,7 +164,7 @@ float3 CalculatePointLight(LightData lightData, float3 lightDir, float distance,
 }
 
 float3 CalculateLight(LightData lightData, float3 worldPos, float3 viewDir, float3 normal, Material material, float shadow) {
-    if (lightData.type == DIRECTIONAL_LIGHT)
+    if (lightData.type == Directional)
         return CalculateDirectionalLight(lightData, viewDir, normal, material, shadow);
 
     float3 lightToWorldPos = worldPos - lightData.position;
@@ -197,7 +172,7 @@ float3 CalculateLight(LightData lightData, float3 worldPos, float3 viewDir, floa
     float distance = length(lightToWorldPos);
     float3 intensity = CalculatePointLight(lightData, worldPosDir, distance, viewDir, normal, material);
 
-    if (lightData.type == SPOT_LIGHT) {
+    if (lightData.type == Spot) {
         float3 lightDir = normalize(lightData.direction);
         float theta = dot(lightDir, worldPosDir);
         float epsilon = lightData.cosInnerCone - lightData.cosOuterCone;

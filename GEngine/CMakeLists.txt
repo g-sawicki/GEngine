@@ -31,6 +31,9 @@ add_custom_target(GEngineShaders ALL DEPENDS ${GENGINE_SHADERS})
 add_dependencies(GEngine GEngineShaders)
 
 target_sources(${PROJECT_NAME} PRIVATE
+    "Assets/Shaders/Interop/Interop.h"
+    "Assets/Shaders/Interop/Light.h"
+
     "Source/Core/Utility/Defines.hpp"
     "Source/Core/Utility/Image.cpp"
     "Source/Core/Utility/Image.hpp"
@@ -120,6 +123,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/S
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     "${CMAKE_CURRENT_SOURCE_DIR}/Source"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Assets/Shaders"
     "${agility_sdk_SOURCE_DIR}/build/native/include" # Agility SDK headers
 )
 

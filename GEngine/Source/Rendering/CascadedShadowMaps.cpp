@@ -2,6 +2,8 @@
 
 #include "CascadedShadowMaps.hpp"
 
+#include "Interop/Light.h"
+
 #include <array>
 #include <cassert>
 #include <cmath>

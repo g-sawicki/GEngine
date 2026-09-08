@@ -14,6 +14,8 @@
 #include <optional>
 #include <vector>
 
+struct CascadedShadowMapsData;
+
 namespace GEngine {
 
 struct SceneInfo {

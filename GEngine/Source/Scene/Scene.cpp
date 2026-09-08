@@ -2,6 +2,7 @@
 
 #include "Scene.hpp"
 
+#include "Interop/Light.h"
 #include "Rendering/CascadedShadowMaps.hpp"
 #include "Scene/ModelLoader.hpp"
 
@@ -30,19 +31,19 @@ SceneInfo Scene::GetSceneInfo() const noexcept {
 
 CascadedShadowMapsData Scene::GetCascadedShadowMapsData() const noexcept {
     CascadedShadowMapsData cascadedShadowMapsData{
-        .ShadowMapTexelSize = 1.0f / static_cast<float>(m_ShadowConfig.MapSize),
-        .ShadowBias = m_ShadowConfig.Bias,
-        .ShadowSlopeScaleBias = m_ShadowConfig.SlopeScaleBias,
-        .NormalOffsetScale = m_ShadowConfig.NormalOffsetScale,
-        .ShadowEnabled = m_ShadowConfig.Enabled ? 1u : 0u,
+        .shadowMapTexelSize = 1.0f / static_cast<float>(m_ShadowConfig.MapSize),
+        .shadowBias = m_ShadowConfig.Bias,
+        .shadowSlopeScaleBias = m_ShadowConfig.SlopeScaleBias,
+        .normalOffsetScale = m_ShadowConfig.NormalOffsetScale,
+        .shadowEnabled = m_ShadowConfig.Enabled ? 1u : 0u,
     };
 
     if (m_ShadowConfig.Enabled) {
         const CSM::CascadeData cascadeData = CSM::CalculateCascadeData(m_Camera, m_DirectionalLight, m_ShadowConfig);
-        cascadedShadowMapsData.CascadeCount = static_cast<uint32_t>(cascadeData.ViewProjection.size());
-        for (uint32_t i{}; i < cascadedShadowMapsData.CascadeCount && i < kMaxCascades; ++i) {
-            DirectX::XMStoreFloat4x4(&cascadedShadowMapsData.LightViewProjection[i], cascadeData.ViewProjection[i]);
-            (&cascadedShadowMapsData.CascadeSplits.x)[i] = cascadeData.FarSplits[i];
+        cascadedShadowMapsData.cascadeCount = static_cast<uint32_t>(cascadeData.ViewProjection.size());
+        for (uint32_t i{}; i < cascadedShadowMapsData.cascadeCount && i < kMaxCascades; ++i) {
+            DirectX::XMStoreFloat4x4(&cascadedShadowMapsData.lightViewProjection[i], cascadeData.ViewProjection[i]);
+            (&cascadedShadowMapsData.cascadeSplits.x)[i] = cascadeData.FarSplits[i];
         }
     }
 

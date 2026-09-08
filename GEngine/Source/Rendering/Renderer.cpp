@@ -4,6 +4,7 @@
 
 #include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/D3D12Common.hpp"
+#include "Interop/Light.h"
 #include "Rendering/MeshFactory.hpp"
 
 namespace GEngine {
@@ -328,30 +329,30 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
     {
         const DirectionalLight& directionalLight = scene.GetDirectionalLight();
         lightData.push_back({
-            .Position = {},
-            .Type = static_cast<uint32_t>(LightType::Directional),
-            .Direction = directionalLight.Direction,
-            .Color = directionalLight.Color,
-            .Intensity = directionalLight.Intensity,
+            .position = {},
+            .type = static_cast<uint32_t>(LightType::Directional),
+            .direction = directionalLight.Direction,
+            .color = directionalLight.Color,
+            .intensity = directionalLight.Intensity,
         });
     }
     for (const PointLight& pointLight : scene.GetPointLights()) {
         lightData.push_back({
-            .Position = pointLight.Position,
-            .Type = static_cast<uint32_t>(LightType::Point),
-            .Color = pointLight.Color,
-            .Intensity = pointLight.Intensity,
+            .position = pointLight.Position,
+            .type = static_cast<uint32_t>(LightType::Point),
+            .color = pointLight.Color,
+            .intensity = pointLight.Intensity,
         });
     }
     for (const SpotLight& spotLight : scene.GetSpotLights()) {
         lightData.push_back({
-            .Position = spotLight.Position,
-            .Type = static_cast<uint32_t>(LightType::Spot),
-            .Direction = spotLight.Direction,
-            .Color = spotLight.Color,
-            .Intensity = spotLight.Intensity,
-            .CosInnerCone = std::cos(DirectX::XMConvertToRadians(spotLight.InnerConeAngle)),
-            .CosOuterCone = std::cos(DirectX::XMConvertToRadians(spotLight.OuterConeAngle)),
+            .position = spotLight.Position,
+            .type = static_cast<uint32_t>(LightType::Spot),
+            .direction = spotLight.Direction,
+            .color = spotLight.Color,
+            .intensity = spotLight.Intensity,
+            .cosInnerCone = std::cos(DirectX::XMConvertToRadians(spotLight.InnerConeAngle)),
+            .cosOuterCone = std::cos(DirectX::XMConvertToRadians(spotLight.OuterConeAngle)),
         });
     }
     if (lightData.size() > kMaxLights) {
@@ -388,7 +389,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
         m_ShadowMapTexture.Transition(*frame.CommandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
         m_ShadowPass->OnRender(*frame.CommandList, m_ShadowMapTexture, *frame.CascadedShadowMapsDataConstantBuffer,
-                               cascadedShadowMapsData.CascadeCount, m_RenderItems);
+                               cascadedShadowMapsData.cascadeCount, m_RenderItems);
     }
 
     // Forward lighting pass
