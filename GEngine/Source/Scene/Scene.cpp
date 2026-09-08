@@ -2,6 +2,7 @@
 
 #include "Scene.hpp"
 
+#include "Interop/Common.h"
 #include "Interop/Light.h"
 #include "Rendering/CascadedShadowMaps.hpp"
 #include "Scene/ModelLoader.hpp"
@@ -20,12 +21,12 @@ Camera& Scene::CreateCamera(const PerspectiveDesc& desc) {
 
 SceneInfo Scene::GetSceneInfo() const noexcept {
     SceneInfo sceneInfo{
-        .CameraPosition = m_Camera.GetPosition(),
-        .CameraForward = m_Camera.GetForward(),
+        .cameraPosition = m_Camera.GetPosition(),
+        .cameraForward = m_Camera.GetForward(),
     };
-    DirectX::XMStoreFloat4x4(&sceneInfo.ViewProjection, m_Camera.GetViewProjectionMatrix());
-    DirectX::XMStoreFloat4x4(&sceneInfo.View, m_Camera.GetViewMatrix());
-    DirectX::XMStoreFloat4x4(&sceneInfo.Projection, m_Camera.GetProjectionMatrix());
+    DirectX::XMStoreFloat4x4(&sceneInfo.viewProjection, m_Camera.GetViewProjectionMatrix());
+    DirectX::XMStoreFloat4x4(&sceneInfo.view, m_Camera.GetViewMatrix());
+    DirectX::XMStoreFloat4x4(&sceneInfo.projection, m_Camera.GetProjectionMatrix());
     return sceneInfo;
 }
 

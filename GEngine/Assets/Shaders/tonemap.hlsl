@@ -1,4 +1,4 @@
-#include "common.hlsli"
+#include "Interop/Common.h"
 
 struct RootConstants {
     uint32_t InputIndex;

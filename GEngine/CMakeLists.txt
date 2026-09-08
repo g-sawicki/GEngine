@@ -31,6 +31,7 @@ add_custom_target(GEngineShaders ALL DEPENDS ${GENGINE_SHADERS})
 add_dependencies(GEngine GEngineShaders)
 
 target_sources(${PROJECT_NAME} PRIVATE
+    "Assets/Shaders/Interop/Common.h"
     "Assets/Shaders/Interop/Interop.h"
     "Assets/Shaders/Interop/Light.h"
 

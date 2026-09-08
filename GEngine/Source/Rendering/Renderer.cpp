@@ -4,6 +4,7 @@
 
 #include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/D3D12Common.hpp"
+#include "Interop/Common.h"
 #include "Interop/Light.h"
 #include "Rendering/MeshFactory.hpp"
 
@@ -295,12 +296,12 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
         if (objectIndex >= objectConstantBuffers.size())
             objectConstantBuffers.resize(objectIndex + 1);
         if (!objectConstantBuffers[objectIndex])
-            objectConstantBuffers[objectIndex] = CreateConstantBuffer(sizeof(DirectX::XMFLOAT4X4));
+            objectConstantBuffers[objectIndex] = CreateConstantBuffer(sizeof(ObjectData));
 
-        DirectX::XMFLOAT4X4 worldMatrix;
+        ObjectData objectData{};
         const Transform* transform = scene.GetEntityRegistry().GetComponent<Transform>(entity);
-        DirectX::XMStoreFloat4x4(&worldMatrix, transform ? transform->GetMatrix() : DirectX::XMMatrixIdentity());
-        objectConstantBuffers[objectIndex]->Write(&worldMatrix, sizeof(worldMatrix));
+        DirectX::XMStoreFloat4x4(&objectData.world, transform ? transform->GetMatrix() : DirectX::XMMatrixIdentity());
+        objectConstantBuffers[objectIndex]->Write(&objectData, sizeof(ObjectData));
 
         const GPUModelHandle gpuModel = m_GPUResourceManager->GetGPUHandle(modelComponent.Model);
         if (!gpuModel.IsValid())
@@ -320,8 +321,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
     }
 
     SceneInfo sceneInfo = scene.GetSceneInfo();
-    sceneInfo.ScreenResolution[0] = m_SwapChain->GetWidth();
-    sceneInfo.ScreenResolution[1] = m_SwapChain->GetHeight();
+    sceneInfo.screenResolution.x = m_SwapChain->GetWidth();
+    sceneInfo.screenResolution.y = m_SwapChain->GetHeight();
     const CascadedShadowMapsData cascadedShadowMapsData = scene.GetCascadedShadowMapsData();
 
     std::vector<LightData> lightData;
@@ -360,8 +361,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
         lightData.resize(kMaxLights);
     }
     frame.LightDataStructuredBuffer->Write(lightData.data(), lightData.size() * sizeof(LightData));
-    sceneInfo.LightCount = static_cast<uint32_t>(lightData.size());
-    sceneInfo.LightIndex = frame.LightDataStructuredBuffer->GetSrvIndex();
+    sceneInfo.lightCount = static_cast<uint32_t>(lightData.size());
+    sceneInfo.lightIndex = frame.LightDataStructuredBuffer->GetSrvIndex();
 
     frame.SceneInfoConstantBuffer->Write(&sceneInfo, sizeof(sceneInfo));
     frame.CascadedShadowMapsDataConstantBuffer->Write(&cascadedShadowMapsData, sizeof(cascadedShadowMapsData));

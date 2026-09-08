@@ -14,23 +14,10 @@
 #include <optional>
 #include <vector>
 
+struct SceneInfo;
 struct CascadedShadowMapsData;
 
 namespace GEngine {
-
-struct SceneInfo {
-    DirectX::XMFLOAT4X4 ViewProjection;
-    DirectX::XMFLOAT4X4 View;
-    DirectX::XMFLOAT4X4 Projection;
-    DirectX::XMFLOAT3 CameraPosition;
-    uint32_t Padding0{};
-    DirectX::XMFLOAT3 CameraForward;
-    uint32_t Padding1{};
-    uint32_t ScreenResolution[2]{};
-    uint32_t LightCount{};
-    uint32_t LightIndex{};
-};
-static_assert(sizeof(SceneInfo) == 240);
 
 using ComponentRegistry = EntityRegistry<Transform, ModelComponent>;
 

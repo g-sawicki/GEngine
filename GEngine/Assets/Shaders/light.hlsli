@@ -1,11 +1,14 @@
+#ifndef SHADER_LIGHT_H
+#define SHADER_LIGHT_H
+
 #include "Interop/Light.h"
 
 #define PI 3.14159265358979323846264f
 
 struct Material {
     float4 albedo;
-    float  roughness;
-    float  metallic;
+    float roughness;
+    float metallic;
 };
 
 uint SelectCascade(CascadedShadowMapsData csmData, float viewDepth) {
@@ -31,8 +34,8 @@ float SampleCascadeShadow(CascadedShadowMapsData csmData, SamplerComparisonState
         [unroll]
         for (int y = -1; y <= 1; ++y) {
             float2 offset = float2(x, y) * csmData.shadowMapTexelSize;
-            shadow += shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade),
-                                                   ndc.z - csmData.shadowBias);
+            shadow +=
+                shadowMap.SampleCmpLevelZero(shadowSampler, float3(uv + offset, cascade), ndc.z - csmData.shadowBias);
         }
     }
 
@@ -111,9 +114,9 @@ CookTorranceResult CookTorranceBRDF(float3 lightDir, float3 viewDir, float3 norm
     float NdotV = max(dot(normal, viewDir), 0.0f);
     float cosTheta = max(dot(viewDir, halfDir), 0.0f);
 
-    float  D = DistributionTrowbridgeReitzGGX(normal, halfDir, material.roughness);
+    float D = DistributionTrowbridgeReitzGGX(normal, halfDir, material.roughness);
     float3 F = FresnelSchlick(cosTheta, F0);
-    float  G = GeometrySmith(normal, viewDir, L, k);
+    float G = GeometrySmith(normal, viewDir, L, k);
     float divisor = 4.0f * NdotL * NdotV + 0.0001f;
 
     CookTorranceResult result;
@@ -151,7 +154,8 @@ float3 CalculateDirectionalLight(LightData lightData, float3 viewDir, float3 nor
     return (diffuse + specular) * NdotL * radiance * shadow;
 }
 
-float3 CalculatePointLight(LightData lightData, float3 lightDir, float distance, float3 viewDir, float3 normal, Material material) {
+float3 CalculatePointLight(LightData lightData, float3 lightDir, float distance, float3 viewDir, float3 normal,
+                           Material material) {
     float attenuation = CalculateAttentuation(distance);
     float NdotL = saturate(dot(normal, -lightDir));
     float3 radiance = lightData.color * lightData.intensity * attenuation;
@@ -163,7 +167,8 @@ float3 CalculatePointLight(LightData lightData, float3 lightDir, float distance,
     return (diffuse + specular) * NdotL * radiance;
 }
 
-float3 CalculateLight(LightData lightData, float3 worldPos, float3 viewDir, float3 normal, Material material, float shadow) {
+float3 CalculateLight(LightData lightData, float3 worldPos, float3 viewDir, float3 normal, Material material,
+                      float shadow) {
     if (lightData.type == Directional)
         return CalculateDirectionalLight(lightData, viewDir, normal, material, shadow);
 
@@ -192,3 +197,5 @@ float3 CalculateDirectLighting(uint32_t lightIndex, uint32_t lightCount, float3 
     }
     return result;
 }
+
+#endif // SHADER_LIGHT_H

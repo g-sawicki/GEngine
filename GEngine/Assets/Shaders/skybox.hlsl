@@ -1,4 +1,4 @@
-#include "common.hlsli"
+#include "Interop/Common.h"
 
 struct VSInput {
     float4 position : POSITION;

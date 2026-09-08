@@ -1,4 +1,5 @@
-#include "common.hlsli"
+#include "Interop/Common.h"
+#include "light.hlsli"
 
 struct VSInput {
     float4 position : POSITION;
@@ -24,21 +25,21 @@ struct RootConstants {
 
 ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
 ConstantBuffer<CascadedShadowMapsData> csmDataCB : register(b1);
-ConstantBuffer<ObjectConstants> objectConstantsCB : register(b2);
+ConstantBuffer<ObjectData> objectDataCB : register(b2);
 ConstantBuffer<RootConstants> constantsCB : register(b3);
 SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 
 [shader("vertex")]
 PSInput VSMain(VSInput input) {
-    float4 worldPos = mul(input.position, objectConstantsCB.world);
+    float4 worldPos = mul(input.position, objectDataCB.world);
 
     PSInput output;
     output.position = mul(worldPos, sceneInfoCB.viewProjection);
     output.uv = input.uv;
     output.worldPos = worldPos.xyz;
-    output.tangent = normalize(mul(float4(input.tangent, 0.0f), objectConstantsCB.world).xyz);
-    output.normal = normalize(mul(float4(input.normal, 0.0f), objectConstantsCB.world).xyz);
+    output.tangent = normalize(mul(float4(input.tangent, 0.0f), objectDataCB.world).xyz);
+    output.normal = normalize(mul(float4(input.normal, 0.0f), objectDataCB.world).xyz);
     return output;
 }
 
