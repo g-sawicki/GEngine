@@ -66,8 +66,7 @@ void SwapChain::RetrieveBackBuffers() {
         ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
         m_BackBuffers[i] = Texture(
             backBuffer.Get(),
-            {.Width = m_Width, .Height = m_Height, .Format = BackBufferFormat, .Usage = TextureUsage::RenderTarget},
-            D3D12_RESOURCE_STATE_PRESENT);
+            {.Width = m_Width, .Height = m_Height, .Format = BackBufferFormat, .Usage = TextureUsage::RenderTarget});
     }
 }
 

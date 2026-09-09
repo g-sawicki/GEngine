@@ -5,15 +5,14 @@
 #include "DescriptorHeap.hpp"
 #include "Device.hpp"
 
-#include <cstdint>
 #include <d3d12.h>
 #include <dxgiformat.h>
-#include <span>
 #include <wrl/client.h>
 
-namespace GEngine {
+#include <cstdint>
+#include <span>
 
-class CommandList;
+namespace GEngine {
 
 enum class TextureUsage : uint32_t {
     None = 0,
@@ -23,28 +22,30 @@ enum class TextureUsage : uint32_t {
     UnorderedAccess = 1 << 3,
 };
 
-inline TextureUsage operator|(TextureUsage a, TextureUsage b) {
+inline constexpr TextureUsage operator|(const TextureUsage a, const TextureUsage b) noexcept {
     return static_cast<TextureUsage>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
 }
 
-inline bool HasUsage(TextureUsage mask, TextureUsage flag) {
+inline constexpr bool HasUsage(const TextureUsage mask, const TextureUsage flag) noexcept {
     return (static_cast<uint32_t>(mask) & static_cast<uint32_t>(flag)) != 0;
 }
 
 struct TextureDesc {
     uint32_t Width{1};
     uint32_t Height{1};
-    uint16_t Depth{1};
+    uint16_t DepthOrArraySize{1};
     uint16_t MipCount{1};
     DXGI_FORMAT Format{DXGI_FORMAT_UNKNOWN};
     TextureUsage Usage{TextureUsage::None};
     bool IsCubeMap{false};
     D3D12_CLEAR_VALUE ClearValue{};
+    D3D12_RESOURCE_STATES InitialState{D3D12_RESOURCE_STATE_COMMON};
 };
 
 struct SubresourceData {
     const void* Data{};
     UINT64 RowPitch{};
+    UINT64 SlicePitch{};
 };
 
 struct TextureFormatInfo {
@@ -54,34 +55,15 @@ struct TextureFormatInfo {
     DXGI_FORMAT DepthStencil{DXGI_FORMAT_UNKNOWN};
 };
 
-[[nodiscard]] constexpr TextureFormatInfo GetTextureFormatInfo(DXGI_FORMAT format) noexcept {
-    switch (format) {
-    case DXGI_FORMAT_D16_UNORM:
-        return {DXGI_FORMAT_R16_TYPELESS, DXGI_FORMAT_R16_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_D16_UNORM};
-    case DXGI_FORMAT_D24_UNORM_S8_UINT:
-        return {DXGI_FORMAT_R24G8_TYPELESS, DXGI_FORMAT_R24_UNORM_X8_TYPELESS, DXGI_FORMAT_UNKNOWN,
-                DXGI_FORMAT_D24_UNORM_S8_UINT};
-    case DXGI_FORMAT_D32_FLOAT:
-        return {DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_D32_FLOAT};
-    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-        return {DXGI_FORMAT_R32G8X24_TYPELESS, DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS, DXGI_FORMAT_UNKNOWN,
-                DXGI_FORMAT_D32_FLOAT_S8X24_UINT};
-    default:
-        return {format, format, format, DXGI_FORMAT_UNKNOWN};
-    }
-}
-
 class Texture {
   public:
     Texture() = default;
-    Texture(ID3D12Resource* resource, const TextureDesc& desc, D3D12_RESOURCE_STATES initialState);
+    Texture(ID3D12Resource* resource, const TextureDesc& desc);
 
     GE_NO_COPY_DEFAULT_MOVE(Texture)
 
-    void Create(Device& device, const TextureDesc& desc, std::span<const SubresourceData> initialData = {},
-                CommandList* copyCommandList = nullptr, Microsoft::WRL::ComPtr<ID3D12Resource>* outStaging = nullptr);
+    void Create(Device& device, const TextureDesc& desc);
     void Reset() noexcept;
-    void Transition(CommandList& commandList, D3D12_RESOURCE_STATES state);
 
     [[nodiscard]] ID3D12Resource* GetResource() const noexcept { return m_Resource.Get(); }
     [[nodiscard]] const TextureDesc& GetDesc() const noexcept { return m_Desc; }
@@ -98,10 +80,9 @@ class Texture {
   private:
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
     TextureDesc m_Desc{};
-    D3D12_RESOURCE_STATES m_State{D3D12_RESOURCE_STATE_COMMON};
 
-    DescriptorRange m_RtvRange;
-    DescriptorRange m_DsvRange;
+    DescriptorRange m_RtvRange{};
+    DescriptorRange m_DsvRange{};
     uint32_t m_SrvIndex{INVALID_BINDLESS_INDEX};
     uint32_t m_UavIndex{INVALID_BINDLESS_INDEX};
 };

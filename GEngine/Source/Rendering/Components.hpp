@@ -42,6 +42,15 @@ struct RenderItem {
     bool ShadowCaster{true};
 };
 
+struct GpuMesh {
+    MeshGPU Geometry{};
+    MaterialGPU Material{};
+};
+
+struct GpuModel {
+    std::vector<GpuMesh> Meshes;
+};
+
 struct ModelHandle {
     uint32_t Id{};
 

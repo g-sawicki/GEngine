@@ -16,12 +16,13 @@
 #include "Graphics/D3D12/SwapChain.hpp"
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
-#include "Rendering/GPUResourceManager.hpp"
+#include "Rendering/GpuResourceCache.hpp"
 #include "Rendering/RenderPass/EquirectangularToCubeMapPass.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
 #include "Rendering/RenderPass/SkyboxPass.hpp"
 #include "Rendering/RenderPass/ToneMapPass.hpp"
+#include "Rendering/UploadEngine.hpp"
 
 #include <memory>
 #include <vector>
@@ -62,16 +63,16 @@ class Renderer {
 
     void CreateRenderTargets(uint32_t width, uint32_t height);
 
-    void FlushPendingUploads(const Scene& scene, const AssetManager& assetManager);
+    void UpdateGpuScene(const Scene& scene, const AssetManager& assetManager);
     void EnsureEquirectangularToCubeMapPass(const Texture& sourceTexture);
 
     std::unique_ptr<Device> m_Device;
     std::unique_ptr<CommandQueue> m_CommandQueue;
-    std::unique_ptr<CommandQueue> m_UploadQueue;
     std::unique_ptr<Fence> m_Fence;
     std::unique_ptr<SwapChain> m_SwapChain;
 
-    std::unique_ptr<GPUResourceManager> m_GPUResourceManager;
+    std::unique_ptr<UploadEngine> m_UploadEngine;
+    std::unique_ptr<GpuResourceCache> m_GpuResources;
 
     FrameResource m_FrameResources[SwapChain::NumFrames]{};
 
