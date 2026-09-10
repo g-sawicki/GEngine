@@ -66,6 +66,8 @@ class Renderer {
     void UpdateGpuScene(const Scene& scene, const AssetManager& assetManager);
     void EnsureEquirectangularToCubeMapPass(const Texture& sourceTexture);
 
+    void FrustumCulling(const Camera& camera, const CascadedShadowMapsData& cascadedShadowMapsData);
+
     std::unique_ptr<Device> m_Device;
     std::unique_ptr<CommandQueue> m_CommandQueue;
     std::unique_ptr<Fence> m_Fence;

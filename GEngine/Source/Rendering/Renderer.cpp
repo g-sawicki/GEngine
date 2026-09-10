@@ -53,6 +53,37 @@ void WriteDynamicBuffer(const Buffer& buffer, const void* data, const UINT64 siz
     buffer.Unmap();
 }
 
+struct FrustumPlanes {
+    DirectX::XMVECTOR Plane[6]{};
+};
+
+[[nodiscard]] FrustumPlanes ExtractFrustumPlanes(DirectX::FXMMATRIX viewProjection) noexcept {
+    const DirectX::XMMATRIX m = DirectX::XMMatrixTranspose(viewProjection);
+    FrustumPlanes planes;
+    planes.Plane[0] = DirectX::XMVectorAdd(m.r[3], m.r[0]);      // left
+    planes.Plane[1] = DirectX::XMVectorSubtract(m.r[3], m.r[0]); // right
+    planes.Plane[2] = DirectX::XMVectorAdd(m.r[3], m.r[1]);      // bottom
+    planes.Plane[3] = DirectX::XMVectorSubtract(m.r[3], m.r[1]); // top
+    planes.Plane[4] = m.r[2];                                    // near
+    planes.Plane[5] = DirectX::XMVectorSubtract(m.r[3], m.r[2]); // far
+    return planes;
+}
+
+[[nodiscard]] bool Intersects(const FrustumPlanes& frustum, const DirectX::BoundingBox& box) noexcept {
+    const DirectX::XMVECTOR center = DirectX::XMLoadFloat3(&box.Center);
+    const DirectX::XMVECTOR extents = DirectX::XMLoadFloat3(&box.Extents);
+
+    for (const DirectX::XMVECTOR plane : frustum.Plane) {
+        const DirectX::XMVECTOR absNormal = DirectX::XMVectorAbs(plane);
+        const float radius = DirectX::XMVectorGetX(DirectX::XMVector3Dot(absNormal, extents));
+        const float signedDistance =
+            DirectX::XMVectorGetX(DirectX::XMVector3Dot(plane, center)) + DirectX::XMVectorGetW(plane);
+        if (signedDistance + radius < 0.0f)
+            return false;
+    }
+    return true;
+}
+
 } // namespace
 
 void Renderer::Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize) {
@@ -290,6 +321,31 @@ void Renderer::EnsureEquirectangularToCubeMapPass(const Texture& sourceTexture) 
         std::make_unique<RenderPass::EquirectangularToCubeMapPass>(*m_Device, sourceTexture);
 }
 
+void Renderer::FrustumCulling(const Camera& camera, const CascadedShadowMapsData& cascadedShadowMapsData) {
+    const FrustumPlanes cameraFrustum = ExtractFrustumPlanes(camera.GetViewProjectionMatrix());
+
+    const bool shadowCulling = cascadedShadowMapsData.shadowEnabled != 0 && cascadedShadowMapsData.cascadeCount > 0;
+    const uint32_t cascadeCount = shadowCulling ? std::min(cascadedShadowMapsData.cascadeCount, kMaxCascades) : 0u;
+    std::array<FrustumPlanes, kMaxCascades> cascadeFrustums{};
+    for (uint32_t i{}; i < cascadeCount; ++i)
+        cascadeFrustums[i] =
+            ExtractFrustumPlanes(DirectX::XMLoadFloat4x4(&cascadedShadowMapsData.lightViewProjection[i]));
+
+    for (RenderItem& item : m_RenderItems) {
+        item.CameraVisible = Intersects(cameraFrustum, item.BoundingBox);
+
+        if (!item.ShadowCaster || cascadeCount == 0)
+            continue;
+
+        uint32_t cascadeMask{};
+        for (uint32_t i{}; i < cascadeCount; ++i) {
+            if (Intersects(cascadeFrustums[i], item.BoundingBox))
+                cascadeMask |= 1u << i;
+        }
+        item.ShadowCascadeMask = cascadeMask;
+    }
+}
+
 void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
     auto currentIdx{m_SwapChain->GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
@@ -321,14 +377,19 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
 
         ObjectData objectData{};
         const Transform* transform = scene.GetEntityRegistry().GetComponent<Transform>(entity);
-        DirectX::XMStoreFloat4x4(&objectData.world, transform ? transform->GetMatrix() : DirectX::XMMatrixIdentity());
+        const DirectX::XMMATRIX worldMatrix = transform ? transform->GetMatrix() : DirectX::XMMatrixIdentity();
+        DirectX::XMStoreFloat4x4(&objectData.world, worldMatrix);
         WriteDynamicBuffer(*objectConstantBuffers[objectIndex], &objectData, sizeof(ObjectData));
 
         for (const GpuMesh& mesh : gpuModel->Meshes) {
+            DirectX::BoundingBox worldBounds;
+            mesh.BoundingBox.Transform(worldBounds, worldMatrix);
+
             m_RenderItems.push_back({
                 .Mesh = &mesh.Geometry,
                 .TransformCB = objectConstantBuffers[objectIndex].get(),
                 .Material = mesh.Material,
+                .BoundingBox = worldBounds,
                 .ShadowCaster = modelComponent.CastsShadow,
             });
         }
@@ -402,6 +463,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         m_SkyboxNeedsUpdate = false;
     }
+
+    FrustumCulling(scene.GetActiveCamera(), cascadedShadowMapsData);
 
     // Cascaded shadow maps
     {

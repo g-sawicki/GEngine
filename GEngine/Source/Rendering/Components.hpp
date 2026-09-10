@@ -2,6 +2,7 @@
 
 #include "Graphics/D3D12/Buffer.hpp"
 
+#include <DirectXCollision.h>
 #include <DirectXMath.h>
 #include <d3d12.h>
 
@@ -39,12 +40,16 @@ struct RenderItem {
     const MeshGPU* Mesh{};
     const Buffer* TransformCB{};
     MaterialGPU Material{};
+    DirectX::BoundingBox BoundingBox{};
     bool ShadowCaster{true};
+    bool CameraVisible{true};
+    uint32_t ShadowCascadeMask{0xFFFFFFFFu};
 };
 
 struct GpuMesh {
     MeshGPU Geometry{};
     MaterialGPU Material{};
+    DirectX::BoundingBox BoundingBox{};
 };
 
 struct GpuModel {

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <array>
+#include <DirectXCollision.h>
+
 #include <cstdint>
 #include <filesystem>
 #include <variant>
@@ -10,10 +11,10 @@ namespace GEngine {
 
 // Vertex data
 struct Vertex {
-    std::array<float, 4> Position{};
-    std::array<float, 3> Normal{};
-    std::array<float, 3> Tangent{};
-    std::array<float, 2> UV{};
+    DirectX::XMFLOAT3 Position{};
+    DirectX::XMFLOAT3 Normal{};
+    DirectX::XMFLOAT3 Tangent{};
+    DirectX::XMFLOAT2 UV{};
 };
 
 // Texture
@@ -36,10 +37,18 @@ struct Material {
     int32_t RoughnessMetallic{-1};
 };
 
+[[nodiscard]] inline DirectX::BoundingBox ComputeMeshBounds(const std::vector<Vertex>& vertices) noexcept {
+    DirectX::BoundingBox bounds{};
+    if (!vertices.empty())
+        DirectX::BoundingBox::CreateFromPoints(bounds, vertices.size(), &vertices[0].Position, sizeof(Vertex));
+    return bounds;
+}
+
 // Mesh
 struct Mesh {
     std::vector<Vertex> Vertices;
     std::vector<uint32_t> Indices;
+    DirectX::BoundingBox BoundingBox{};
     uint32_t MaterialIndex{};
 };
 

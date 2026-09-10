@@ -24,13 +24,13 @@ void ComputeTangents(Mesh& mesh) {
         const auto& uv1 = mesh.Vertices[i1].UV;
         const auto& uv2 = mesh.Vertices[i2].UV;
 
-        const std::array<float, 3> edge1{p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]};
-        const std::array<float, 3> edge2{p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]};
+        const std::array<float, 3> edge1{p1.x - p0.x, p1.y - p0.y, p1.z - p0.z};
+        const std::array<float, 3> edge2{p2.x - p0.x, p2.y - p0.y, p2.z - p0.z};
 
-        const float duv1x = uv1[0] - uv0[0];
-        const float duv1y = uv1[1] - uv0[1];
-        const float duv2x = uv2[0] - uv0[0];
-        const float duv2y = uv2[1] - uv0[1];
+        const float duv1x = uv1.x - uv0.x;
+        const float duv1y = uv1.y - uv0.y;
+        const float duv2x = uv2.x - uv0.x;
+        const float duv2y = uv2.y - uv0.y;
 
         const float determinant = duv1x * duv2y - duv2x * duv1y;
         if (std::abs(determinant) < 1e-7f)
@@ -65,35 +65,35 @@ void ComputeTangents(Mesh& mesh) {
 const Mesh& Cube() {
     static constexpr Vertex vertices[] = {
         // Front face (z = +0.5)
-        {.Position = {-0.5f, -0.5f, 0.5f, 1.0f}, .Normal = {0.0f, 0.0f, 1.0f}, .UV = {0.0f, 1.0f}},
-        {.Position = {0.5f, -0.5f, 0.5f, 1.0f}, .Normal = {0.0f, 0.0f, 1.0f}, .UV = {1.0f, 1.0f}},
-        {.Position = {0.5f, 0.5f, 0.5f, 1.0f}, .Normal = {0.0f, 0.0f, 1.0f}, .UV = {1.0f, 0.0f}},
-        {.Position = {-0.5f, 0.5f, 0.5f, 1.0f}, .Normal = {0.0f, 0.0f, 1.0f}, .UV = {0.0f, 0.0f}},
+        {.Position = {-0.5f, -0.5f, 0.5f}, .Normal = {0.0f, 0.0f, 1.0f}, .UV = {0.0f, 1.0f}},
+        {.Position = {0.5f, -0.5f, 0.5f}, .Normal = {0.0f, 0.0f, 1.0f}, .UV = {1.0f, 1.0f}},
+        {.Position = {0.5f, 0.5f, 0.5f}, .Normal = {0.0f, 0.0f, 1.0f}, .UV = {1.0f, 0.0f}},
+        {.Position = {-0.5f, 0.5f, 0.5f}, .Normal = {0.0f, 0.0f, 1.0f}, .UV = {0.0f, 0.0f}},
         // Back face (z = -0.5)
-        {.Position = {0.5f, -0.5f, -0.5f, 1.0f}, .Normal = {0.0f, 0.0f, -1.0f}, .UV = {0.0f, 1.0f}},
-        {.Position = {-0.5f, -0.5f, -0.5f, 1.0f}, .Normal = {0.0f, 0.0f, -1.0f}, .UV = {1.0f, 1.0f}},
-        {.Position = {-0.5f, 0.5f, -0.5f, 1.0f}, .Normal = {0.0f, 0.0f, -1.0f}, .UV = {1.0f, 0.0f}},
-        {.Position = {0.5f, 0.5f, -0.5f, 1.0f}, .Normal = {0.0f, 0.0f, -1.0f}, .UV = {0.0f, 0.0f}},
+        {.Position = {0.5f, -0.5f, -0.5f}, .Normal = {0.0f, 0.0f, -1.0f}, .UV = {0.0f, 1.0f}},
+        {.Position = {-0.5f, -0.5f, -0.5f}, .Normal = {0.0f, 0.0f, -1.0f}, .UV = {1.0f, 1.0f}},
+        {.Position = {-0.5f, 0.5f, -0.5f}, .Normal = {0.0f, 0.0f, -1.0f}, .UV = {1.0f, 0.0f}},
+        {.Position = {0.5f, 0.5f, -0.5f}, .Normal = {0.0f, 0.0f, -1.0f}, .UV = {0.0f, 0.0f}},
         // Left face (x = -0.5)
-        {.Position = {-0.5f, -0.5f, -0.5f, 1.0f}, .Normal = {-1.0f, 0.0f, 0.0f}, .UV = {0.0f, 1.0f}},
-        {.Position = {-0.5f, -0.5f, 0.5f, 1.0f}, .Normal = {-1.0f, 0.0f, 0.0f}, .UV = {1.0f, 1.0f}},
-        {.Position = {-0.5f, 0.5f, 0.5f, 1.0f}, .Normal = {-1.0f, 0.0f, 0.0f}, .UV = {1.0f, 0.0f}},
-        {.Position = {-0.5f, 0.5f, -0.5f, 1.0f}, .Normal = {-1.0f, 0.0f, 0.0f}, .UV = {0.0f, 0.0f}},
+        {.Position = {-0.5f, -0.5f, -0.5f}, .Normal = {-1.0f, 0.0f, 0.0f}, .UV = {0.0f, 1.0f}},
+        {.Position = {-0.5f, -0.5f, 0.5f}, .Normal = {-1.0f, 0.0f, 0.0f}, .UV = {1.0f, 1.0f}},
+        {.Position = {-0.5f, 0.5f, 0.5f}, .Normal = {-1.0f, 0.0f, 0.0f}, .UV = {1.0f, 0.0f}},
+        {.Position = {-0.5f, 0.5f, -0.5f}, .Normal = {-1.0f, 0.0f, 0.0f}, .UV = {0.0f, 0.0f}},
         // Right face (x = +0.5)
-        {.Position = {0.5f, -0.5f, 0.5f, 1.0f}, .Normal = {1.0f, 0.0f, 0.0f}, .UV = {0.0f, 1.0f}},
-        {.Position = {0.5f, -0.5f, -0.5f, 1.0f}, .Normal = {1.0f, 0.0f, 0.0f}, .UV = {1.0f, 1.0f}},
-        {.Position = {0.5f, 0.5f, -0.5f, 1.0f}, .Normal = {1.0f, 0.0f, 0.0f}, .UV = {1.0f, 0.0f}},
-        {.Position = {0.5f, 0.5f, 0.5f, 1.0f}, .Normal = {1.0f, 0.0f, 0.0f}, .UV = {0.0f, 0.0f}},
+        {.Position = {0.5f, -0.5f, 0.5f}, .Normal = {1.0f, 0.0f, 0.0f}, .UV = {0.0f, 1.0f}},
+        {.Position = {0.5f, -0.5f, -0.5f}, .Normal = {1.0f, 0.0f, 0.0f}, .UV = {1.0f, 1.0f}},
+        {.Position = {0.5f, 0.5f, -0.5f}, .Normal = {1.0f, 0.0f, 0.0f}, .UV = {1.0f, 0.0f}},
+        {.Position = {0.5f, 0.5f, 0.5f}, .Normal = {1.0f, 0.0f, 0.0f}, .UV = {0.0f, 0.0f}},
         // Top face (y = +0.5)
-        {.Position = {-0.5f, 0.5f, 0.5f, 1.0f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {0.0f, 1.0f}},
-        {.Position = {0.5f, 0.5f, 0.5f, 1.0f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {1.0f, 1.0f}},
-        {.Position = {0.5f, 0.5f, -0.5f, 1.0f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {1.0f, 0.0f}},
-        {.Position = {-0.5f, 0.5f, -0.5f, 1.0f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {0.0f, 0.0f}},
+        {.Position = {-0.5f, 0.5f, 0.5f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {0.0f, 1.0f}},
+        {.Position = {0.5f, 0.5f, 0.5f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {1.0f, 1.0f}},
+        {.Position = {0.5f, 0.5f, -0.5f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {1.0f, 0.0f}},
+        {.Position = {-0.5f, 0.5f, -0.5f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {0.0f, 0.0f}},
         // Bottom face (y = -0.5)
-        {.Position = {-0.5f, -0.5f, -0.5f, 1.0f}, .Normal = {0.0f, -1.0f, 0.0f}, .UV = {0.0f, 1.0f}},
-        {.Position = {0.5f, -0.5f, -0.5f, 1.0f}, .Normal = {0.0f, -1.0f, 0.0f}, .UV = {1.0f, 1.0f}},
-        {.Position = {0.5f, -0.5f, 0.5f, 1.0f}, .Normal = {0.0f, -1.0f, 0.0f}, .UV = {1.0f, 0.0f}},
-        {.Position = {-0.5f, -0.5f, 0.5f, 1.0f}, .Normal = {0.0f, -1.0f, 0.0f}, .UV = {0.0f, 0.0f}},
+        {.Position = {-0.5f, -0.5f, -0.5f}, .Normal = {0.0f, -1.0f, 0.0f}, .UV = {0.0f, 1.0f}},
+        {.Position = {0.5f, -0.5f, -0.5f}, .Normal = {0.0f, -1.0f, 0.0f}, .UV = {1.0f, 1.0f}},
+        {.Position = {0.5f, -0.5f, 0.5f}, .Normal = {0.0f, -1.0f, 0.0f}, .UV = {1.0f, 0.0f}},
+        {.Position = {-0.5f, -0.5f, 0.5f}, .Normal = {0.0f, -1.0f, 0.0f}, .UV = {0.0f, 0.0f}},
     };
 
     static constexpr uint16_t indices[] = {
@@ -109,6 +109,7 @@ const Mesh& Cube() {
         Mesh m{.Vertices = std::vector<Vertex>(std::begin(vertices), std::end(vertices)),
                .Indices = std::vector<uint32_t>(std::begin(indices), std::end(indices))};
         ComputeTangents(m);
+        m.BoundingBox = ComputeMeshBounds(m.Vertices);
         return m;
     }();
     return cube;
@@ -116,10 +117,10 @@ const Mesh& Cube() {
 
 const Mesh& Plane() {
     static constexpr Vertex vertices[] = {
-        {.Position = {-0.5f, 0.0f, -0.5f, 1.0f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {0.0f, 1.0f}},
-        {.Position = {0.5f, 0.0f, -0.5f, 1.0f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {1.0f, 1.0f}},
-        {.Position = {0.5f, 0.0f, 0.5f, 1.0f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {1.0f, 0.0f}},
-        {.Position = {-0.5f, 0.0f, 0.5f, 1.0f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {0.0f, 0.0f}},
+        {.Position = {-0.5f, 0.0f, -0.5f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {0.0f, 1.0f}},
+        {.Position = {0.5f, 0.0f, -0.5f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {1.0f, 1.0f}},
+        {.Position = {0.5f, 0.0f, 0.5f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {1.0f, 0.0f}},
+        {.Position = {-0.5f, 0.0f, 0.5f}, .Normal = {0.0f, 1.0f, 0.0f}, .UV = {0.0f, 0.0f}},
     };
 
     static constexpr uint16_t indices[]{0, 2, 1, 2, 0, 3};
@@ -128,6 +129,7 @@ const Mesh& Plane() {
         Mesh m{.Vertices = std::vector<Vertex>(std::begin(vertices), std::end(vertices)),
                .Indices = std::vector<uint32_t>(std::begin(indices), std::end(indices))};
         ComputeTangents(m);
+        m.BoundingBox = ComputeMeshBounds(m.Vertices);
         return m;
     }();
     return plane;

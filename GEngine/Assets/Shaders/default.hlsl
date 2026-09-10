@@ -2,7 +2,7 @@
 #include "light.hlsli"
 
 struct VSInput {
-    float4 position : POSITION;
+    float3 position : POSITION;
     float3 normal : NORMAL;
     float3 tangent : TANGENT;
     float2 uv : TEXCOORD;
@@ -32,7 +32,7 @@ SamplerComparisonState shadowSampler : register(s1);
 
 [shader("vertex")]
 PSInput VSMain(VSInput input) {
-    float4 worldPos = mul(input.position, objectDataCB.world);
+    float4 worldPos = mul(float4(input.position, 1.0f), objectDataCB.world);
 
     PSInput output;
     output.position = mul(worldPos, sceneInfoCB.viewProjection);

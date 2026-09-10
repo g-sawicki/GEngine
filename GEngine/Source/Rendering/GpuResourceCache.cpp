@@ -134,6 +134,7 @@ void GpuResourceCache::StageModel(const Model& model, const uint32_t cpuModelId)
     for (const Mesh& mesh : model.Meshes) {
         GpuMesh gpuMesh;
         StageMeshGeometry(gpuMesh.Geometry, mesh);
+        gpuMesh.BoundingBox = mesh.BoundingBox;
 
         gpuMesh.Material.AlbedoIndex = m_DefaultAlbedo->GetSrvIndex();
         gpuMesh.Material.NormalIndex = m_DefaultNormal->GetSrvIndex();

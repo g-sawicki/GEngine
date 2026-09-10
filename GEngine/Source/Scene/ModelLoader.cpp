@@ -54,7 +54,7 @@ void ModelLoader::ProcessMesh(aiMesh* mesh, const aiMatrix4x4& transform) {
 
         aiVector3D position = mesh->mVertices[i];
         position *= transform;
-        vertex.Position = {position.x, position.y, position.z, 1.0f};
+        vertex.Position = {position.x, position.y, position.z};
 
         if (mesh->mNormals) {
             aiVector3D normal = mesh->mNormals[i];
@@ -82,6 +82,9 @@ void ModelLoader::ProcessMesh(aiMesh* mesh, const aiMatrix4x4& transform) {
         for (uint32_t j{}; j < face.mNumIndices; ++j)
             modelMesh.Indices.push_back(static_cast<uint32_t>(face.mIndices[j]));
     }
+
+    // Bounding box
+    modelMesh.BoundingBox = ComputeMeshBounds(modelMesh.Vertices);
 }
 
 int32_t ModelLoader::ProcessMaterial(const aiMaterial* material) {

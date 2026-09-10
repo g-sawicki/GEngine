@@ -2,7 +2,7 @@
 #include "Interop/Light.h"
 
 struct VSInput {
-    float4 position : POSITION;
+    float3 position : POSITION;
 };
 
 struct PSInput {
@@ -20,7 +20,7 @@ ConstantBuffer<RootConstants> constantsCB : register(b2);
 [shader("vertex")]
 PSInput VSMain(VSInput input) {
     PSInput output;
-    float4 worldPos = mul(input.position, objectDataCB.world);
+    float4 worldPos = mul(float4(input.position, 1.0f), objectDataCB.world);
     output.position = mul(worldPos, cascadedShadowMapsDataCB.lightViewProjection[constantsCB.cascadeIndex]);
     return output;
 }

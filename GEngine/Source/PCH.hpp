@@ -9,6 +9,7 @@
 #include <wrl.h>
 
 // DirectX
+#include <DirectXCollision.h>
 #include <DirectXMath.h>
 #include <d3d12.h>
 #include <directx/d3dx12.h>

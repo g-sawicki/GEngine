@@ -20,7 +20,7 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_Depth
     m_RootSignature = std::make_unique<RootSignature>(device, rootSigDesc);
 
     D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
@@ -69,7 +69,7 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
                                        clearValue.DepthStencil.Stencil, 0, nullptr);
         cmdList->SetGraphicsRoot32BitConstant(2, cascadeIndex, 0);
         for (const auto& item : renderItems) {
-            if (!item.ShadowCaster)
+            if (!item.ShadowCaster || !(item.ShadowCascadeMask & (1u << cascadeIndex)))
                 continue;
             cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
 

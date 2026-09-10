@@ -1,7 +1,7 @@
 #include "Interop/Common.h"
 
 struct VSInput {
-    float4 position : POSITION;
+    float3 position : POSITION;
 };
 
 struct PSInput {
@@ -19,7 +19,7 @@ SamplerState texSampler : register(s0);
 
 [shader("vertex")]
 PSInput VSMain(VSInput input) {
-    float3 worldDir = input.position.xyz;
+    float3 worldDir = input.position;
 
     PSInput output;
     output.worldDir = worldDir;
