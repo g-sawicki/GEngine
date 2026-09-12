@@ -31,6 +31,10 @@ namespace {
 
 Texture::Texture(ID3D12Resource* resource, const TextureDesc& desc) : m_Resource(resource), m_Desc(desc) {}
 
+Texture::Texture(Device& device, const TextureDesc& desc) {
+    Create(device, desc);
+}
+
 void Texture::Create(Device& device, const TextureDesc& desc) {
     assert(!desc.IsCubeMap || desc.DepthOrArraySize == 6);
     m_Desc = desc;
@@ -51,14 +55,12 @@ void Texture::Create(Device& device, const TextureDesc& desc) {
     D3D12_CLEAR_VALUE clearValue = desc.ClearValue;
     const D3D12_CLEAR_VALUE* pClearValue{};
     if (HasUsage(desc.Usage, TextureUsage::RenderTarget) || HasUsage(desc.Usage, TextureUsage::DepthStencil)) {
+        DXGI_FORMAT format =
+            HasUsage(desc.Usage, TextureUsage::DepthStencil) ? formatInfo.DepthStencil : formatInfo.RenderTarget;
         if (clearValue.Format == DXGI_FORMAT_UNKNOWN) {
-            clearValue.Format =
-                HasUsage(desc.Usage, TextureUsage::DepthStencil) ? formatInfo.DepthStencil : formatInfo.RenderTarget;
+            clearValue.Format = format;
         } else {
-            if (HasUsage(desc.Usage, TextureUsage::DepthStencil))
-                assert(clearValue.Format == formatInfo.DepthStencil);
-            else
-                assert(clearValue.Format == formatInfo.RenderTarget);
+            assert(clearValue.Format == format);
         }
         pClearValue = &clearValue;
     }

@@ -45,10 +45,10 @@ class UploadEngine {
     };
 
     Device& m_Device;
-    std::unique_ptr<CommandQueue> m_Queue;
+    CommandQueue m_Queue;
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_Allocator;
     std::unique_ptr<CommandList> m_CommandList;
-    std::unique_ptr<Fence> m_Fence;
+    Fence m_Fence;
     bool m_BatchActive{};
 
     std::vector<StagingChunk> m_StagingChunks;

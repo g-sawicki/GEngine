@@ -34,7 +34,7 @@ class Application {
 
   protected:
     AssetManager m_AssetManager{};
-    Renderer m_Renderer{};
+    std::unique_ptr<Renderer> m_Renderer{};
     Scene m_Scene{};
 
   private:

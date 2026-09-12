@@ -7,8 +7,7 @@
 
 namespace GEngine::RenderPass {
 
-EquirectangularToCubeMapPass::EquirectangularToCubeMapPass(Device& device, const Texture& outputTexture)
-    : m_OutputFormat(outputTexture.GetDesc().Format) {
+EquirectangularToCubeMapPass::EquirectangularToCubeMapPass(Device& device, DXGI_FORMAT outputFormat) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
     rootParams[0].InitAsConstantBufferView(0);
     rootParams[1].InitAsConstants(2, 1);
@@ -62,7 +61,7 @@ EquirectangularToCubeMapPass::EquirectangularToCubeMapPass(Device& device, const
         .InputLayout = {inputLayout, static_cast<UINT>(std::size(inputLayout))},
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
-        .RTVFormats = {outputTexture.GetDesc().Format},
+        .RTVFormats = {outputFormat},
         .DSVFormat = DXGI_FORMAT_UNKNOWN,
         .SampleDesc = {.Count = 1, .Quality = 0},
     };

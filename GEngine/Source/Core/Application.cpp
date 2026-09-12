@@ -26,8 +26,8 @@ int Application::Run() {
         [this](HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) { return HandleMessage(hwnd, msg, wp, lp); });
     m_Window->SetResizeCallback([this](uint32_t width, uint32_t height) { HandleResize(width, height); });
 
-    m_Renderer.Init(m_Window->GetHandle(), m_Window->GetClientWidth(), m_Window->GetClientHeight(), m_UseWarp,
-                    m_Scene.GetShadowConfig().MapSize);
+    m_Renderer = std::make_unique<Renderer>(m_Window->GetHandle(), m_Window->GetClientWidth(),
+                                            m_Window->GetClientHeight(), m_UseWarp, m_Scene.GetShadowConfig().MapSize);
 
     OnInit();
 
@@ -53,30 +53,35 @@ int Application::Run() {
         Render();
 
         // Check for device removal after present
-        if (m_Renderer.IsDeviceRemoved()) {
+        if (m_Renderer->IsDeviceRemoved()) {
             m_Window->Quit();
         }
     })};
 
     OnDestroy();
+
+    m_Renderer.reset();
+    Renderer::ReportLiveObjects();
+
     return result;
 }
 
 void Application::OnInit() {}
 
 void Application::OnDestroy() {
-    m_Renderer.Destroy();
+    if (m_Renderer)
+        m_Renderer->Destroy();
 }
 
 void Application::HandleResize(uint32_t width, uint32_t height) {
-    m_Renderer.OnResize(width, height);
+    m_Renderer->OnResize(width, height);
 
     const float aspectRatio = static_cast<float>(std::max(1u, width)) / static_cast<float>(std::max(1u, height));
     m_Scene.GetActiveCamera().SetAspectRatio(aspectRatio);
 }
 
 void Application::Render() {
-    m_Renderer.Render(m_Scene, m_AssetManager);
+    m_Renderer->Render(m_Scene, m_AssetManager);
 }
 
 LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPARAM wParam,
@@ -88,7 +93,7 @@ LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPA
 
         switch (wParam) {
         case 'V':
-            m_Renderer.SetVSync(!m_Renderer.IsVSyncEnabled());
+            m_Renderer->SetVSync(!m_Renderer->IsVSyncEnabled());
             return 0;
         case VK_ESCAPE:
             m_Window->Quit();

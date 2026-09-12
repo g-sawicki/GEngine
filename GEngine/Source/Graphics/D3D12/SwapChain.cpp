@@ -15,9 +15,11 @@ bool SwapChain::CheckTearingSupport(IDXGIFactory5* factory) {
     return allowTearing == TRUE;
 }
 
-SwapChain::SwapChain(IDXGIFactory5* factory, HWND hWnd, CommandQueue& commandQueue, uint32_t width, uint32_t height,
+SwapChain::SwapChain(Device& device, HWND hWnd, CommandQueue& commandQueue, uint32_t width, uint32_t height,
                      uint32_t bufferCount)
-    : m_Width(width), m_Height(height) {
+    : m_Width(width), m_Height(height), m_TearingSupported(CheckTearingSupport(device.GetFactory())) {
+    IDXGIFactory6* const factory{device.GetFactory()};
+
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc{
         .Width = width,
         .Height = height,
@@ -29,7 +31,7 @@ SwapChain::SwapChain(IDXGIFactory5* factory, HWND hWnd, CommandQueue& commandQue
         .Scaling = DXGI_SCALING_NONE,
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
         .AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
-        .Flags = CheckTearingSupport(factory) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u,
+        .Flags = m_TearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u,
     };
 
     ComPtr<IDXGISwapChain1> swapChain1;
@@ -70,8 +72,11 @@ void SwapChain::RetrieveBackBuffers() {
     }
 }
 
-HRESULT SwapChain::Present(UINT syncInterval, UINT flags) noexcept {
-    return m_SwapChain->Present(syncInterval, flags);
+HRESULT SwapChain::Present() noexcept {
+    // DXGI requires syncInterval == 0 for DXGI_PRESENT_ALLOW_TEARING, so tearing only applies without vsync.
+    const UINT syncInterval{m_VSync || !m_TearingSupported ? 1u : 0u};
+    const UINT presentFlags{!m_VSync && m_TearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0u};
+    return m_SwapChain->Present(syncInterval, presentFlags);
 }
 
 } // namespace GEngine

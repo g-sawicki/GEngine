@@ -24,6 +24,7 @@
 #include "Rendering/RenderPass/ToneMapPass.hpp"
 #include "Rendering/UploadEngine.hpp"
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -31,6 +32,24 @@ namespace GEngine {
 
 class Renderer {
   public:
+    Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize);
+
+    GE_NO_COPY_NO_MOVE(Renderer)
+
+    void Destroy();
+
+    /// Reports live DXGI objects. Debug builds only; call after the Renderer has been destroyed.
+    static void ReportLiveObjects();
+
+    void Render(const Scene& scene, const AssetManager& assetManager);
+    void OnResize(uint32_t width, uint32_t height);
+
+    [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device.IsDeviceRemoved(); }
+
+    void SetVSync(bool enabled) noexcept { m_SwapChain.SetVSync(enabled); }
+    [[nodiscard]] bool IsVSyncEnabled() const noexcept { return m_SwapChain.IsVSyncEnabled(); }
+
+  private:
     struct FrameResource {
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CommandAllocator;
         std::unique_ptr<CommandList> CommandList;
@@ -41,42 +60,25 @@ class Renderer {
         std::vector<std::unique_ptr<Buffer>> ObjectConstantBuffers;
         uint64_t FenceValue{};
     };
+    using FrameResources = std::array<FrameResource, SwapChain::NumFrames>;
 
-    Renderer() = default;
-
-    GE_NO_COPY_NO_MOVE(Renderer)
-
-    void Init(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize);
-    void Destroy();
-
-    void Render(const Scene& scene, const AssetManager& assetManager);
-    void OnResize(uint32_t width, uint32_t height);
-
-    [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device && m_Device->IsDeviceRemoved(); }
-
-    void SetVSync(bool enabled) noexcept { m_VSync = enabled; }
-    [[nodiscard]] bool IsVSyncEnabled() const noexcept { return m_VSync; }
-    [[nodiscard]] bool IsTearingSupported() const noexcept { return m_TearingSupported; }
-
-  private:
     std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
 
+    FrameResources CreateFrameResources();
     void CreateRenderTargets(uint32_t width, uint32_t height);
 
     void UpdateGpuScene(const Scene& scene, const AssetManager& assetManager);
-    void EnsureEquirectangularToCubeMapPass(const Texture& sourceTexture);
 
     void FrustumCulling(const Camera& camera, const CascadedShadowMapsData& cascadedShadowMapsData);
 
-    std::unique_ptr<Device> m_Device;
-    std::unique_ptr<CommandQueue> m_CommandQueue;
-    std::unique_ptr<Fence> m_Fence;
-    std::unique_ptr<SwapChain> m_SwapChain;
+    Device m_Device;
+    CommandQueue m_CommandQueue;
+    Fence m_Fence;
+    SwapChain m_SwapChain;
+    UploadEngine m_UploadEngine;
+    GpuResourceCache m_GpuResources;
 
-    std::unique_ptr<UploadEngine> m_UploadEngine;
-    std::unique_ptr<GpuResourceCache> m_GpuResources;
-
-    FrameResource m_FrameResources[SwapChain::NumFrames]{};
+    FrameResources m_FrameResources{};
 
     // Render pass resources
     Texture m_HdrTexture{};
@@ -85,13 +87,11 @@ class Renderer {
     Texture m_ShadowMapTexture{};
 
     // Render passes
-    std::unique_ptr<RenderPass::ShadowPass> m_ShadowPass;
-    std::unique_ptr<RenderPass::ForwardLightingPass> m_ForwardLightingPass;
-    std::unique_ptr<RenderPass::SkyboxPass> m_SkyboxPass;
-    std::unique_ptr<RenderPass::ToneMapPass> m_ToneMapPass;
-
-    // Utility render passes
-    std::unique_ptr<RenderPass::EquirectangularToCubeMapPass> m_EquirectangularToCubeMapPass;
+    RenderPass::ShadowPass m_ShadowPass;
+    RenderPass::ForwardLightingPass m_ForwardLightingPass;
+    RenderPass::SkyboxPass m_SkyboxPass;
+    RenderPass::ToneMapPass m_ToneMapPass;
+    RenderPass::EquirectangularToCubeMapPass m_EquirectangularToCubeMapPass;
 
     MeshGPU m_SkyboxMeshGPU;
     std::unique_ptr<Texture> m_SkyboxTexture;
@@ -100,9 +100,6 @@ class Renderer {
     bool m_SkyboxNeedsUpdate{false};
 
     std::vector<RenderItem> m_RenderItems;
-
-    bool m_VSync{false};
-    bool m_TearingSupported{};
 };
 
 } // namespace GEngine

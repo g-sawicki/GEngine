@@ -28,11 +28,10 @@ constexpr UINT64 kStagingChunkSize = 1u << 20;
 
 } // namespace
 
-UploadEngine::UploadEngine(Device& device) : m_Device(device) {
-    m_Queue = std::make_unique<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+UploadEngine::UploadEngine(Device& device)
+    : m_Device(device), m_Queue(CommandQueue(device, D3D12_COMMAND_LIST_TYPE_DIRECT)), m_Fence(Fence(device)) {
     ThrowIfFailed(device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_Allocator)));
     m_CommandList = std::make_unique<CommandList>(device, m_Allocator.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
-    m_Fence = std::make_unique<Fence>(device);
 }
 
 UploadEngine::~UploadEngine() = default;
@@ -51,11 +50,11 @@ void UploadEngine::Submit(const bool wait) {
 
     ThrowIfFailed(m_CommandList->GetHandle()->Close());
     ID3D12CommandList* const commandLists[]{m_CommandList->GetHandle()};
-    m_Queue->ExecuteCommandLists(commandLists);
+    m_Queue.ExecuteCommandLists(commandLists);
 
-    const uint64_t fenceValue = m_Fence->Signal(m_Queue->GetHandle());
+    const uint64_t fenceValue = m_Fence.Signal(m_Queue.GetHandle());
     if (wait)
-        m_Fence->WaitForValue(fenceValue);
+        m_Fence.WaitForValue(fenceValue);
 
     m_StagingChunks.clear();
 }

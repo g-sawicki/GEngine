@@ -78,8 +78,11 @@ ComPtr<IDXGIAdapter4> Device::GetAdapter(IDXGIFactory6* dxgiFactory, bool useWar
     return selectedAdapter;
 }
 
-Device::Device(IDXGIAdapter4* adapter) {
-    ThrowIfFailed(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
+Device::Device(bool useWarp) : m_DxgiFactory(CreateDXGIFactory()) {
+    EnableDebugLayer();
+
+    ComPtr<IDXGIAdapter4> adapter = GetAdapter(m_DxgiFactory.Get(), useWarp);
+    ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
 
     m_RtvDescriptorHeap = DescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128);
     m_DsvDescriptorHeap = DescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32);

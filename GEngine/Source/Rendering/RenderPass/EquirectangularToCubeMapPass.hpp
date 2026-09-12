@@ -19,20 +19,16 @@ struct EquirectangularToCubeMapCameraData {
 
 class EquirectangularToCubeMapPass {
   public:
-    explicit EquirectangularToCubeMapPass(Device& device, const Texture& outputTexture);
+    explicit EquirectangularToCubeMapPass(Device& device, DXGI_FORMAT outputFormat);
 
     GE_NO_COPY_NO_MOVE(EquirectangularToCubeMapPass)
 
     void OnRender(CommandList& commandList, const Texture& outputTexture, uint32_t inputSrvIndex,
                   Buffer& cameraDataBuffer, const RenderItem& renderItem);
 
-    [[nodiscard]] DXGI_FORMAT GetOutputFormat() const noexcept { return m_OutputFormat; }
-
   private:
     std::unique_ptr<RootSignature> m_RootSignature;
     std::unique_ptr<PipelineState> m_PipelineState;
-
-    DXGI_FORMAT m_OutputFormat{};
 };
 
 } // namespace GEngine::RenderPass

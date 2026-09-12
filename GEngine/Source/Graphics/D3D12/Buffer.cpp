@@ -76,7 +76,7 @@ void Buffer::CreateStructuredBufferSRV(Device& device, const UINT numElements, c
 
 void Buffer::CreateStructuredBufferUAV(Device& device, const UINT numElements, const UINT strideInBytes) {
     assert(m_UavIndex == INVALID_BINDLESS_INDEX);
-    assert(HasFlag(m_BufferDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS));
+    assert((m_BufferDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0);
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{
         .Format = DXGI_FORMAT_UNKNOWN,
