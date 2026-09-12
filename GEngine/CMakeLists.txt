@@ -97,6 +97,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/MeshFactory.hpp"
     "Source/Rendering/Renderer.cpp"
     "Source/Rendering/Renderer.hpp"
+    "Source/Rendering/SkyboxRenderer.cpp"
+    "Source/Rendering/SkyboxRenderer.hpp"
     "Source/Rendering/UploadEngine.cpp"
     "Source/Rendering/UploadEngine.hpp"
 

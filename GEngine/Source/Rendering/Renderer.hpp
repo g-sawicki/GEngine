@@ -17,11 +17,10 @@
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
 #include "Rendering/GpuResourceCache.hpp"
-#include "Rendering/RenderPass/EquirectangularToCubeMapPass.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
-#include "Rendering/RenderPass/SkyboxPass.hpp"
 #include "Rendering/RenderPass/ToneMapPass.hpp"
+#include "Rendering/SkyboxRenderer.hpp"
 #include "Rendering/UploadEngine.hpp"
 
 #include <array>
@@ -56,7 +55,6 @@ class Renderer {
         std::unique_ptr<Buffer> SceneInfoConstantBuffer;
         std::unique_ptr<Buffer> CascadedShadowMapsDataConstantBuffer;
         std::unique_ptr<Buffer> LightDataStructuredBuffer;
-        std::unique_ptr<Buffer> EquirectangularToCubeMapCameraConstantBuffer;
         std::vector<std::unique_ptr<Buffer>> ObjectConstantBuffers;
         uint64_t FenceValue{};
     };
@@ -89,15 +87,9 @@ class Renderer {
     // Render passes
     RenderPass::ShadowPass m_ShadowPass;
     RenderPass::ForwardLightingPass m_ForwardLightingPass;
-    RenderPass::SkyboxPass m_SkyboxPass;
     RenderPass::ToneMapPass m_ToneMapPass;
-    RenderPass::EquirectangularToCubeMapPass m_EquirectangularToCubeMapPass;
 
-    MeshGPU m_SkyboxMeshGPU;
-    std::unique_ptr<Texture> m_SkyboxTexture;
-    std::unique_ptr<Texture> m_SkyboxCubeMapTexture;
-    std::filesystem::path m_SkyboxPath{};
-    bool m_SkyboxNeedsUpdate{false};
+    SkyboxRenderer m_SkyboxRenderer;
 
     std::vector<RenderItem> m_RenderItems;
 };
