@@ -13,7 +13,7 @@ namespace GEngine::RenderPass {
 
 class ShadowPass {
   public:
-    ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat);
+    ShadowPass(Device& device, DXGI_FORMAT depthFormat);
 
     GE_NO_COPY_NO_MOVE(ShadowPass)
 
@@ -21,10 +21,12 @@ class ShadowPass {
                   uint32_t cascadeCount, std::span<const RenderItem> renderItems);
 
   private:
-    std::unique_ptr<RootSignature> m_RootSignature;
-    std::unique_ptr<PipelineState> m_PipelineState;
+    static RootSignature CreateRootSignature(Device& device);
+    static PipelineState CreatePipelineState(Device& device, const RootSignature& rootSignature,
+                                             DXGI_FORMAT depthFormat);
 
-    DXGI_FORMAT m_DepthStencilFormat{DXGI_FORMAT_UNKNOWN};
+    RootSignature m_RootSignature;
+    PipelineState m_PipelineState;
 };
 
 } // namespace GEngine::RenderPass

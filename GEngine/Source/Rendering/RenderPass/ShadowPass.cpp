@@ -6,7 +6,11 @@
 
 namespace GEngine::RenderPass {
 
-ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_DepthStencilFormat(depthStencilFormat) {
+ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthFormat)
+    : m_RootSignature(CreateRootSignature(device)),
+      m_PipelineState(CreatePipelineState(device, m_RootSignature, depthFormat)) {}
+
+RootSignature ShadowPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
     rootParams[0].InitAsConstantBufferView(0);
     rootParams[1].InitAsConstantBufferView(1);
@@ -17,8 +21,11 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_Depth
     rootSigDesc.pParameters = rootParams;
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-    m_RootSignature = std::make_unique<RootSignature>(device, rootSigDesc);
+    return RootSignature(device, rootSigDesc);
+}
 
+PipelineState ShadowPass::CreatePipelineState(Device& device, const RootSignature& rootSignature,
+                                              DXGI_FORMAT depthFormat) {
     D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -28,7 +35,7 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_Depth
     const Shader pixelShader{"Assets/Shaders/shadow_pass_ps.cso"};
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{
-        .pRootSignature = m_RootSignature->Get(),
+        .pRootSignature = rootSignature.Get(),
         .VS = vertexShader.GetBytecode(),
         .PS = pixelShader.GetBytecode(),
         .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
@@ -39,11 +46,11 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthStencilFormat) : m_Depth
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 0,
         .RTVFormats = {},
-        .DSVFormat = m_DepthStencilFormat,
+        .DSVFormat = depthFormat,
         .SampleDesc = {.Count = 1, .Quality = 0},
     };
 
-    m_PipelineState = std::make_unique<PipelineState>(device, psoDesc);
+    return PipelineState(device, psoDesc);
 }
 
 void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, Buffer& lightDataConstantBuffer,
@@ -57,8 +64,8 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
     cmdList->RSSetViewports(1, &viewport);
     cmdList->RSSetScissorRects(1, &scissorRect);
 
-    cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
-    cmdList->SetPipelineState(m_PipelineState->Get());
+    cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
+    cmdList->SetPipelineState(m_PipelineState.Get());
     cmdList->SetGraphicsRootConstantBufferView(0, lightDataConstantBuffer.GetGPUVirtualAddress());
 
     for (uint8_t cascadeIndex{}; cascadeIndex < cascadeCount; ++cascadeIndex) {
