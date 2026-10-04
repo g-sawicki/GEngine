@@ -3,6 +3,8 @@
 # Shaders
 include("${CMAKE_SOURCE_DIR}/cmake/ShaderCompiler.cmake")
 set(SHADER_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/Assets/Shaders")
+compile_shader("cubemap_convolution.hlsl" "VSMain" "vs_6_6" "cubemap_convolution_vs.cso")
+compile_shader("cubemap_convolution.hlsl" "PSMain" "ps_6_6" "cubemap_convolution_ps.cso")
 compile_shader("default.hlsl" "VSMain" "vs_6_6" "default_vs.cso")
 compile_shader("default.hlsl" "PSMain" "ps_6_6" "default_ps.cso")
 compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_6" "shadow_pass_vs.cso")
@@ -14,6 +16,8 @@ compile_shader("equirectangular_to_cubemap.hlsl" "VSMain" "vs_6_6" "equirectangu
 compile_shader("equirectangular_to_cubemap.hlsl" "PSMain" "ps_6_6" "equirectangular_to_cubemap_ps.cso")
 
 set(GENGINE_SHADERS
+    "${SHADER_GEN_DIR}/cubemap_convolution_vs.cso"
+    "${SHADER_GEN_DIR}/cubemap_convolution_ps.cso"
     "${SHADER_GEN_DIR}/default_vs.cso"
     "${SHADER_GEN_DIR}/default_ps.cso"
     "${SHADER_GEN_DIR}/shadow_pass_vs.cso"
@@ -77,8 +81,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Platform/Windows/Window.cpp"
     "Source/Platform/Windows/Window.hpp"
 
-    "Source/Rendering/RenderPass/EquirectangularToCubeMapPass.cpp"
-    "Source/Rendering/RenderPass/EquirectangularToCubeMapPass.hpp"
+    "Source/Rendering/RenderPass/CubeMapBakePass.cpp"
+    "Source/Rendering/RenderPass/CubeMapBakePass.hpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.cpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
     "Source/Rendering/RenderPass/ShadowPass.cpp"

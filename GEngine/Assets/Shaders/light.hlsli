@@ -1,15 +1,23 @@
 #ifndef SHADER_LIGHT_H
 #define SHADER_LIGHT_H
 
+#include "Interop/Common.h"
 #include "Interop/Light.h"
-
-#define PI 3.14159265358979323846264f
+#include "math.hlsli"
 
 struct Material {
     float4 albedo;
     float roughness;
     float metallic;
 };
+
+float3 ComputeF0(Material material) {
+    return lerp(0.04f, material.albedo.xyz, material.metallic);
+}
+
+float3 ComputeDiffuseWeight(float3 F, float metallic) {
+    return (1.0f - F) * (1.0f - metallic);
+}
 
 uint SelectCascade(CascadedShadowMapsData csmData, float viewDepth) {
     uint cascade = 0;
@@ -87,15 +95,15 @@ float GeometrySchlickGGX(float NdotV, float k) {
 }
 
 float GeometrySmith(float3 normal, float3 viewDir, float3 lightDir, float k) {
-    float NdotV = max(dot(normal, viewDir), 0.0f);
+    float NdotV = saturate(dot(normal, viewDir));
     float NdotL = max(dot(normal, lightDir), 0.0f);
     float ggx1 = GeometrySchlickGGX(NdotV, k);
     float ggx2 = GeometrySchlickGGX(NdotL, k);
     return ggx1 * ggx2;
 }
 
-float3 FresnelSchlick(float cosTheta, float3 F0) {
-    return F0 + (1.0f - F0) * pow(1.0f - cosTheta, 5.0f);
+float3 FresnelSchlick(float cosTheta, float3 F0, float3 F90) {
+    return F0 + (F90 - F0) * pow(1.0f - cosTheta, 5.0f);
 }
 
 struct CookTorranceResult {
@@ -107,27 +115,26 @@ CookTorranceResult CookTorranceBRDF(float3 lightDir, float3 viewDir, float3 norm
     float3 L = -lightDir;
     float3 halfDir = normalize(viewDir + L);
     float k = kDirect(material.roughness);
-    float3 F0 = 0.04f;
-    F0 = lerp(F0, material.albedo.xyz, material.metallic);
+    float3 F0 = ComputeF0(material);
 
     float NdotL = max(dot(normal, L), 0.0f);
-    float NdotV = max(dot(normal, viewDir), 0.0f);
+    float NdotV = saturate(dot(normal, viewDir));
     float cosTheta = max(dot(viewDir, halfDir), 0.0f);
 
     float D = DistributionTrowbridgeReitzGGX(normal, halfDir, material.roughness);
-    float3 F = FresnelSchlick(cosTheta, F0);
+    float3 F = FresnelSchlick(cosTheta, F0, 1.0f);
     float G = GeometrySmith(normal, viewDir, L, k);
     float divisor = 4.0f * NdotL * NdotV + 0.0001f;
 
     CookTorranceResult result;
     result.specular = D * F * G / divisor;
-    result.kD = (1.0f - F) * (1.0f - material.metallic);
+    result.kD = ComputeDiffuseWeight(F, material.metallic);
     return result;
 }
 
 float3 BlinnPhong(LightData lightData, float3 lightDir, float3 viewDir, float3 normal, Material material) {
     float3 diffuse = material.albedo.xyz;
-    float3 specular = lerp(0.04f, material.albedo.xyz, material.metallic);
+    float3 specular = ComputeF0(material);
     float shininess = max(pow(1.0f - material.roughness, 2.0f) * 256.0f, 1.0f);
 
     float NdotL = saturate(dot(normal, -lightDir));
@@ -138,7 +145,7 @@ float3 BlinnPhong(LightData lightData, float3 lightDir, float3 viewDir, float3 n
     return (diffuse + specular * specFactor) * lightColor * NdotL;
 }
 
-float CalculateAttentuation(float distance) {
+float CalculateAttenuation(float distance) {
     return 1.0 / (distance * distance);
 }
 
@@ -156,7 +163,7 @@ float3 CalculateDirectionalLight(LightData lightData, float3 viewDir, float3 nor
 
 float3 CalculatePointLight(LightData lightData, float3 lightDir, float distance, float3 viewDir, float3 normal,
                            Material material) {
-    float attenuation = CalculateAttentuation(distance);
+    float attenuation = CalculateAttenuation(distance);
     float NdotL = saturate(dot(normal, -lightDir));
     float3 radiance = lightData.color * lightData.intensity * attenuation;
 
@@ -196,6 +203,22 @@ float3 CalculateDirectLighting(uint32_t lightIndex, uint32_t lightCount, float3 
         result += CalculateLight(lightData, worldPos, viewDir, normal, material, shadow);
     }
     return result;
+}
+
+float3 CalculateIndirectLighting(uint32_t irradianceIndex, SamplerState irradianceSampler, float3 normal,
+                                 float3 viewDir, Material material) {
+    if (irradianceIndex == kInvalidBindlessIndex)
+        return 0.0f;
+
+    TextureCube irradianceTexture = ResourceDescriptorHeap[irradianceIndex];
+    const float3 irradiance = irradianceTexture.Sample(irradianceSampler, normal).rgb;
+
+    const float NdotV = saturate(dot(normal, viewDir));
+    const float3 F0 = ComputeF0(material);
+    const float3 F90 = max(1.0f - material.roughness, F0);
+    const float3 F = FresnelSchlick(NdotV, F0, F90);
+    const float3 kD = ComputeDiffuseWeight(F, material.metallic);
+    return kD * material.albedo.xyz * irradiance;
 }
 
 #endif // SHADER_LIGHT_H

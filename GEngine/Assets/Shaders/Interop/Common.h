@@ -3,6 +3,8 @@
 
 #include "Interop.h"
 
+static const uint kInvalidBindlessIndex = 0xFFFFFFFF;
+
 struct SceneInfo {
     row_major float4x4 viewProjection;
     row_major float4x4 view;
@@ -14,6 +16,10 @@ struct SceneInfo {
     uint2 screenResolution;
     uint lightCount;
     uint lightIndex;
+    uint irradianceIndex;
+    uint pad2;
+    uint pad3;
+    uint pad4;
 };
 
 struct ObjectData {

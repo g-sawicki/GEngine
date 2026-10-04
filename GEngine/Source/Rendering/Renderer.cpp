@@ -114,7 +114,8 @@ Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uin
       m_ShadowMapTexture(Texture(m_Device, ShadowMapTargetDesc(shadowMapSize))),
       m_ShadowPass(m_Device, m_ShadowMapTexture.GetDesc().Format),
       m_ForwardLightingPass(m_Device, m_HdrTexture, m_DepthTexture), m_ToneMapPass(m_Device),
-      m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture, m_DepthTexture) {}
+      m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture.GetDesc().Format,
+                       m_DepthTexture.GetDesc().Format) {}
 
 Renderer::FrameResources Renderer::CreateFrameResources() {
     std::array<FrameResource, SwapChain::NumFrames> frameResources;
@@ -299,6 +300,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
     SceneInfo sceneInfo = scene.GetSceneInfo();
     sceneInfo.screenResolution.x = m_SwapChain.GetWidth();
     sceneInfo.screenResolution.y = m_SwapChain.GetHeight();
+    sceneInfo.irradianceIndex = m_SkyboxRenderer.GetIrradianceSrvIndex();
     const CascadedShadowMapsData cascadedShadowMapsData = scene.GetCascadedShadowMapsData();
 
     std::vector<LightData> lightData;
@@ -345,6 +347,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
                        sizeof(cascadedShadowMapsData));
 
     m_Device.SetDescriptorHeaps(*frame.CommandList);
+
+    m_SkyboxRenderer.BakeEnvironmentMaps(*frame.CommandList);
 
     FrustumCulling(scene.GetActiveCamera(), cascadedShadowMapsData);
 

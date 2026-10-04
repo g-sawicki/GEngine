@@ -6,7 +6,7 @@
 
 namespace GEngine::RenderPass {
 
-SkyboxPass::SkyboxPass(Device& device, const Texture& colorTexture, const Texture& depthTexture) {
+SkyboxPass::SkyboxPass(Device& device, const DXGI_FORMAT colorFormat, const DXGI_FORMAT depthFormat) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
     rootParams[0].InitAsConstantBufferView(0); // b0: SceneInfo
     rootParams[1].InitAsConstants(1, 1);       // b1: RootConstants
@@ -62,8 +62,8 @@ SkyboxPass::SkyboxPass(Device& device, const Texture& colorTexture, const Textur
         .InputLayout = {inputLayout, static_cast<UINT>(std::size(inputLayout))},
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
-        .RTVFormats = {colorTexture.GetDesc().Format},
-        .DSVFormat = depthTexture.GetDesc().Format,
+        .RTVFormats = {colorFormat},
+        .DSVFormat = depthFormat,
         .SampleDesc = {.Count = 1, .Quality = 0},
     };
 

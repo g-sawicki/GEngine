@@ -13,7 +13,7 @@ namespace GEngine::RenderPass {
 
 class SkyboxPass {
   public:
-    SkyboxPass(Device& device, const Texture& colorTexture, const Texture& depthTexture);
+    SkyboxPass(Device& device, DXGI_FORMAT colorFormat, DXGI_FORMAT depthFormat);
 
     GE_NO_COPY_NO_MOVE(SkyboxPass)
 

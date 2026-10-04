@@ -32,7 +32,7 @@ void Playground::OnInit() {
     XMStoreFloat3(&lightDirection, XMVector3Normalize(XMVectorSet(1.0f, -4.0f, 2.0f, 0.0f)));
     m_Scene.SetDirectionalLight({
         .Direction = lightDirection,
-        .Intensity = 1.0f,
+        .Intensity = 16.0f,
         .Color = {1.0f, 1.0f, 1.0f},
     });
 

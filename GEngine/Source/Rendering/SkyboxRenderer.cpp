@@ -25,9 +25,10 @@ constexpr DirectX::XMFLOAT3 kCubeMapFaceUpVectors[6] = {
 };
 
 constexpr DXGI_FORMAT kSkyboxCubeMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+constexpr uint32_t kIrradianceSize = 32;
 
-[[nodiscard]] RenderPass::EquirectangularToCubeMapCameraData BuildEquirectangularToCubeMapCameras() {
-    RenderPass::EquirectangularToCubeMapCameraData cameraData{};
+[[nodiscard]] RenderPass::CubeFaceCameraData BuildCubeFaceCameras() {
+    RenderPass::CubeFaceCameraData cameraData{};
 
     const float fovY = DirectX::XMConvertToRadians(90.0f);
     for (uint32_t i{}; i < std::size(kCubeMapFaceDirections); ++i) {
@@ -50,21 +51,20 @@ void TransitionResource(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* res
 } // namespace
 
 SkyboxRenderer::SkyboxRenderer(Device& device, UploadEngine& uploadEngine, GpuResourceCache& resources,
-                               const Texture& colorTarget, const Texture& depthTarget)
+                               const DXGI_FORMAT colorFormat, const DXGI_FORMAT depthFormat)
     : m_Device(device), m_UploadEngine(uploadEngine), m_Resources(resources),
-      m_EquirectangularToCubeMapPass(device, kSkyboxCubeMapFormat), m_SkyboxPass(device, colorTarget, depthTarget),
-      m_EquirectangularToCubeMapCameraCB(device,
-                                         BufferDesc{.Size = sizeof(RenderPass::EquirectangularToCubeMapCameraData),
-                                                    .HeapType = D3D12_HEAP_TYPE_UPLOAD,
-                                                    .MiscFlags = BufferMiscFlags::ConstantBuffer}) {
+      m_CubeMapBakePass(device, kSkyboxCubeMapFormat), m_SkyboxPass(device, colorFormat, depthFormat),
+      m_CubeFaceCameraCB(device, BufferDesc{.Size = sizeof(RenderPass::CubeFaceCameraData),
+                                            .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+                                            .MiscFlags = BufferMiscFlags::ConstantBuffer}) {
     m_UploadEngine.Begin();
     m_CubeMesh = m_Resources.StageMesh(MeshFactory::Cube());
     m_UploadEngine.Submit();
 
-    const RenderPass::EquirectangularToCubeMapCameraData cameraData = BuildEquirectangularToCubeMapCameras();
-    void* const dst = m_EquirectangularToCubeMapCameraCB.Map();
+    const RenderPass::CubeFaceCameraData cameraData = BuildCubeFaceCameras();
+    void* const dst = m_CubeFaceCameraCB.Map();
     std::memcpy(dst, &cameraData, sizeof(cameraData));
-    m_EquirectangularToCubeMapCameraCB.Unmap();
+    m_CubeFaceCameraCB.Unmap();
 }
 
 void SkyboxRenderer::Update(const Skybox& skybox) {
@@ -97,30 +97,59 @@ void SkyboxRenderer::Update(const Skybox& skybox) {
         .ClearValue = {.Format = kSkyboxCubeMapFormat, .Color = {0.0f, 0.0f, 0.0f, 1.0f}},
         .InitialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
     };
-    if (!m_CubeMapTexture)
-        m_CubeMapTexture = std::make_unique<Texture>();
-    m_CubeMapTexture->Create(m_Device, cubeMapDesc);
+    m_CubeMapTexture = std::make_unique<Texture>(m_Device, cubeMapDesc);
+
+    const TextureDesc irradianceDesc{
+        .Width = kIrradianceSize,
+        .Height = kIrradianceSize,
+        .DepthOrArraySize = 6,
+        .Format = kSkyboxCubeMapFormat,
+        .Usage = TextureUsage::ShaderResource | TextureUsage::RenderTarget,
+        .IsCubeMap = true,
+        .ClearValue = {.Format = kSkyboxCubeMapFormat, .Color = {0.0f, 0.0f, 0.0f, 1.0f}},
+        .InitialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+    };
+    m_IrradianceTexture = std::make_unique<Texture>(m_Device, irradianceDesc);
+
     m_NeedsBake = true;
 
     m_UploadEngine.Submit();
+}
+
+void SkyboxRenderer::BakeEnvironmentMaps(CommandList& commandList) {
+    if (!m_NeedsBake)
+        return;
+
+    auto* cmdList = commandList.GetHandle();
+    const RenderItem cubeRenderItem{.Mesh = &m_CubeMesh};
+
+    // Equirectangular panorama -> cube map
+    TransitionResource(cmdList, m_CubeMapTexture->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                       D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_CubeMapBakePass.EquirectangularToCube(commandList, *m_CubeMapTexture, m_PanoramaTexture->GetSrvIndex(),
+                                            m_CubeFaceCameraCB, cubeRenderItem);
+    TransitionResource(cmdList, m_CubeMapTexture->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
+                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    // Cube map -> diffuse irradiance
+    TransitionResource(cmdList, m_IrradianceTexture->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                       D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_CubeMapBakePass.ConvolveIrradiance(commandList, *m_IrradianceTexture, m_CubeMapTexture->GetSrvIndex(),
+                                         m_CubeFaceCameraCB, cubeRenderItem);
+    TransitionResource(cmdList, m_IrradianceTexture->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
+                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    m_NeedsBake = false;
+}
+
+uint32_t SkyboxRenderer::GetIrradianceSrvIndex() const noexcept {
+    return m_IrradianceTexture ? m_IrradianceTexture->GetSrvIndex() : INVALID_BINDLESS_INDEX;
 }
 
 void SkyboxRenderer::Render(CommandList& commandList, const Texture& colorTarget, const Texture& depthTarget,
                             Buffer& sceneInfoCB) {
     if (!m_CubeMapTexture || m_CubeMapTexture->GetSrvIndex() == INVALID_BINDLESS_INDEX)
         return;
-
-    if (m_NeedsBake) {
-        const RenderItem cubeRenderItem{.Mesh = &m_CubeMesh};
-
-        TransitionResource(commandList.GetHandle(), m_CubeMapTexture->GetResource(),
-                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        m_EquirectangularToCubeMapPass.OnRender(commandList, *m_CubeMapTexture, m_PanoramaTexture->GetSrvIndex(),
-                                                m_EquirectangularToCubeMapCameraCB, cubeRenderItem);
-        TransitionResource(commandList.GetHandle(), m_CubeMapTexture->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
-                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        m_NeedsBake = false;
-    }
 
     m_SkyboxPass.OnRender(commandList, m_CubeMesh, colorTarget, depthTarget, m_CubeMapTexture->GetSrvIndex(),
                           sceneInfoCB);
