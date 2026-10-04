@@ -21,8 +21,12 @@ class SkyboxPass {
                   const Texture& depthTexture, uint32_t skyboxSrvIndex, Buffer& sceneInfoCB);
 
   private:
-    std::unique_ptr<RootSignature> m_RootSignature;
-    std::unique_ptr<PipelineState> m_PipelineState;
+    static RootSignature CreateRootSignature(Device& device);
+    static PipelineState CreatePipelineState(Device& device, const RootSignature& rootSignature,
+                                             DXGI_FORMAT colorFormat, DXGI_FORMAT depthFormat);
+
+    RootSignature m_RootSignature;
+    PipelineState m_PipelineState;
 };
 
 } // namespace GEngine::RenderPass
