@@ -13,7 +13,7 @@ namespace GEngine::RenderPass {
 
 class ForwardLightingPass {
   public:
-    ForwardLightingPass(Device& device, const Texture& colorTexture, const Texture& depthTexture);
+    ForwardLightingPass(Device& device, DXGI_FORMAT colorFormat, DXGI_FORMAT depthFormat);
 
     GE_NO_COPY_NO_MOVE(ForwardLightingPass)
 
@@ -22,8 +22,12 @@ class ForwardLightingPass {
                   std::span<const RenderItem> renderItems);
 
   private:
-    std::unique_ptr<RootSignature> m_RootSignature;
-    std::unique_ptr<PipelineState> m_PipelineState;
+    static RootSignature CreateRootSignature(Device& device);
+    static PipelineState CreatePipelineState(Device& device, const RootSignature& rootSignature,
+                                             DXGI_FORMAT colorFormat, DXGI_FORMAT depthFormat);
+
+    RootSignature m_RootSignature;
+    PipelineState m_PipelineState;
 };
 
 } // namespace GEngine::RenderPass

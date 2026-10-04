@@ -6,7 +6,11 @@
 
 namespace GEngine::RenderPass {
 
-ForwardLightingPass::ForwardLightingPass(Device& device, const Texture& colorTexture, const Texture& depthTexture) {
+ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT colorFormat, DXGI_FORMAT depthFormat)
+    : m_RootSignature(CreateRootSignature(device)),
+      m_PipelineState(CreatePipelineState(device, m_RootSignature, colorFormat, depthFormat)) {}
+
+RootSignature ForwardLightingPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[4]{};
     rootParams[0].InitAsConstantBufferView(0);
     rootParams[1].InitAsConstantBufferView(1);
@@ -47,8 +51,11 @@ ForwardLightingPass::ForwardLightingPass(Device& device, const Texture& colorTex
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                         D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 
-    m_RootSignature = std::make_unique<RootSignature>(device, rootSigDesc);
+    return RootSignature(device, rootSigDesc);
+}
 
+PipelineState ForwardLightingPass::CreatePipelineState(Device& device, const RootSignature& rootSignature,
+                                                       DXGI_FORMAT colorFormat, DXGI_FORMAT depthFormat) {
     D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -64,7 +71,7 @@ ForwardLightingPass::ForwardLightingPass(Device& device, const Texture& colorTex
     const Shader pixelShader{"Assets/Shaders/default_ps.cso"};
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{
-        .pRootSignature = m_RootSignature->Get(),
+        .pRootSignature = rootSignature.Get(),
         .VS = vertexShader.GetBytecode(),
         .PS = pixelShader.GetBytecode(),
         .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
@@ -74,12 +81,12 @@ ForwardLightingPass::ForwardLightingPass(Device& device, const Texture& colorTex
         .InputLayout = {inputLayout, static_cast<UINT>(std::size(inputLayout))},
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
-        .RTVFormats = {colorTexture.GetDesc().Format},
-        .DSVFormat = depthTexture.GetDesc().Format,
+        .RTVFormats = {colorFormat},
+        .DSVFormat = depthFormat,
         .SampleDesc = {.Count = 1, .Quality = 0},
     };
 
-    m_PipelineState = std::make_unique<PipelineState>(device, psoDesc);
+    return PipelineState(device, psoDesc);
 }
 
 void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colorTexture, const Texture& depthTexture,
@@ -101,8 +108,8 @@ void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colo
     const D3D12_CPU_DESCRIPTOR_HANDLE colorRtv = colorTexture.GetRtvHandle();
     const D3D12_CPU_DESCRIPTOR_HANDLE depthDsv = depthTexture.GetDsvHandle();
     cmdList->OMSetRenderTargets(1, &colorRtv, FALSE, &depthDsv);
-    cmdList->SetGraphicsRootSignature(m_RootSignature->Get());
-    cmdList->SetPipelineState(m_PipelineState->Get());
+    cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
+    cmdList->SetPipelineState(m_PipelineState.Get());
 
     cmdList->SetGraphicsRootConstantBufferView(0, sceneInfoCB.GetGPUVirtualAddress());
     cmdList->SetGraphicsRootConstantBufferView(1, cascadedShadowMapsDataCB.GetGPUVirtualAddress());

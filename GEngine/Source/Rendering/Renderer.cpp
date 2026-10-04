@@ -113,9 +113,9 @@ Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uin
       m_DepthTexture(Texture(m_Device, DepthStencilTargetDesc(width, height))),
       m_ShadowMapTexture(Texture(m_Device, ShadowMapTargetDesc(shadowMapSize))),
       m_ShadowPass(m_Device, m_ShadowMapTexture.GetDesc().Format),
-      m_ForwardLightingPass(m_Device, m_HdrTexture, m_DepthTexture), m_ToneMapPass(m_Device),
-      m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture.GetDesc().Format,
-                       m_DepthTexture.GetDesc().Format) {}
+      m_ForwardLightingPass(m_Device, m_HdrTexture.GetDesc().Format, m_DepthTexture.GetDesc().Format),
+      m_ToneMapPass(m_Device), m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture.GetDesc().Format,
+                                                m_DepthTexture.GetDesc().Format) {}
 
 Renderer::FrameResources Renderer::CreateFrameResources() {
     std::array<FrameResource, SwapChain::NumFrames> frameResources;
