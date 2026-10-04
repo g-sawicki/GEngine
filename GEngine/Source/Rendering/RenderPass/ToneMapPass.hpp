@@ -19,8 +19,11 @@ class ToneMapPass {
                   uint32_t width, uint32_t height);
 
   private:
-    std::unique_ptr<RootSignature> m_RootSignature;
-    std::unique_ptr<PipelineState> m_PipelineState;
+    static RootSignature CreateRootSignature(Device& device);
+    static PipelineState CreatePipelineState(Device& device, const RootSignature& rootSignature);
+
+    RootSignature m_RootSignature;
+    PipelineState m_PipelineState;
 };
 
 } // namespace GEngine::RenderPass

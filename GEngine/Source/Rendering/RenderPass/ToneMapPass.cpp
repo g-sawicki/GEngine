@@ -7,10 +7,13 @@
 
 namespace GEngine::RenderPass {
 
-ToneMapPass::ToneMapPass(Device& device) {
+ToneMapPass::ToneMapPass(Device& device)
+    : m_RootSignature(CreateRootSignature(device)), m_PipelineState(CreatePipelineState(device, m_RootSignature)) {}
+
+RootSignature ToneMapPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
-    rootParams[0].InitAsConstantBufferView(0); // b0: SceneInfo
-    rootParams[1].InitAsConstants(2, 1);       // b1: RootConstants
+    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[1].InitAsConstants(2, 1);
 
     D3D12_STATIC_SAMPLER_DESC staticSampler{
         .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
@@ -33,23 +36,25 @@ ToneMapPass::ToneMapPass(Device& device) {
     rootSigDesc.pStaticSamplers = &staticSampler;
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 
-    m_RootSignature = std::make_unique<RootSignature>(device, rootSigDesc);
+    return RootSignature(device, rootSigDesc);
+}
 
+PipelineState ToneMapPass::CreatePipelineState(Device& device, const RootSignature& rootSignature) {
     const Shader computeShader{"Assets/Shaders/tonemap_cs.cso"};
 
     D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{
-        .pRootSignature = m_RootSignature->Get(),
+        .pRootSignature = rootSignature.Get(),
         .CS = computeShader.GetBytecode(),
     };
 
-    m_PipelineState = std::make_unique<PipelineState>(device, psoDesc);
+    return PipelineState(device, psoDesc);
 }
 
 void ToneMapPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex,
                            Buffer& sceneInfoBuffer, uint32_t width, uint32_t height) {
     auto* cmdList = commandList.GetHandle();
-    cmdList->SetComputeRootSignature(m_RootSignature->Get());
-    cmdList->SetPipelineState(m_PipelineState->Get());
+    cmdList->SetComputeRootSignature(m_RootSignature.Get());
+    cmdList->SetPipelineState(m_PipelineState.Get());
 
     struct RootConstants {
         uint32_t InputIndex;
