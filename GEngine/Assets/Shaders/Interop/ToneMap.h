@@ -7,6 +7,7 @@ enum ToneMapMode : uint32_t {
     Reinhard = 0,
     ExtendedReinhard = 1,
     Uncharted2 = 2,
+    ACES = 3,
 };
 
 struct ToneMapRootConstants {

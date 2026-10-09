@@ -57,10 +57,8 @@ void ToneMapPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uin
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
 
-    ToneMapRootConstants constants{.InputIndex = inputSrvIndex,
-                                   .OutputIndex = outputUavIndex,
-                                   .TonemapMode = ToneMapMode::ExtendedReinhard,
-                                   .MaxWhite = 4.0f};
+    ToneMapRootConstants constants{
+        .InputIndex = inputSrvIndex, .OutputIndex = outputUavIndex, .TonemapMode = ToneMapMode::ACES, .MaxWhite = 4.0f};
 
     cmdList->SetComputeRootConstantBufferView(0, sceneInfoBuffer.GetGPUVirtualAddress());
     cmdList->SetComputeRoot32BitConstants(1, 4, &constants, 0);

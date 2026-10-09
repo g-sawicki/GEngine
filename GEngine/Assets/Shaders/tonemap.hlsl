@@ -38,6 +38,31 @@ float3 Uncharted2FilmicToneMap(float3 color) {
     return partial * whiteScale;
 }
 
+static const float3x3 ACESInputMatrix = {
+    float3(0.59719f, 0.35458f, 0.04823f),
+    float3(0.07600f, 0.90834f, 0.01566f),
+    float3(0.02840f, 0.13383f, 0.83777f)
+};
+
+static const float3x3 ACESOutputMatrix = {
+    float3( 1.60475f, -0.53108f, -0.07367f),
+    float3(-0.10208f,  1.10813f, -0.00605f),
+    float3(-0.00327f, -0.07276f,  1.07602f)
+};
+
+float3 RRTAndODTFit(float3 color) {
+    float3 a = color * (color + 0.0245786f) - 0.000090537f;
+    float3 b = color * (0.983729f * color + 0.4329510f) + 0.238081f;
+    return a / b;
+}
+
+float3 ACESFitted(float3 color) {
+    color = mul(ACESInputMatrix, color);
+    color = RRTAndODTFit(color);
+    color = mul(ACESOutputMatrix, color);
+    return saturate(color);
+}
+
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
@@ -54,6 +79,9 @@ void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
 
     float3 color;
     switch (constantsCB.TonemapMode) {
+    case ToneMapMode::ACES:
+        color = ACESFitted(hdrColor);
+        break;
     case ToneMapMode::Uncharted2:
         color = Uncharted2FilmicToneMap(hdrColor);
         break;
