@@ -38,6 +38,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Assets/Shaders/Interop/Common.h"
     "Assets/Shaders/Interop/Interop.h"
     "Assets/Shaders/Interop/Light.h"
+    "Assets/Shaders/Interop/ToneMap.h"
 
     "Source/Core/Utility/Defines.hpp"
     "Source/Core/Utility/Image.cpp"

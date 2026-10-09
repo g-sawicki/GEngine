@@ -1,24 +1,30 @@
 #include "Interop/Common.h"
-
-struct RootConstants {
-    uint32_t InputIndex;
-    uint32_t OutputIndex;
-};
+#include "Interop/ToneMap.h"
 
 ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
-ConstantBuffer<RootConstants> constantsCB : register(b1);
+ConstantBuffer<ToneMapRootConstants> constantsCB : register(b1);
 SamplerState hdrSampler : register(s0);
 
 // https://64.github.io/tonemapping
-float3 ReinhardToneMap(float3 luminance) {
-    return luminance / (1.0f + luminance);
+float Luminance(float3 color) {
+    return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
+float3 ReinhardToneMap(float3 color) {
+    const float luminance = Luminance(color);
+    return color / (1.0f + luminance);
+}
+
+float3 ExtendedReinhardToneMap(float3 color, float maxWhite) {
+    const float luminance = Luminance(color);
+    const float whitePoint = max(maxWhite, 1e-6f);
+    return color * (1.0f + luminance / (whitePoint * whitePoint)) / (1.0f + luminance);
 }
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
-    if (dispatchThreadId.x >= sceneInfoCB.screenResolution.x ||
-        dispatchThreadId.y >= sceneInfoCB.screenResolution.y)
+    if (dispatchThreadId.x >= sceneInfoCB.screenResolution.x || dispatchThreadId.y >= sceneInfoCB.screenResolution.y)
         return;
 
     Texture2D<float4> hdrTexture = ResourceDescriptorHeap[constantsCB.InputIndex];
@@ -26,7 +32,20 @@ void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
 
     float2 uv = (float2(dispatchThreadId.xy) + 0.5f) / float2(sceneInfoCB.screenResolution);
     half4 hdrTex = hdrTexture.SampleLevel(hdrSampler, uv, 0.0f);
-    float3 color = ReinhardToneMap(hdrTex.xyz);
+
+    const float3 hdrColor = max(hdrTex.xyz, 0.0f);
+
+    float3 color;
+    switch (constantsCB.TonemapMode) {
+        case ToneMapMode::ExtendedReinhard:
+            color = ExtendedReinhardToneMap(hdrColor, constantsCB.MaxWhite);
+            break;
+        case ToneMapMode::Reinhard:
+        default:
+            color = ReinhardToneMap(hdrColor);
+            break;
+    }
+
     color = pow(color, 1.0f / 2.2f);
     outputTexture[dispatchThreadId.xy] = float4(color, 1.0f);
 }

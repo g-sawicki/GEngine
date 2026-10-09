@@ -4,6 +4,7 @@
 
 #include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/Shader.hpp"
+#include "Interop/ToneMap.h"
 
 namespace GEngine::RenderPass {
 
@@ -13,7 +14,7 @@ ToneMapPass::ToneMapPass(Device& device)
 RootSignature ToneMapPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
     rootParams[0].InitAsConstantBufferView(0);
-    rootParams[1].InitAsConstants(2, 1);
+    rootParams[1].InitAsConstants(4, 1);
 
     D3D12_STATIC_SAMPLER_DESC staticSampler{
         .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
@@ -56,13 +57,13 @@ void ToneMapPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uin
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
 
-    struct RootConstants {
-        uint32_t InputIndex;
-        uint32_t OutputIndex;
-    } constants{.InputIndex = inputSrvIndex, .OutputIndex = outputUavIndex};
+    ToneMapRootConstants constants{.InputIndex = inputSrvIndex,
+                                   .OutputIndex = outputUavIndex,
+                                   .TonemapMode = ToneMapMode::ExtendedReinhard,
+                                   .MaxWhite = 4.0f};
 
     cmdList->SetComputeRootConstantBufferView(0, sceneInfoBuffer.GetGPUVirtualAddress());
-    cmdList->SetComputeRoot32BitConstants(1, 2, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(1, 4, &constants, 0);
 
     const UINT groupCountX = DivideRoundUp(width, 8u);
     const UINT groupCountY = DivideRoundUp(height, 8u);
