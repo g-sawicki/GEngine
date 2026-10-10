@@ -84,10 +84,10 @@ Device::Device(bool useWarp) : m_DxgiFactory(CreateDXGIFactory()) {
     ComPtr<IDXGIAdapter4> adapter = GetAdapter(m_DxgiFactory.Get(), useWarp);
     ThrowIfFailed(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_Device)));
 
-    m_RtvDescriptorHeap = DescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128);
-    m_DsvDescriptorHeap = DescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32);
-    m_ShaderResourceDescriptorHeap =
-        DescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    m_RtvDescriptorHeap = DescriptorHeap(*this, {D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128, D3D12_DESCRIPTOR_HEAP_FLAG_NONE});
+    m_DsvDescriptorHeap = DescriptorHeap(*this, {D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32, D3D12_DESCRIPTOR_HEAP_FLAG_NONE});
+    m_ShaderResourceDescriptorHeap = DescriptorHeap(
+        *this, {D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE});
 
 #if defined(_DEBUG)
     ComPtr<ID3D12InfoQueue> pInfoQueue;
@@ -120,9 +120,7 @@ bool Device::IsDeviceRemoved() const noexcept {
 }
 
 void Device::SetDescriptorHeaps(CommandList& commandList) {
-    ID3D12DescriptorHeap* heaps[] = {
-        m_ShaderResourceDescriptorHeap.Get(),
-    };
+    ID3D12DescriptorHeap* heaps[] = {m_ShaderResourceDescriptorHeap.Get()};
     commandList.GetHandle()->SetDescriptorHeaps(static_cast<UINT>(std::size(heaps)), heaps);
 }
 

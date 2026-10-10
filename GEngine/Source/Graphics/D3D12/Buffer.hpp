@@ -27,7 +27,10 @@ class Buffer {
     Buffer() = default;
     Buffer(Device& device, const BufferDesc& desc);
 
-    GE_NO_COPY_DEFAULT_MOVE(Buffer)
+    GE_NO_COPY(Buffer)
+    Buffer(Buffer&& other) noexcept;
+    Buffer& operator=(Buffer&& other) noexcept;
+    ~Buffer();
 
     [[nodiscard]] void* Map(UINT subresource = 0, const D3D12_RANGE* readRange = nullptr) const;
     void Unmap(UINT subresource = 0, const D3D12_RANGE* writtenRange = nullptr) const;
@@ -39,7 +42,7 @@ class Buffer {
     [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const noexcept {
         return m_Resource->GetGPUVirtualAddress();
     }
-    [[nodiscard]] const BufferDesc& GetDesc() const noexcept { return m_BufferDesc; }
+    [[nodiscard]] const BufferDesc& GetDesc() const noexcept { return m_Desc; }
 
     [[nodiscard]] uint32_t GetSrvIndex() const noexcept { return m_SrvIndex; }
     [[nodiscard]] uint32_t GetUavIndex() const noexcept { return m_UavIndex; }
@@ -48,11 +51,14 @@ class Buffer {
     [[nodiscard]] D3D12_INDEX_BUFFER_VIEW GetIBV(DXGI_FORMAT format = DXGI_FORMAT_R32_UINT) const noexcept;
 
   private:
+    void ReleaseDescriptors() noexcept;
+
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;
-    BufferDesc m_BufferDesc{};
+    BufferDesc m_Desc{};
 
     uint32_t m_SrvIndex{INVALID_BINDLESS_INDEX};
     uint32_t m_UavIndex{INVALID_BINDLESS_INDEX};
+    Device* m_Device{};
 };
 
 } // namespace GEngine

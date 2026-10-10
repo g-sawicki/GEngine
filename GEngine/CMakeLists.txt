@@ -41,6 +41,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Assets/Shaders/Interop/ToneMap.h"
 
     "Source/Core/Utility/Defines.hpp"
+    "Source/Core/Utility/FreeListAllocator.cpp"
+    "Source/Core/Utility/FreeListAllocator.hpp"
     "Source/Core/Utility/Image.cpp"
     "Source/Core/Utility/Image.hpp"
     "Source/Core/Utility/Math.hpp"

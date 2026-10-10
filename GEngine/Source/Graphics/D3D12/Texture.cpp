@@ -6,6 +6,8 @@
 #include "Core/Utility/Math.hpp"
 #include "D3D12Common.hpp"
 
+#include <utility>
+
 namespace GEngine {
 
 namespace {
@@ -31,13 +33,44 @@ namespace {
 
 Texture::Texture(ID3D12Resource* resource, const TextureDesc& desc) : m_Resource(resource), m_Desc(desc) {}
 
+Texture::Texture(Texture&& other) noexcept
+    : m_Resource(std::move(other.m_Resource)), m_Desc(std::exchange(other.m_Desc, {})),
+      m_RtvIndices(std::move(other.m_RtvIndices)),
+      m_DsvIndices(std::move(other.m_DsvIndices)),
+      m_SrvIndex(std::exchange(other.m_SrvIndex, INVALID_BINDLESS_INDEX)),
+      m_UavIndex(std::exchange(other.m_UavIndex, INVALID_BINDLESS_INDEX)),
+      m_Device(std::exchange(other.m_Device, nullptr)) {
+    other.m_RtvIndices.clear();
+    other.m_DsvIndices.clear();
+}
+
+Texture& Texture::operator=(Texture&& other) noexcept {
+    if (this != &other) {
+        Reset();
+        m_Resource = std::move(other.m_Resource);
+        m_Desc = std::exchange(other.m_Desc, {});
+        m_RtvIndices = std::move(other.m_RtvIndices);
+        m_DsvIndices = std::move(other.m_DsvIndices);
+        m_SrvIndex = std::exchange(other.m_SrvIndex, INVALID_BINDLESS_INDEX);
+        m_UavIndex = std::exchange(other.m_UavIndex, INVALID_BINDLESS_INDEX);
+        m_Device = std::exchange(other.m_Device, nullptr);
+        other.m_RtvIndices.clear();
+        other.m_DsvIndices.clear();
+    }
+    return *this;
+}
+
+Texture::~Texture() {
+    Reset();
+}
+
 Texture::Texture(Device& device, const TextureDesc& desc) {
     Create(device, desc);
 }
 
 void Texture::Create(Device& device, const TextureDesc& desc) {
+    Reset();
     assert(!desc.IsCubeMap || desc.DepthOrArraySize == 6);
-    m_Desc = desc;
 
     // Flags
     D3D12_RESOURCE_FLAGS flags{D3D12_RESOURCE_FLAG_NONE};
@@ -72,6 +105,9 @@ void Texture::Create(Device& device, const TextureDesc& desc) {
     ThrowIfFailed(device.Get()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc,
                                                         desc.InitialState, pClearValue, IID_PPV_ARGS(&m_Resource)));
 
+    m_Desc = desc;
+    m_Device = &device;
+
     if (HasUsage(desc.Usage, TextureUsage::ShaderResource)) {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{
             .Format = formatInfo.ShaderResource,
@@ -94,8 +130,9 @@ void Texture::Create(Device& device, const TextureDesc& desc) {
                 .MostDetailedMip = 0, .MipLevels = desc.MipCount, .PlaneSlice = 0, .ResourceMinLODClamp = 0.0f};
         }
 
-        m_SrvIndex = device.GetShaderResourceDescriptorHeap().Allocate().Index;
-        const D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = device.GetShaderResourceDescriptorHeap().GetCpuHandle(m_SrvIndex);
+        auto& srvDescriptorHeap = device.GetShaderResourceDescriptorHeap();
+        m_SrvIndex = srvDescriptorHeap.Allocate();
+        const D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = srvDescriptorHeap.GetCpuHandle(m_SrvIndex);
         device.Get()->CreateShaderResourceView(m_Resource.Get(), &srvDesc, srvHandle);
     }
 
@@ -111,55 +148,88 @@ void Texture::Create(Device& device, const TextureDesc& desc) {
             uavDesc.Texture2D = {.MipSlice = 0, .PlaneSlice = 0};
         }
 
-        m_UavIndex = device.GetShaderResourceDescriptorHeap().Allocate().Index;
-        const D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = device.GetShaderResourceDescriptorHeap().GetCpuHandle(m_UavIndex);
+        auto& uavDescriptorHeap = device.GetShaderResourceDescriptorHeap();
+        m_UavIndex = uavDescriptorHeap.Allocate();
+        const D3D12_CPU_DESCRIPTOR_HANDLE uavHandle = uavDescriptorHeap.GetCpuHandle(m_UavIndex);
         device.Get()->CreateUnorderedAccessView(m_Resource.Get(), nullptr, &uavDesc, uavHandle);
     }
 
     if (HasUsage(desc.Usage, TextureUsage::RenderTarget)) {
-        m_RtvRange = device.GetRtvDescriptorHeap().AllocateRange(desc.DepthOrArraySize);
+        auto& rtvDescriptorHeap = device.GetRtvDescriptorHeap();
+        m_RtvIndices.resize(desc.DepthOrArraySize, INVALID_BINDLESS_INDEX);
 
-        D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{.Format = formatInfo.RenderTarget};
-        if (desc.DepthOrArraySize > 1) {
-            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
-            for (uint32_t slice{}; slice < desc.DepthOrArraySize; ++slice) {
+        D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{
+            .Format = formatInfo.RenderTarget,
+            .ViewDimension =
+                (desc.DepthOrArraySize > 1) ? D3D12_RTV_DIMENSION_TEXTURE2DARRAY : D3D12_RTV_DIMENSION_TEXTURE2D,
+        };
+
+        for (uint32_t slice{}; slice < desc.DepthOrArraySize; ++slice) {
+            if (desc.DepthOrArraySize > 1)
                 rtvDesc.Texture2DArray = {.MipSlice = 0, .FirstArraySlice = slice, .ArraySize = 1, .PlaneSlice = 0};
-                device.Get()->CreateRenderTargetView(m_Resource.Get(), &rtvDesc, m_RtvRange.GetCpuHandle(slice));
-            }
-        } else {
-            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-            rtvDesc.Texture2D = {.MipSlice = 0, .PlaneSlice = 0};
-            device.Get()->CreateRenderTargetView(m_Resource.Get(), &rtvDesc, m_RtvRange.GetCpuHandle(0));
+            else
+                rtvDesc.Texture2D = {.MipSlice = 0, .PlaneSlice = 0};
+            const uint32_t index = rtvDescriptorHeap.Allocate();
+            m_RtvIndices[slice] = index;
+            const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtvDescriptorHeap.GetCpuHandle(index);
+            device.Get()->CreateRenderTargetView(m_Resource.Get(), &rtvDesc, rtvHandle);
         }
     }
 
     if (HasUsage(desc.Usage, TextureUsage::DepthStencil)) {
-        m_DsvRange = device.GetDsvDescriptorHeap().AllocateRange(desc.DepthOrArraySize);
+        auto& dsvDescriptorHeap = device.GetDsvDescriptorHeap();
+        m_DsvIndices.resize(desc.DepthOrArraySize, INVALID_BINDLESS_INDEX);
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{
             .Format = formatInfo.DepthStencil,
+            .ViewDimension =
+                (desc.DepthOrArraySize > 1) ? D3D12_DSV_DIMENSION_TEXTURE2DARRAY : D3D12_DSV_DIMENSION_TEXTURE2D,
         };
-        if (desc.DepthOrArraySize > 1) {
-            dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
-            for (uint16_t slice{}; slice < desc.DepthOrArraySize; ++slice) {
+
+        for (uint16_t slice{}; slice < desc.DepthOrArraySize; ++slice) {
+            if (desc.DepthOrArraySize > 1)
                 dsvDesc.Texture2DArray = {.MipSlice = 0, .FirstArraySlice = slice, .ArraySize = 1};
-                device.Get()->CreateDepthStencilView(m_Resource.Get(), &dsvDesc, m_DsvRange.GetCpuHandle(slice));
-            }
-        } else {
-            dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-            dsvDesc.Texture2D = {.MipSlice = 0};
-            device.Get()->CreateDepthStencilView(m_Resource.Get(), &dsvDesc, m_DsvRange.GetCpuHandle(0));
+            else
+                dsvDesc.Texture2D = {.MipSlice = 0};
+            const uint32_t index = dsvDescriptorHeap.Allocate();
+            m_DsvIndices[slice] = index;
+            const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap.GetCpuHandle(index);
+            device.Get()->CreateDepthStencilView(m_Resource.Get(), &dsvDesc, dsvHandle);
         }
     }
 }
 
 void Texture::Reset() noexcept {
+    ReleaseDescriptors();
     m_Resource.Reset();
     m_Desc = {};
-    m_RtvRange = {};
-    m_DsvRange = {};
+    m_RtvIndices.clear();
+    m_DsvIndices.clear();
+}
+
+void Texture::ReleaseDescriptors() noexcept {
+    if (m_Device != nullptr) {
+        auto& rtvDescriptorHeap = m_Device->GetRtvDescriptorHeap();
+        for (const uint32_t index : m_RtvIndices)
+            if (index != INVALID_BINDLESS_INDEX)
+                rtvDescriptorHeap.Deallocate(index);
+
+        auto& dsvDescriptorHeap = m_Device->GetDsvDescriptorHeap();
+        for (const uint32_t index : m_DsvIndices)
+            if (index != INVALID_BINDLESS_INDEX)
+                dsvDescriptorHeap.Deallocate(index);
+
+        auto& shaderResourceDescriptorHeap = m_Device->GetShaderResourceDescriptorHeap();
+        if (m_SrvIndex != INVALID_BINDLESS_INDEX)
+            shaderResourceDescriptorHeap.Deallocate(m_SrvIndex);
+        if (m_UavIndex != INVALID_BINDLESS_INDEX)
+            shaderResourceDescriptorHeap.Deallocate(m_UavIndex);
+    }
+    m_RtvIndices.clear();
+    m_DsvIndices.clear();
     m_SrvIndex = INVALID_BINDLESS_INDEX;
     m_UavIndex = INVALID_BINDLESS_INDEX;
+    m_Device = nullptr;
 }
 
 } // namespace GEngine
