@@ -74,8 +74,18 @@ struct FrustumPlanes {
         .Width = width,
         .Height = height,
         .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
-        .Usage = TextureUsage::ShaderResource | TextureUsage::RenderTarget,
+        .Usage = TextureUsage::ShaderResource | TextureUsage::RenderTarget | TextureUsage::UnorderedAccess,
         .ClearValue = {.Format = DXGI_FORMAT_R16G16B16A16_FLOAT, .Color = {0.4f, 0.6f, 0.9f, 1.0f}},
+        .InitialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+    };
+}
+
+[[nodiscard]] constexpr TextureDesc BloomTargetDesc(uint32_t width, uint32_t height) noexcept {
+    return TextureDesc{
+        .Width = width,
+        .Height = height,
+        .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
+        .Usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess,
         .InitialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
     };
 }
@@ -109,13 +119,15 @@ Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uin
       m_SwapChain(m_Device, hwnd, m_CommandQueue, width, height, SwapChain::NumFrames), m_UploadEngine(m_Device),
       m_GpuResources(m_Device, m_UploadEngine), m_FrameResources(CreateFrameResources()),
       m_HdrTexture(Texture(m_Device, HdrTargetDesc(width, height))),
+      m_BloomTexture(Texture(m_Device, BloomTargetDesc(width, height))),
       m_PresentTarget(Texture(m_Device, PresentTargetDesc(width, height))),
       m_DepthTexture(Texture(m_Device, DepthStencilTargetDesc(width, height))),
       m_ShadowMapTexture(Texture(m_Device, ShadowMapTargetDesc(shadowMapSize))),
       m_ShadowPass(m_Device, m_ShadowMapTexture.GetDesc().Format),
       m_ForwardLightingPass(m_Device, m_HdrTexture.GetDesc().Format, m_DepthTexture.GetDesc().Format),
-      m_ToneMapPass(m_Device), m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture.GetDesc().Format,
-                                                m_DepthTexture.GetDesc().Format) {}
+      m_BloomPass(m_Device), m_ToneMapPass(m_Device),
+      m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture.GetDesc().Format,
+                       m_DepthTexture.GetDesc().Format) {}
 
 Renderer::FrameResources Renderer::CreateFrameResources() {
     std::array<FrameResource, SwapChain::NumFrames> frameResources;
@@ -146,6 +158,7 @@ Renderer::FrameResources Renderer::CreateFrameResources() {
 void Renderer::CreateRenderTargets(uint32_t width, uint32_t height) {
     m_DepthTexture.Create(m_Device, DepthStencilTargetDesc(width, height));
     m_HdrTexture.Create(m_Device, HdrTargetDesc(width, height));
+    m_BloomTexture.Create(m_Device, BloomTargetDesc(width, height));
     m_PresentTarget.Create(m_Device, PresentTargetDesc(width, height));
 }
 
@@ -163,6 +176,7 @@ void Renderer::Destroy() {
 
     m_PresentTarget.Reset();
     m_HdrTexture.Reset();
+    m_BloomTexture.Reset();
     m_ShadowMapTexture.Reset();
     m_DepthTexture.Reset();
 }
@@ -382,9 +396,28 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
     {
         TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_BloomTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                           D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+        // Bloom horizontal pass, writing to the bloom texture
+        m_BloomPass.Dispatch(*frame.CommandList, m_HdrTexture.GetSrvIndex(), m_BloomTexture.GetUavIndex(), true,
+                             *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight());
+
+        TransitionResource(cmdList, m_BloomTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                           D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+        // Bloom vertical pass, writing directly to the HDR texture
+        m_BloomPass.Dispatch(*frame.CommandList, m_BloomTexture.GetSrvIndex(), m_HdrTexture.GetUavIndex(), false,
+                             *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight());
+
+        TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         TransitionResource(cmdList, m_PresentTarget.GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE,
                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
+        // Tone mapping
         m_ToneMapPass.Dispatch(*frame.CommandList, m_HdrTexture.GetSrvIndex(), m_PresentTarget.GetUavIndex(),
                                *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight());
     }

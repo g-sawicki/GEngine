@@ -17,6 +17,7 @@
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
 #include "Rendering/GpuResourceCache.hpp"
+#include "Rendering/RenderPass/BloomPass.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
 #include "Rendering/RenderPass/ToneMapPass.hpp"
@@ -80,6 +81,7 @@ class Renderer {
 
     // Render pass resources
     Texture m_HdrTexture{};
+    Texture m_BloomTexture{};
     Texture m_PresentTarget{};
     Texture m_DepthTexture{};
     Texture m_ShadowMapTexture{};
@@ -87,6 +89,7 @@ class Renderer {
     // Render passes
     RenderPass::ShadowPass m_ShadowPass;
     RenderPass::ForwardLightingPass m_ForwardLightingPass;
+    RenderPass::BloomPass m_BloomPass;
     RenderPass::ToneMapPass m_ToneMapPass;
 
     SkyboxRenderer m_SkyboxRenderer;

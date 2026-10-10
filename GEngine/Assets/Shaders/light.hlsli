@@ -96,7 +96,7 @@ float GeometrySchlickGGX(float NdotV, float k) {
 
 float GeometrySmith(float3 normal, float3 viewDir, float3 lightDir, float k) {
     float NdotV = saturate(dot(normal, viewDir));
-    float NdotL = max(dot(normal, lightDir), 0.0f);
+    float NdotL = saturate(dot(normal, lightDir));
     float ggx1 = GeometrySchlickGGX(NdotV, k);
     float ggx2 = GeometrySchlickGGX(NdotL, k);
     return ggx1 * ggx2;
@@ -117,9 +117,9 @@ CookTorranceResult CookTorranceBRDF(float3 lightDir, float3 viewDir, float3 norm
     float k = kDirect(material.roughness);
     float3 F0 = ComputeF0(material);
 
-    float NdotL = max(dot(normal, L), 0.0f);
+    float NdotL = saturate(dot(normal, L));
     float NdotV = saturate(dot(normal, viewDir));
-    float cosTheta = max(dot(viewDir, halfDir), 0.0f);
+    float cosTheta = saturate(dot(viewDir, halfDir));
 
     float D = DistributionTrowbridgeReitzGGX(normal, halfDir, material.roughness);
     float3 F = FresnelSchlick(cosTheta, F0, 1.0f);

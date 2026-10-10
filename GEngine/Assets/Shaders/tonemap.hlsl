@@ -1,15 +1,12 @@
 #include "Interop/Common.h"
 #include "Interop/ToneMap.h"
+#include "math.hlsli"
 
 ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
 ConstantBuffer<ToneMapRootConstants> constantsCB : register(b1);
 SamplerState hdrSampler : register(s0);
 
 // https://64.github.io/tonemapping
-float Luminance(float3 color) {
-    return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
-}
-
 float3 ReinhardToneMap(float3 color) {
     const float luminance = Luminance(color);
     return color / (1.0f + luminance);

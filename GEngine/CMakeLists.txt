@@ -9,6 +9,7 @@ compile_shader("default.hlsl" "VSMain" "vs_6_6" "default_vs.cso")
 compile_shader("default.hlsl" "PSMain" "ps_6_6" "default_ps.cso")
 compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_6" "shadow_pass_vs.cso")
 compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_6" "shadow_pass_ps.cso")
+compile_shader("bloom.hlsl" "BloomCS" "cs_6_6" "bloom_cs.cso")
 compile_shader("tonemap.hlsl" "ToneMapCS" "cs_6_6" "tonemap_cs.cso")
 compile_shader("skybox.hlsl" "VSMain" "vs_6_6" "skybox_vs.cso")
 compile_shader("skybox.hlsl" "PSMain" "ps_6_6" "skybox_ps.cso")
@@ -22,6 +23,7 @@ set(GENGINE_SHADERS
     "${SHADER_GEN_DIR}/default_ps.cso"
     "${SHADER_GEN_DIR}/shadow_pass_vs.cso"
     "${SHADER_GEN_DIR}/shadow_pass_ps.cso"
+    "${SHADER_GEN_DIR}/bloom_cs.cso"
     "${SHADER_GEN_DIR}/tonemap_cs.cso"
     "${SHADER_GEN_DIR}/skybox_vs.cso"
     "${SHADER_GEN_DIR}/skybox_ps.cso"
@@ -35,6 +37,7 @@ add_custom_target(GEngineShaders ALL DEPENDS ${GENGINE_SHADERS})
 add_dependencies(GEngine GEngineShaders)
 
 target_sources(${PROJECT_NAME} PRIVATE
+    "Assets/Shaders/Interop/Bloom.h"
     "Assets/Shaders/Interop/Common.h"
     "Assets/Shaders/Interop/Interop.h"
     "Assets/Shaders/Interop/Light.h"
@@ -84,6 +87,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Platform/Windows/Window.cpp"
     "Source/Platform/Windows/Window.hpp"
 
+    "Source/Rendering/RenderPass/BloomPass.cpp"
+    "Source/Rendering/RenderPass/BloomPass.hpp"
     "Source/Rendering/RenderPass/CubeMapBakePass.cpp"
     "Source/Rendering/RenderPass/CubeMapBakePass.hpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.cpp"

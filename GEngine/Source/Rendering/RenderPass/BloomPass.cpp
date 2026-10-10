@@ -1,0 +1,71 @@
+#include "PCH.hpp"
+
+#include "BloomPass.hpp"
+
+#include "Core/Utility/Math.hpp"
+#include "Graphics/D3D12/Shader.hpp"
+#include "Interop/Bloom.h"
+
+namespace GEngine::RenderPass {
+
+BloomPass::BloomPass(Device& device)
+    : m_RootSignature(CreateRootSignature(device)), m_PipelineState(CreatePipelineState(device, m_RootSignature)) {}
+
+RootSignature BloomPass::CreateRootSignature(Device& device) {
+    CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
+    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[1].InitAsConstants(3, 1);
+
+    D3D12_STATIC_SAMPLER_DESC staticSampler{
+        .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        .MipLODBias = 0.0f,
+        .MaxAnisotropy = 1,
+        .ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS,
+        .MinLOD = 0.0f,
+        .MaxLOD = 0.0f,
+        .ShaderRegister = 0,
+        .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+    };
+
+    D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
+    rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
+    rootSigDesc.pParameters = rootParams;
+    rootSigDesc.NumStaticSamplers = 1;
+    rootSigDesc.pStaticSamplers = &staticSampler;
+    rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+
+    return RootSignature(device, rootSigDesc);
+}
+
+PipelineState BloomPass::CreatePipelineState(Device& device, const RootSignature& rootSignature) {
+    const Shader computeShader{"Assets/Shaders/bloom_cs.cso"};
+
+    D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{
+        .pRootSignature = rootSignature.Get(),
+        .CS = computeShader.GetBytecode(),
+    };
+
+    return PipelineState(device, psoDesc);
+}
+
+void BloomPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex, bool horizontal,
+                         Buffer& sceneInfoBuffer, uint32_t width, uint32_t height) {
+    auto* cmdList = commandList.GetHandle();
+    cmdList->SetComputeRootSignature(m_RootSignature.Get());
+    cmdList->SetPipelineState(m_PipelineState.Get());
+
+    BloomConstants constants{
+        .InputIndex = inputSrvIndex, .OutputIndex = outputUavIndex, .Horizontal = horizontal ? 1u : 0u};
+
+    cmdList->SetComputeRootConstantBufferView(0, sceneInfoBuffer.GetGPUVirtualAddress());
+    cmdList->SetComputeRoot32BitConstants(1, 3, &constants, 0);
+
+    const UINT groupCountX = DivideRoundUp(width, 8u);
+    const UINT groupCountY = DivideRoundUp(height, 8u);
+    cmdList->Dispatch(groupCountX, groupCountY, 1);
+}
+
+} // namespace GEngine::RenderPass
