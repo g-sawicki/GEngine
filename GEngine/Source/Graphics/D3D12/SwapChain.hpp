@@ -39,6 +39,7 @@ class SwapChain {
 
     void RetrieveBackBuffers();
 
+    Device& m_Device;
     Microsoft::WRL::ComPtr<IDXGISwapChain4> m_SwapChain;
     std::array<Texture, NumFrames> m_BackBuffers;
     uint32_t m_Width{};

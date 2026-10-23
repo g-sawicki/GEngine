@@ -6,6 +6,7 @@
 #include "Graphics/D3D12/D3D12Common.hpp"
 #include "Interop/Common.h"
 #include "Interop/Light.h"
+#include "UI/ImGui/Backends/D3D12/ImGuiD3D12RendererBackend.hpp"
 
 #include <cstring>
 
@@ -163,7 +164,7 @@ void Renderer::CreateRenderTargets(uint32_t width, uint32_t height) {
 }
 
 void Renderer::Destroy() {
-    m_Fence.Flush(m_CommandQueue.GetHandle());
+    Flush();
 
     for (auto& frame : m_FrameResources) {
         frame.CommandList.reset();
@@ -179,6 +180,16 @@ void Renderer::Destroy() {
     m_BloomTexture.Reset();
     m_ShadowMapTexture.Reset();
     m_DepthTexture.Reset();
+}
+
+void Renderer::Flush() {
+    m_Fence.Flush(m_CommandQueue.GetHandle());
+}
+
+std::unique_ptr<UI::ImGuiRendererBackend> Renderer::CreateUiRendererBackend() {
+    return std::make_unique<UI::ImGuiD3D12RendererBackend>(m_Device, m_CommandQueue,
+                                                           m_Device.GetShaderResourceDescriptorHeap(),
+                                                           SwapChain::NumFrames, SwapChain::BackBufferFormat);
 }
 
 void Renderer::ReportLiveObjects() {
@@ -261,7 +272,7 @@ void Renderer::FrustumCulling(const Camera& camera, const CascadedShadowMapsData
     }
 }
 
-void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
+void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::Overlay* overlay) {
     auto currentIdx{m_SwapChain.GetCurrentBackBufferIndex()};
     auto& frame{m_FrameResources[currentIdx]};
 
@@ -432,6 +443,13 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager) {
         cmdList->CopyResource(backBuffer.GetResource(), m_PresentTarget.GetResource());
 
         TransitionResource(cmdList, backBuffer.GetResource(), D3D12_RESOURCE_STATE_COPY_DEST,
+                           D3D12_RESOURCE_STATE_RENDER_TARGET);
+        if (overlay) {
+            const D3D12_CPU_DESCRIPTOR_HANDLE rtv = backBuffer.GetRtvHandle();
+            cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+            overlay->Render(cmdList);
+        }
+        TransitionResource(cmdList, backBuffer.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
                            D3D12_RESOURCE_STATE_PRESENT);
     }
 

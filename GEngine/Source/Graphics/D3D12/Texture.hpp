@@ -57,7 +57,6 @@ struct TextureFormatInfo {
 class Texture {
   public:
     Texture() = default;
-    Texture(ID3D12Resource* resource, const TextureDesc& desc);
     Texture(Device& device, const TextureDesc& desc);
 
     GE_NO_COPY(Texture)
@@ -67,6 +66,8 @@ class Texture {
 
     void Create(Device& device, const TextureDesc& desc);
     void Reset() noexcept;
+
+    [[nodiscard]] static Texture WrapSwapChainBuffer(Device& device, ID3D12Resource* resource);
 
     [[nodiscard]] ID3D12Resource* GetResource() const noexcept { return m_Resource.Get(); }
     [[nodiscard]] const TextureDesc& GetDesc() const noexcept { return m_Desc; }
@@ -83,6 +84,10 @@ class Texture {
     [[nodiscard]] uint32_t GetUavIndex() const noexcept { return m_UavIndex; }
 
   private:
+    void CreateShaderResourceView();
+    void CreateUnorderedAccessView();
+    void CreateRenderTargetViews();
+    void CreateDepthStencilViews();
     void ReleaseDescriptors() noexcept;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> m_Resource;

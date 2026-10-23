@@ -17,7 +17,7 @@ bool SwapChain::CheckTearingSupport(IDXGIFactory5* factory) {
 
 SwapChain::SwapChain(Device& device, HWND hWnd, CommandQueue& commandQueue, uint32_t width, uint32_t height,
                      uint32_t bufferCount)
-    : m_Width(width), m_Height(height), m_TearingSupported(CheckTearingSupport(device.GetFactory())) {
+    : m_Device(device), m_Width(width), m_Height(height), m_TearingSupported(CheckTearingSupport(device.GetFactory())) {
     IDXGIFactory6* const factory{device.GetFactory()};
 
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc{
@@ -66,9 +66,7 @@ void SwapChain::RetrieveBackBuffers() {
     for (uint32_t i{}; i < NumFrames; ++i) {
         ComPtr<ID3D12Resource> backBuffer;
         ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
-        m_BackBuffers[i] = Texture(
-            backBuffer.Get(),
-            {.Width = m_Width, .Height = m_Height, .Format = BackBufferFormat, .Usage = TextureUsage::RenderTarget});
+        m_BackBuffers[i] = Texture::WrapSwapChainBuffer(m_Device, backBuffer.Get());
     }
 }
 

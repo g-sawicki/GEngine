@@ -3,6 +3,8 @@
 #include "Application.hpp"
 #include "CommandLine.hpp"
 #include "Log.hpp"
+#include "UI/ImGui/Backends/Win32/ImGuiWin32PlatformBackend.hpp"
+#include "UI/ImGui/ImGuiLayer.hpp"
 
 namespace GEngine {
 
@@ -28,6 +30,9 @@ int Application::Run() {
 
     m_Renderer = std::make_unique<Renderer>(m_Window->GetHandle(), m_Window->GetClientWidth(),
                                             m_Window->GetClientHeight(), m_UseWarp, m_Scene.GetShadowConfig().MapSize);
+    auto platformBackend = std::make_unique<UI::ImGuiWin32PlatformBackend>(m_Window->GetHandle());
+    auto rendererBackend = m_Renderer->CreateUiRendererBackend();
+    m_UiOverlay = std::make_unique<UI::ImGuiLayer>(std::move(platformBackend), std::move(rendererBackend));
 
     OnInit();
 
@@ -49,7 +54,9 @@ int Application::Run() {
             m_ElapsedSeconds = 0.0;
         }
 
+        m_UiOverlay->BeginFrame();
         OnUpdate(deltaTime);
+        OnBuildUI();
         Render();
 
         // Check for device removal after present
@@ -68,7 +75,22 @@ int Application::Run() {
 
 void Application::OnInit() {}
 
+void Application::OnBuildUI() {}
+
+bool Application::WantsUiMouseCapture() const noexcept {
+    return m_UiOverlay && m_UiOverlay->WantsMouseCapture();
+}
+
+bool Application::WantsUiKeyboardCapture() const noexcept {
+    return m_UiOverlay && m_UiOverlay->WantsKeyboardCapture();
+}
+
 void Application::OnDestroy() {
+    if (m_UiOverlay) {
+        m_Renderer->Flush();
+        m_UiOverlay->Shutdown();
+        m_UiOverlay.reset();
+    }
     if (m_Renderer)
         m_Renderer->Destroy();
 }
@@ -81,15 +103,29 @@ void Application::HandleResize(uint32_t width, uint32_t height) {
 }
 
 void Application::Render() {
-    m_Renderer->Render(m_Scene, m_AssetManager);
+    m_Renderer->Render(m_Scene, m_AssetManager, m_UiOverlay.get());
 }
 
 LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPARAM wParam,
                                    [[maybe_unused]] LPARAM lParam) {
+    if (m_UiOverlay) {
+        const UI::WindowMessage windowMessage{hwnd, message, static_cast<uintptr_t>(wParam),
+                                              static_cast<intptr_t>(lParam)};
+        if (m_UiOverlay->HandleMessage(windowMessage))
+            return 0;
+    }
+
     switch (message) {
     case WM_SYSKEYDOWN:
     case WM_KEYDOWN: {
-        bool alt{(::GetAsyncKeyState(VK_MENU) & 0x8000) != 0};
+        const bool alt{(::GetAsyncKeyState(VK_MENU) & 0x8000) != 0};
+        if (wParam == VK_F11 || (wParam == VK_RETURN && alt)) {
+            m_Window->ToggleFullscreen();
+            return 0;
+        }
+
+        if (WantsUiKeyboardCapture())
+            break;
 
         switch (wParam) {
         case 'V':
@@ -99,13 +135,6 @@ LRESULT Application::HandleMessage([[maybe_unused]] HWND hwnd, UINT message, WPA
             m_Window->Quit();
             return 0;
         case VK_RBUTTON:
-            return 0;
-        case VK_RETURN:
-            if (alt)
-                m_Window->ToggleFullscreen();
-            return 0;
-        case VK_F11:
-            m_Window->ToggleFullscreen();
             return 0;
         }
     } break;

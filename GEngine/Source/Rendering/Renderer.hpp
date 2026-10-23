@@ -3,6 +3,7 @@
 #include "Scene/AssetManager.hpp"
 #include "Scene/Scene.hpp"
 
+#include "Core/UI/UiOverlay.hpp"
 #include "Core/Utility/Defines.hpp"
 #include "Core/Utility/Image.hpp"
 #include "Graphics/D3D12/Buffer.hpp"
@@ -23,6 +24,7 @@
 #include "Rendering/RenderPass/ToneMapPass.hpp"
 #include "Rendering/SkyboxRenderer.hpp"
 #include "Rendering/UploadEngine.hpp"
+#include "UI/ImGui/ImGuiBackend.hpp"
 
 #include <array>
 #include <memory>
@@ -41,9 +43,11 @@ class Renderer {
     /// Reports live DXGI objects. Debug builds only; call after the Renderer has been destroyed.
     static void ReportLiveObjects();
 
-    void Render(const Scene& scene, const AssetManager& assetManager);
+    void Render(const Scene& scene, const AssetManager& assetManager, UI::Overlay* overlay);
     void OnResize(uint32_t width, uint32_t height);
+    void Flush();
 
+    [[nodiscard]] std::unique_ptr<UI::ImGuiRendererBackend> CreateUiRendererBackend();
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device.IsDeviceRemoved(); }
 
     void SetVSync(bool enabled) noexcept { m_SwapChain.SetVSync(enabled); }

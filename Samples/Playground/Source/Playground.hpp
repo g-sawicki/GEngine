@@ -9,6 +9,7 @@ class Playground final : public GEngine::Application {
 
     void OnInit() override;
     void OnUpdate(float deltaTime) override;
+    void OnBuildUI() override;
 
   private:
     void UpdateCamera(float deltaTime);

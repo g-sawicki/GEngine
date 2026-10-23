@@ -10,6 +10,8 @@
 #include "Scene/Light.hpp"
 #include "Scene/Model.hpp"
 
+#include <imgui.h>
+
 #include <cmath>
 
 using namespace DirectX;
@@ -110,21 +112,32 @@ void Playground::OnUpdate(float deltaTime) {
     UpdateCamera(deltaTime);
 }
 
+void Playground::OnBuildUI() {
+    ImGui::ShowDemoWindow();
+}
+
 void Playground::UpdateCamera(float deltaTime) {
     // Build camera input from keyboard and mouse.
-    GEngine::CameraInput input;
-    input.MoveForward = GEngine::Input::IsKeyDown('W');
-    input.MoveBack = GEngine::Input::IsKeyDown('S');
-    input.MoveRight = GEngine::Input::IsKeyDown('D');
-    input.MoveLeft = GEngine::Input::IsKeyDown('A');
-    input.MoveUp = GEngine::Input::IsKeyDown(VK_SPACE);
-    input.MoveDown = GEngine::Input::IsKeyDown(VK_SHIFT);
+    GEngine::CameraInput input{};
+    if (!WantsUiKeyboardCapture()) {
+        input.MoveForward = GEngine::Input::IsKeyDown('W');
+        input.MoveBack = GEngine::Input::IsKeyDown('S');
+        input.MoveRight = GEngine::Input::IsKeyDown('D');
+        input.MoveLeft = GEngine::Input::IsKeyDown('A');
+        input.MoveUp = GEngine::Input::IsKeyDown(VK_SPACE);
+        input.MoveDown = GEngine::Input::IsKeyDown(VK_SHIFT);
+    }
 
     // Mouse delta: right-click toggles mouse look.
     {
         bool rightDown{GEngine::Input::IsKeyDown(VK_RBUTTON)};
 
-        if (rightDown && !m_MouseCaptured) {
+        if (WantsUiMouseCapture()) {
+            if (m_MouseCaptured) {
+                m_MouseCaptured = false;
+                GEngine::Input::ShowCursor(true);
+            }
+        } else if (rightDown && !m_MouseCaptured) {
             m_MouseCaptured = true;
             m_PrevCursorPos = GEngine::Input::GetCursorPosition();
             GEngine::Input::HideCursor();

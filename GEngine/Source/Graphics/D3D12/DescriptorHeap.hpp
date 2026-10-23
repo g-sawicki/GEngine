@@ -19,10 +19,9 @@ class DescriptorHeap {
     [[nodiscard]] uint32_t Allocate() { return m_Allocator.Allocate(); }
     void Deallocate(uint32_t index) { m_Allocator.Deallocate(index); }
 
-    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(UINT index) const noexcept {
-        return {m_DescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr +
-                static_cast<SIZE_T>(index) * m_DescriptorSize};
-    }
+    [[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(UINT index) const noexcept;
+    [[nodiscard]] D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(UINT index) const noexcept;
+    [[nodiscard]] uint32_t GetIndex(D3D12_CPU_DESCRIPTOR_HANDLE handle) const noexcept;
 
     void Release() noexcept { m_DescriptorHeap.Reset(); }
 

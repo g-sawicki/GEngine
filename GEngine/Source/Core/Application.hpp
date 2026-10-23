@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Utility/Defines.hpp"
+#include "Core/UI/UiOverlay.hpp"
 #include "Platform/Windows/Window.hpp"
 #include "Rendering/Renderer.hpp"
 #include "Scene/Scene.hpp"
@@ -25,6 +26,10 @@ class Application {
   protected:
     virtual void OnInit();
     virtual void OnUpdate(float deltaTime) = 0;
+    virtual void OnBuildUI();
+
+    [[nodiscard]] bool WantsUiMouseCapture() const noexcept;
+    [[nodiscard]] bool WantsUiKeyboardCapture() const noexcept;
 
   private:
     void OnDestroy();
@@ -39,6 +44,7 @@ class Application {
 
   private:
     std::unique_ptr<Window> m_Window;
+    std::unique_ptr<UI::Overlay> m_UiOverlay;
 
     Specification m_Specification{};
     bool m_UseWarp{};

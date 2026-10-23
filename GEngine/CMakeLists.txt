@@ -51,6 +51,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Core/Utility/Math.hpp"
     "Source/Core/Utility/MersenneTwister.hpp"
     "Source/Core/Utility/Timer.hpp"
+
+    "Source/Core/UI/UiOverlay.hpp"
     
     "Source/Core/Application.cpp"
     "Source/Core/Application.hpp"
@@ -114,6 +116,14 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/UploadEngine.cpp"
     "Source/Rendering/UploadEngine.hpp"
 
+    "Source/UI/ImGui/Backends/D3D12/ImGuiD3D12RendererBackend.cpp"
+    "Source/UI/ImGui/Backends/D3D12/ImGuiD3D12RendererBackend.hpp"
+    "Source/UI/ImGui/Backends/Win32/ImGuiWin32PlatformBackend.cpp"
+    "Source/UI/ImGui/Backends/Win32/ImGuiWin32PlatformBackend.hpp"
+    "Source/UI/ImGui/ImGuiBackend.hpp"
+    "Source/UI/ImGui/ImGuiLayer.cpp"
+    "Source/UI/ImGui/ImGuiLayer.hpp"
+
     # "Source/Scene/AssetCache.cpp"
     # "Source/Scene/AssetCache.hpp"
     "Source/Scene/AssetManager.cpp"
@@ -152,7 +162,8 @@ endif()
 
 target_precompile_headers(${PROJECT_NAME} PUBLIC "Source/PCH.hpp")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid d3dcompiler Microsoft::DirectX-Headers stb assimp spdlog)
+target_link_libraries(${PROJECT_NAME} PUBLIC d3d12 dxgi dxguid d3dcompiler Microsoft::DirectX-Headers stb assimp spdlog imgui)
+target_link_libraries(${PROJECT_NAME} PRIVATE imgui_backend_win32 imgui_backend_dx12)
 
 if(WIN32)
     target_link_options(${PROJECT_NAME} INTERFACE /ENTRY:mainCRTStartup)
