@@ -412,7 +412,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
 
         // Bloom horizontal pass, writing to the bloom texture
         m_BloomPass.Dispatch(*frame.CommandList, m_HdrTexture.GetSrvIndex(), m_BloomTexture.GetUavIndex(), true,
-                             *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight());
+                             *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                             m_Settings.Bloom);
 
         TransitionResource(cmdList, m_BloomTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -421,7 +422,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
 
         // Bloom vertical pass, writing directly to the HDR texture
         m_BloomPass.Dispatch(*frame.CommandList, m_BloomTexture.GetSrvIndex(), m_HdrTexture.GetUavIndex(), false,
-                             *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight());
+                             *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                             m_Settings.Bloom);
 
         TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -430,7 +432,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
 
         // Tone mapping
         m_ToneMapPass.Dispatch(*frame.CommandList, m_HdrTexture.GetSrvIndex(), m_PresentTarget.GetUavIndex(),
-                               *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight());
+                               *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                               m_Settings.ToneMapping);
     }
 
     // Present target

@@ -7,6 +7,8 @@ struct BloomConstants {
     uint32_t InputIndex;
     uint32_t OutputIndex;
     uint32_t Horizontal;
+    float Threshold;
+    float Intensity;
 };
 
 #endif // SHADER_INTEROP_BLOOM_H

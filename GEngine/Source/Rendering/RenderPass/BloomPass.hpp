@@ -9,6 +9,11 @@
 
 namespace GEngine::RenderPass {
 
+struct BloomSettings {
+    float Threshold{1.0f};
+    float Intensity{1.0f};
+};
+
 class BloomPass {
   public:
     explicit BloomPass(Device& device);
@@ -16,7 +21,7 @@ class BloomPass {
     GE_NO_COPY_NO_MOVE(BloomPass)
 
     void Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex, bool horizontal,
-                  Buffer& sceneInfoBuffer, uint32_t width, uint32_t height);
+                  Buffer& sceneInfoBuffer, uint32_t width, uint32_t height, const BloomSettings& settings);
 
   private:
     static RootSignature CreateRootSignature(Device& device);

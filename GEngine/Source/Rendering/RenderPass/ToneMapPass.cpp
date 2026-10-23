@@ -4,7 +4,6 @@
 
 #include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/Shader.hpp"
-#include "Interop/ToneMap.h"
 
 namespace GEngine::RenderPass {
 
@@ -52,13 +51,17 @@ PipelineState ToneMapPass::CreatePipelineState(Device& device, const RootSignatu
 }
 
 void ToneMapPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex,
-                           Buffer& sceneInfoBuffer, uint32_t width, uint32_t height) {
+                           Buffer& sceneInfoBuffer, uint32_t width, uint32_t height, const ToneMapSettings& settings) {
     auto* cmdList = commandList.GetHandle();
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
 
     ToneMapRootConstants constants{
-        .InputIndex = inputSrvIndex, .OutputIndex = outputUavIndex, .TonemapMode = ToneMapMode::ACES, .MaxWhite = 4.0f};
+        .InputIndex = inputSrvIndex,
+        .OutputIndex = outputUavIndex,
+        .TonemapMode = settings.Mode,
+        .MaxWhite = settings.MaxWhite,
+    };
 
     cmdList->SetComputeRootConstantBufferView(0, sceneInfoBuffer.GetGPUVirtualAddress());
     cmdList->SetComputeRoot32BitConstants(1, 4, &constants, 0);

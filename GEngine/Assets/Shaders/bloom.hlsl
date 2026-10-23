@@ -8,9 +8,9 @@ SamplerState hdrSampler : register(s0);
 
 static const float kBloomWeights[5] = {0.227027f, 0.1945946f, 0.1216216f, 0.054054f, 0.016216f};
 
-float3 ExtractBrightPass(float3 color) {
+float3 ExtractBrightPass(float3 color, float threshold) {
     const float luminance = Luminance(color);
-    const float contribution = max(luminance - 1.0f, 0.0f) / max(luminance, 1e-5f);
+    const float contribution = max(luminance - threshold, 0.0f) / max(luminance, 1e-5f);
     return color * contribution;
 }
 
@@ -31,7 +31,7 @@ void BloomCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
     for (int offset = -4; offset <= 4; ++offset) {
         float3 sampleColor = inputTexture.SampleLevel(hdrSampler, uv + axis * offset, 0.0f).rgb;
         if (constantsCB.Horizontal != 0)
-            sampleColor = ExtractBrightPass(sampleColor);
+            sampleColor = ExtractBrightPass(sampleColor, constantsCB.Threshold);
 
         color += sampleColor * kBloomWeights[abs(offset)];
     }
@@ -40,6 +40,7 @@ void BloomCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
         outputTexture[dispatchThreadId.xy] = float4(color, 1.0f);
     } else {
         float4 sceneColor = outputTexture[dispatchThreadId.xy];
-        outputTexture[dispatchThreadId.xy] = float4(sceneColor.rgb + color, sceneColor.a);
+        outputTexture[dispatchThreadId.xy] =
+            float4(sceneColor.rgb + color * constantsCB.Intensity, sceneColor.a);
     }
 }

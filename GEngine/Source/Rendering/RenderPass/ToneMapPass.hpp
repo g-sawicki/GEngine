@@ -6,8 +6,14 @@
 #include "Graphics/D3D12/Device.hpp"
 #include "Graphics/D3D12/PipelineState.hpp"
 #include "Graphics/D3D12/RootSignature.hpp"
+#include "Interop/ToneMap.h"
 
 namespace GEngine::RenderPass {
+
+struct ToneMapSettings {
+    ToneMapMode Mode{ToneMapMode::ACES};
+    float MaxWhite{4.0f};
+};
 
 class ToneMapPass {
   public:
@@ -16,7 +22,7 @@ class ToneMapPass {
     GE_NO_COPY_NO_MOVE(ToneMapPass)
 
     void Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex, Buffer& sceneInfoBuffer,
-                  uint32_t width, uint32_t height);
+                  uint32_t width, uint32_t height, const ToneMapSettings& settings);
 
   private:
     static RootSignature CreateRootSignature(Device& device);

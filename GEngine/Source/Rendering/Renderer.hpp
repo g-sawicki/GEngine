@@ -32,6 +32,11 @@
 
 namespace GEngine {
 
+struct RendererSettings {
+    RenderPass::BloomSettings Bloom{};
+    RenderPass::ToneMapSettings ToneMapping{};
+};
+
 class Renderer {
   public:
     Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize);
@@ -49,6 +54,9 @@ class Renderer {
 
     [[nodiscard]] std::unique_ptr<UI::ImGuiRendererBackend> CreateUiRendererBackend();
     [[nodiscard]] bool IsDeviceRemoved() const noexcept { return m_Device.IsDeviceRemoved(); }
+
+    [[nodiscard]] RendererSettings& GetSettings() noexcept { return m_Settings; }
+    [[nodiscard]] const RendererSettings& GetSettings() const noexcept { return m_Settings; }
 
     void SetVSync(bool enabled) noexcept { m_SwapChain.SetVSync(enabled); }
     [[nodiscard]] bool IsVSyncEnabled() const noexcept { return m_SwapChain.IsVSyncEnabled(); }
@@ -95,6 +103,7 @@ class Renderer {
     RenderPass::ForwardLightingPass m_ForwardLightingPass;
     RenderPass::BloomPass m_BloomPass;
     RenderPass::ToneMapPass m_ToneMapPass;
+    RendererSettings m_Settings{};
 
     SkyboxRenderer m_SkyboxRenderer;
 

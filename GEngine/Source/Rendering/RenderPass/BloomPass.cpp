@@ -14,7 +14,7 @@ BloomPass::BloomPass(Device& device)
 RootSignature BloomPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
     rootParams[0].InitAsConstantBufferView(0);
-    rootParams[1].InitAsConstants(3, 1);
+    rootParams[1].InitAsConstants(5, 1);
 
     D3D12_STATIC_SAMPLER_DESC staticSampler{
         .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
@@ -52,16 +52,21 @@ PipelineState BloomPass::CreatePipelineState(Device& device, const RootSignature
 }
 
 void BloomPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex, bool horizontal,
-                         Buffer& sceneInfoBuffer, uint32_t width, uint32_t height) {
+                         Buffer& sceneInfoBuffer, uint32_t width, uint32_t height, const BloomSettings& settings) {
     auto* cmdList = commandList.GetHandle();
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
 
     BloomConstants constants{
-        .InputIndex = inputSrvIndex, .OutputIndex = outputUavIndex, .Horizontal = horizontal ? 1u : 0u};
+        .InputIndex = inputSrvIndex,
+        .OutputIndex = outputUavIndex,
+        .Horizontal = horizontal ? 1u : 0u,
+        .Threshold = settings.Threshold,
+        .Intensity = settings.Intensity,
+    };
 
     cmdList->SetComputeRootConstantBufferView(0, sceneInfoBuffer.GetGPUVirtualAddress());
-    cmdList->SetComputeRoot32BitConstants(1, 3, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(1, 5, &constants, 0);
 
     const UINT groupCountX = DivideRoundUp(width, 8u);
     const UINT groupCountY = DivideRoundUp(height, 8u);

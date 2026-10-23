@@ -113,7 +113,23 @@ void Playground::OnUpdate(float deltaTime) {
 }
 
 void Playground::OnBuildUI() {
-    ImGui::ShowDemoWindow();
+    constexpr const char* toneMapModes[]{"Reinhard", "Extended Reinhard", "Uncharted 2", "ACES"};
+    auto& settings = m_Renderer->GetSettings();
+    if (ImGui::Begin("Rendering")) {
+        if (ImGui::CollapsingHeader("Bloom")) {
+            ImGui::SliderFloat("Threshold", &settings.Bloom.Threshold, 0.0f, 5.0f);
+            ImGui::SliderFloat("Intensity", &settings.Bloom.Intensity, 0.0f, 3.0f);
+        }
+
+        if (ImGui::CollapsingHeader("Tone mapping")) {
+            int toneMapMode = static_cast<int>(settings.ToneMapping.Mode);
+            if (ImGui::Combo("Operator", &toneMapMode, toneMapModes, IM_ARRAYSIZE(toneMapModes)))
+                settings.ToneMapping.Mode = static_cast<ToneMapMode>(toneMapMode);
+            if (settings.ToneMapping.Mode == ToneMapMode::ExtendedReinhard)
+                ImGui::SliderFloat("Max white", &settings.ToneMapping.MaxWhite, 1.0f, 16.0f);
+        }
+    }
+    ImGui::End();
 }
 
 void Playground::UpdateCamera(float deltaTime) {
