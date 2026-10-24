@@ -13,8 +13,8 @@ struct RootConstants {
     uint skyboxIndex;
 };
 
-ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
-ConstantBuffer<RootConstants> constantsCB : register(b1);
+ConstantBuffer<RootConstants> constantsCB : register(b0);
+ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
 SamplerState texSampler : register(s0);
 
 [shader("vertex")]

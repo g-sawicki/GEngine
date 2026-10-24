@@ -3,6 +3,7 @@
 #include "ForwardLightingPass.hpp"
 
 #include "Graphics/D3D12/Shader.hpp"
+#include "Interop/ForwardLighting.h"
 
 namespace GEngine::RenderPass {
 
@@ -12,10 +13,10 @@ ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT colorFormat
 
 RootSignature ForwardLightingPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[4]{};
-    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[0].InitAsConstants(4, 0);
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
-    rootParams[3].InitAsConstants(4, 3);
+    rootParams[3].InitAsConstantBufferView(3);
 
     D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
     staticSamplers[0] = D3D12_STATIC_SAMPLER_DESC{
@@ -111,25 +112,21 @@ void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colo
     cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
 
-    cmdList->SetGraphicsRootConstantBufferView(0, sceneInfoCB.GetGPUVirtualAddress());
-    cmdList->SetGraphicsRootConstantBufferView(1, cascadedShadowMapsDataCB.GetGPUVirtualAddress());
+    cmdList->SetGraphicsRootConstantBufferView(1, sceneInfoCB.GetGPUVirtualAddress());
+    cmdList->SetGraphicsRootConstantBufferView(2, cascadedShadowMapsDataCB.GetGPUVirtualAddress());
 
-    struct RootConstants {
-        uint32_t AlbedoIndex;
-        uint32_t NormalIndex;
-        uint32_t RoughnessMetallicIndex;
-        uint32_t ShadowIndex;
-    } constants{};
-
-    constants.ShadowIndex = shadowMapTexture.GetSrvIndex();
+    ForwardLightingConstants constants{
+        .ShadowIndex = shadowMapTexture.GetSrvIndex(),
+    };
     for (const auto& item : renderItems) {
         if (!item.CameraVisible)
             continue;
-        cmdList->SetGraphicsRootConstantBufferView(2, item.TransformCB->GetGPUVirtualAddress());
+
         constants.AlbedoIndex = item.Material.AlbedoIndex;
         constants.NormalIndex = item.Material.NormalIndex;
         constants.RoughnessMetallicIndex = item.Material.RoughnessMetallicIndex;
-        cmdList->SetGraphicsRoot32BitConstants(3, 4, &constants, 0);
+        cmdList->SetGraphicsRoot32BitConstants(0, 4, &constants, 0);
+        cmdList->SetGraphicsRootConstantBufferView(3, item.TransformCB->GetGPUVirtualAddress());
 
         auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};
         cmdList->IASetVertexBuffers(0, 1, &vbv);

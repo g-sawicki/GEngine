@@ -17,8 +17,8 @@ CubeMapBakePass::CubeMapBakePass(Device& device, DXGI_FORMAT outputFormat)
 
 RootSignature CubeMapBakePass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
-    rootParams[0].InitAsConstantBufferView(0);
-    rootParams[1].InitAsConstants(2, 1);
+    rootParams[0].InitAsConstants(2, 0);
+    rootParams[1].InitAsConstantBufferView(1);
 
     D3D12_STATIC_SAMPLER_DESC staticSampler{
         .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
@@ -114,19 +114,20 @@ void CubeMapBakePass::RenderCubeFaces(CommandList& commandList, PipelineState& p
 
     cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(pipelineState.Get());
-    cmdList->SetGraphicsRootConstantBufferView(0, cubeFaceCameraBuffer.GetGPUVirtualAddress());
+    cmdList->SetGraphicsRootConstantBufferView(1, cubeFaceCameraBuffer.GetGPUVirtualAddress());
 
     struct RootConstants {
         uint32_t InputIndex;
         uint32_t CameraIndex;
     };
 
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     for (uint16_t i{}; i < 6; ++i) {
         const D3D12_CPU_DESCRIPTOR_HANDLE colorRtv = targetTexture.GetRtvHandle(i);
         cmdList->OMSetRenderTargets(1, &colorRtv, FALSE, nullptr);
 
         RootConstants constants{.InputIndex = inputSrvIndex, .CameraIndex = i};
-        cmdList->SetGraphicsRoot32BitConstants(1, 2, &constants, 0);
+        cmdList->SetGraphicsRoot32BitConstants(0, 2, &constants, 0);
 
         auto vbv{cubeRenderItem.Mesh->VertexBuffer.GetVBV(cubeRenderItem.Mesh->VertexStride)};
         cmdList->IASetVertexBuffers(0, 1, &vbv);
@@ -134,7 +135,6 @@ void CubeMapBakePass::RenderCubeFaces(CommandList& commandList, PipelineState& p
         auto ibv{cubeRenderItem.Mesh->IndexBuffer.GetIBV()};
         cmdList->IASetIndexBuffer(&ibv);
 
-        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmdList->DrawIndexedInstanced(cubeRenderItem.Mesh->IndexCount, 1, 0, 0, 0);
     }
 }

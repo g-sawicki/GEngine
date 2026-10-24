@@ -1,4 +1,5 @@
 #include "Interop/Common.h"
+#include "Interop/ForwardLighting.h"
 #include "light.hlsli"
 
 struct VSInput {
@@ -16,17 +17,10 @@ struct PSInput {
     float3 normal : NORMAL;
 };
 
-struct RootConstants {
-    uint32_t albedoIndex;
-    uint32_t normalIndex;
-    uint32_t roughnessMetallicIndex;
-    uint32_t shadowIndex;
-};
-
-ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
-ConstantBuffer<CascadedShadowMapsData> csmDataCB : register(b1);
-ConstantBuffer<ObjectData> objectDataCB : register(b2);
-ConstantBuffer<RootConstants> constantsCB : register(b3);
+ConstantBuffer<ForwardLightingConstants> constantsCB : register(b0);
+ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
+ConstantBuffer<CascadedShadowMapsData> csmDataCB : register(b2);
+ConstantBuffer<ObjectData> objectDataCB : register(b3);
 SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 
@@ -45,10 +39,10 @@ PSInput VSMain(VSInput input) {
 
 [shader("pixel")]
 float4 PSMain(PSInput input) : SV_TARGET {
-    Texture2D albedoTexture = ResourceDescriptorHeap[constantsCB.albedoIndex];
-    Texture2D normalTexture = ResourceDescriptorHeap[constantsCB.normalIndex];
-    Texture2D roughnessMetallicTexture = ResourceDescriptorHeap[constantsCB.roughnessMetallicIndex];
-    Texture2DArray shadowTexture = ResourceDescriptorHeap[constantsCB.shadowIndex];
+    Texture2D albedoTexture = ResourceDescriptorHeap[constantsCB.AlbedoIndex];
+    Texture2D normalTexture = ResourceDescriptorHeap[constantsCB.NormalIndex];
+    Texture2D roughnessMetallicTexture = ResourceDescriptorHeap[constantsCB.RoughnessMetallicIndex];
+    Texture2DArray shadowTexture = ResourceDescriptorHeap[constantsCB.ShadowIndex];
 
     float4 albedo = albedoTexture.Sample(texSampler, input.uv);
     if (albedo.a < 0.01f)

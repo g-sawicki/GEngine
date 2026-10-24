@@ -12,9 +12,9 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthFormat)
 
 RootSignature ShadowPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[0].InitAsConstants(1, 0);
     rootParams[1].InitAsConstantBufferView(1);
-    rootParams[2].InitAsConstants(1, 2);
+    rootParams[2].InitAsConstantBufferView(2);
 
     D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
@@ -66,7 +66,7 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
 
     cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
-    cmdList->SetGraphicsRootConstantBufferView(0, lightDataConstantBuffer.GetGPUVirtualAddress());
+    cmdList->SetGraphicsRootConstantBufferView(1, lightDataConstantBuffer.GetGPUVirtualAddress());
 
     for (uint8_t cascadeIndex{}; cascadeIndex < cascadeCount; ++cascadeIndex) {
         const D3D12_CPU_DESCRIPTOR_HANDLE depthDsv = shadowMapTexture.GetDsvHandle(cascadeIndex);
@@ -74,11 +74,11 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
         const D3D12_CLEAR_VALUE& clearValue = shadowMapTexture.GetDesc().ClearValue;
         cmdList->ClearDepthStencilView(depthDsv, D3D12_CLEAR_FLAG_DEPTH, clearValue.DepthStencil.Depth,
                                        clearValue.DepthStencil.Stencil, 0, nullptr);
-        cmdList->SetGraphicsRoot32BitConstant(2, cascadeIndex, 0);
+        cmdList->SetGraphicsRoot32BitConstant(0, cascadeIndex, 0);
         for (const auto& item : renderItems) {
             if (!item.ShadowCaster || !(item.ShadowCascadeMask & (1u << cascadeIndex)))
                 continue;
-            cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
+            cmdList->SetGraphicsRootConstantBufferView(2, item.TransformCB->GetGPUVirtualAddress());
 
             auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};
             cmdList->IASetVertexBuffers(0, 1, &vbv);

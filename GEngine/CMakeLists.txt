@@ -47,6 +47,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Assets/Shaders/Interop/Common.h"
     "Assets/Shaders/Interop/Interop.h"
     "Assets/Shaders/Interop/DeferredLighting.h"
+    "Assets/Shaders/Interop/ForwardLighting.h"
     "Assets/Shaders/Interop/GBuffer.h"
     "Assets/Shaders/Interop/Light.h"
     "Assets/Shaders/Interop/ToneMap.h"

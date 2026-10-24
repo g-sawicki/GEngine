@@ -13,9 +13,9 @@ GBufferPass::GBufferPass(Device& device, const GBufferFormats& gBufferFormats, D
 
 RootSignature GBufferPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[0].InitAsConstants(3, 0);
     rootParams[1].InitAsConstantBufferView(1);
-    rootParams[2].InitAsConstants(3, 2);
+    rootParams[2].InitAsConstantBufferView(2);
 
     D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
     staticSamplers[0] = D3D12_STATIC_SAMPLER_DESC{
@@ -125,18 +125,19 @@ void GBufferPass::OnRender(CommandList& commandList, const GBufferTextures& gBuf
 
     cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
-    cmdList->SetGraphicsRootConstantBufferView(0, sceneInfoCB.GetGPUVirtualAddress());
+    cmdList->SetGraphicsRootConstantBufferView(1, sceneInfoCB.GetGPUVirtualAddress());
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     for (const auto& item : renderItems) {
         if (!item.CameraVisible)
             continue;
-        cmdList->SetGraphicsRootConstantBufferView(1, item.TransformCB->GetGPUVirtualAddress());
+
         const GBufferConstants constants{
             .AlbedoIndex = item.Material.AlbedoIndex,
             .NormalIndex = item.Material.NormalIndex,
             .RoughnessMetallicIndex = item.Material.RoughnessMetallicIndex,
         };
-        cmdList->SetGraphicsRoot32BitConstants(2, 3, &constants, 0);
+        cmdList->SetGraphicsRoot32BitConstants(0, 3, &constants, 0);
+        cmdList->SetGraphicsRootConstantBufferView(2, item.TransformCB->GetGPUVirtualAddress());
 
         auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};
         cmdList->IASetVertexBuffers(0, 1, &vbv);

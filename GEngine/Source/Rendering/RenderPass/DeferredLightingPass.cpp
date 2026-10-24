@@ -13,9 +13,9 @@ DeferredLightingPass::DeferredLightingPass(Device& device)
 
 RootSignature DeferredLightingPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[0].InitAsConstants(6, 0);
     rootParams[1].InitAsConstantBufferView(1);
-    rootParams[2].InitAsConstants(6, 2);
+    rootParams[2].InitAsConstantBufferView(2);
 
     D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
     staticSamplers[0] = D3D12_STATIC_SAMPLER_DESC{
@@ -84,9 +84,9 @@ void DeferredLightingPass::Dispatch(CommandList& commandList, uint32_t albedoInd
 
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
-    cmdList->SetComputeRootConstantBufferView(0, sceneInfoCB.GetGPUVirtualAddress());
-    cmdList->SetComputeRootConstantBufferView(1, cascadedShadowMapsDataCB.GetGPUVirtualAddress());
-    cmdList->SetComputeRoot32BitConstants(2, 6, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(0, 6, &constants, 0);
+    cmdList->SetComputeRootConstantBufferView(1, sceneInfoCB.GetGPUVirtualAddress());
+    cmdList->SetComputeRootConstantBufferView(2, cascadedShadowMapsDataCB.GetGPUVirtualAddress());
     cmdList->Dispatch(groupCountX, groupCountY, 1);
 }
 

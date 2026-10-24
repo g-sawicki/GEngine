@@ -2,8 +2,8 @@
 #include "Interop/Bloom.h"
 #include "math.hlsli"
 
-ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
-ConstantBuffer<BloomConstants> constantsCB : register(b1);
+ConstantBuffer<BloomConstants> constantsCB : register(b0);
+ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
 SamplerState hdrSampler : register(s0);
 
 static const float kBloomWeights[5] = {0.227027f, 0.1945946f, 0.1216216f, 0.054054f, 0.016216f};

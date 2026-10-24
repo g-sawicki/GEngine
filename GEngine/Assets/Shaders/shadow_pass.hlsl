@@ -13,9 +13,9 @@ struct RootConstants {
     uint cascadeIndex;
 };
 
-ConstantBuffer<CascadedShadowMapsData> cascadedShadowMapsDataCB : register(b0);
-ConstantBuffer<ObjectData> objectDataCB : register(b1);
-ConstantBuffer<RootConstants> constantsCB : register(b2);
+ConstantBuffer<RootConstants> constantsCB : register(b0);
+ConstantBuffer<CascadedShadowMapsData> cascadedShadowMapsDataCB : register(b1);
+ConstantBuffer<ObjectData> objectDataCB : register(b2);
 
 [shader("vertex")]
 PSInput VSMain(VSInput input) {

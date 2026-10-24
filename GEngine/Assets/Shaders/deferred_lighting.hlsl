@@ -3,9 +3,9 @@
 #include "Interop/GBuffer.h"
 #include "light.hlsli"
 
-ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
-ConstantBuffer<CascadedShadowMapsData> csmDataCB : register(b1);
-ConstantBuffer<DeferredLightingConstants> constantsCB : register(b2);
+ConstantBuffer<DeferredLightingConstants> constantsCB : register(b0);
+ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
+ConstantBuffer<CascadedShadowMapsData> csmDataCB : register(b2);
 SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 

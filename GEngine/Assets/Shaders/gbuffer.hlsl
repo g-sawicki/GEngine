@@ -22,9 +22,9 @@ struct GBufferRenderTargets {
     float4 RoughnessMetallic : SV_TARGET2;
 };
 
-ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
-ConstantBuffer<ObjectData> objectDataCB : register(b1);
-ConstantBuffer<GBufferConstants> constantsCB : register(b2);
+ConstantBuffer<GBufferConstants> constantsCB : register(b0);
+ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
+ConstantBuffer<ObjectData> objectDataCB : register(b2);
 SamplerState texSampler : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 

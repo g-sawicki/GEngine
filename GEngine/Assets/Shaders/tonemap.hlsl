@@ -2,8 +2,8 @@
 #include "Interop/ToneMap.h"
 #include "math.hlsli"
 
-ConstantBuffer<SceneInfo> sceneInfoCB : register(b0);
-ConstantBuffer<ToneMapRootConstants> constantsCB : register(b1);
+ConstantBuffer<ToneMapRootConstants> constantsCB : register(b0);
+ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
 SamplerState hdrSampler : register(s0);
 
 // https://64.github.io/tonemapping

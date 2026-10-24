@@ -13,8 +13,8 @@ BloomPass::BloomPass(Device& device)
 
 RootSignature BloomPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
-    rootParams[0].InitAsConstantBufferView(0);
-    rootParams[1].InitAsConstants(5, 1);
+    rootParams[0].InitAsConstants(5, 0);
+    rootParams[1].InitAsConstantBufferView(1);
 
     D3D12_STATIC_SAMPLER_DESC staticSampler{
         .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
@@ -65,8 +65,8 @@ void BloomPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint3
         .Intensity = settings.Intensity,
     };
 
-    cmdList->SetComputeRootConstantBufferView(0, sceneInfoBuffer.GetGPUVirtualAddress());
-    cmdList->SetComputeRoot32BitConstants(1, 5, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(0, 5, &constants, 0);
+    cmdList->SetComputeRootConstantBufferView(1, sceneInfoBuffer.GetGPUVirtualAddress());
 
     const UINT groupCountX = DivideRoundUp(width, 8u);
     const UINT groupCountY = DivideRoundUp(height, 8u);
