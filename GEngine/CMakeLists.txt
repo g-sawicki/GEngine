@@ -7,6 +7,9 @@ compile_shader("cubemap_convolution.hlsl" "VSMain" "vs_6_6" "cubemap_convolution
 compile_shader("cubemap_convolution.hlsl" "PSMain" "ps_6_6" "cubemap_convolution_ps.cso")
 compile_shader("default.hlsl" "VSMain" "vs_6_6" "default_vs.cso")
 compile_shader("default.hlsl" "PSMain" "ps_6_6" "default_ps.cso")
+compile_shader("deferred_lighting.hlsl" "DeferredLightingCS" "cs_6_6" "deferred_lighting_cs.cso")
+compile_shader("gbuffer.hlsl" "VSMain" "vs_6_6" "gbuffer_vs.cso")
+compile_shader("gbuffer.hlsl" "PSMain" "ps_6_6" "gbuffer_ps.cso")
 compile_shader("shadow_pass.hlsl" "VSMain" "vs_6_6" "shadow_pass_vs.cso")
 compile_shader("shadow_pass.hlsl" "PSMain" "ps_6_6" "shadow_pass_ps.cso")
 compile_shader("bloom.hlsl" "BloomCS" "cs_6_6" "bloom_cs.cso")
@@ -21,6 +24,9 @@ set(GENGINE_SHADERS
     "${SHADER_GEN_DIR}/cubemap_convolution_ps.cso"
     "${SHADER_GEN_DIR}/default_vs.cso"
     "${SHADER_GEN_DIR}/default_ps.cso"
+    "${SHADER_GEN_DIR}/deferred_lighting_cs.cso"
+    "${SHADER_GEN_DIR}/gbuffer_vs.cso"
+    "${SHADER_GEN_DIR}/gbuffer_ps.cso"
     "${SHADER_GEN_DIR}/shadow_pass_vs.cso"
     "${SHADER_GEN_DIR}/shadow_pass_ps.cso"
     "${SHADER_GEN_DIR}/bloom_cs.cso"
@@ -40,6 +46,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Assets/Shaders/Interop/Bloom.h"
     "Assets/Shaders/Interop/Common.h"
     "Assets/Shaders/Interop/Interop.h"
+    "Assets/Shaders/Interop/DeferredLighting.h"
+    "Assets/Shaders/Interop/GBuffer.h"
     "Assets/Shaders/Interop/Light.h"
     "Assets/Shaders/Interop/ToneMap.h"
 
@@ -93,8 +101,12 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/RenderPass/BloomPass.hpp"
     "Source/Rendering/RenderPass/CubeMapBakePass.cpp"
     "Source/Rendering/RenderPass/CubeMapBakePass.hpp"
+    "Source/Rendering/RenderPass/DeferredLightingPass.cpp"
+    "Source/Rendering/RenderPass/DeferredLightingPass.hpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.cpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
+    "Source/Rendering/RenderPass/GBufferPass.cpp"
+    "Source/Rendering/RenderPass/GBufferPass.hpp"
     "Source/Rendering/RenderPass/ShadowPass.cpp"
     "Source/Rendering/RenderPass/ShadowPass.hpp"
     "Source/Rendering/RenderPass/SkyboxPass.cpp"

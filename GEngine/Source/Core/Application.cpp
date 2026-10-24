@@ -6,6 +6,8 @@
 #include "UI/ImGui/Backends/Win32/ImGuiWin32PlatformBackend.hpp"
 #include "UI/ImGui/ImGuiLayer.hpp"
 
+#include <imgui.h>
+
 namespace GEngine {
 
 Application::Application(const Specification& specification) : m_Specification(specification) {}
@@ -57,6 +59,7 @@ int Application::Run() {
         m_UiOverlay->BeginFrame();
         OnUpdate(deltaTime);
         OnBuildUI();
+        BuildRendererUI();
         Render();
 
         // Check for device removal after present
@@ -76,6 +79,17 @@ int Application::Run() {
 void Application::OnInit() {}
 
 void Application::OnBuildUI() {}
+
+void Application::BuildRendererUI() {
+    RendererSettings& settings = m_Renderer->GetSettings();
+    ImGui::Begin("Renderer");
+    if (ImGui::RadioButton("Forward", settings.Mode == RenderMode::Forward))
+        settings.Mode = RenderMode::Forward;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Deferred", settings.Mode == RenderMode::Deferred))
+        settings.Mode = RenderMode::Deferred;
+    ImGui::End();
+}
 
 bool Application::WantsUiMouseCapture() const noexcept {
     return m_UiOverlay && m_UiOverlay->WantsMouseCapture();

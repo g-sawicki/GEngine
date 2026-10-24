@@ -7,7 +7,6 @@
 #include "Rendering/CascadedShadowMaps.hpp"
 #include "Scene/ModelLoader.hpp"
 
-#include <cfloat>
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -27,6 +26,10 @@ SceneInfo Scene::GetSceneInfo() const noexcept {
     DirectX::XMStoreFloat4x4(&sceneInfo.viewProjection, m_Camera.GetViewProjectionMatrix());
     DirectX::XMStoreFloat4x4(&sceneInfo.view, m_Camera.GetViewMatrix());
     DirectX::XMStoreFloat4x4(&sceneInfo.projection, m_Camera.GetProjectionMatrix());
+    DirectX::XMStoreFloat4x4(
+        &sceneInfo.inverseViewProjection,
+        DirectX::XMMatrixInverse(nullptr,
+                                 m_Camera.GetViewProjectionMatrix())); // TODO: call GetViewProjectionMatrix once
     return sceneInfo;
 }
 

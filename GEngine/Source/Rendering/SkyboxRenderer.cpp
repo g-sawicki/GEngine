@@ -107,7 +107,8 @@ void SkyboxRenderer::Update(const Skybox& skybox) {
         .Usage = TextureUsage::ShaderResource | TextureUsage::RenderTarget,
         .IsCubeMap = true,
         .ClearValue = {.Format = kSkyboxCubeMapFormat, .Color = {0.0f, 0.0f, 0.0f, 1.0f}},
-        .InitialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        .InitialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
     };
     m_IrradianceTexture = std::make_unique<Texture>(m_Device, irradianceDesc);
 
@@ -132,12 +133,14 @@ void SkyboxRenderer::BakeEnvironmentMaps(CommandList& commandList) {
                        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     // Cube map -> diffuse irradiance
-    TransitionResource(cmdList, m_IrradianceTexture->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+    TransitionResource(cmdList, m_IrradianceTexture->GetResource(),
+                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                        D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_CubeMapBakePass.ConvolveIrradiance(commandList, *m_IrradianceTexture, m_CubeMapTexture->GetSrvIndex(),
                                          m_CubeFaceCameraCB, cubeRenderItem);
     TransitionResource(cmdList, m_IrradianceTexture->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
-                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     m_NeedsBake = false;
 }

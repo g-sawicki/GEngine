@@ -6,7 +6,7 @@
 #include "math.hlsli"
 
 struct Material {
-    float4 albedo;
+    float3 albedo;
     float roughness;
     float metallic;
 };
@@ -75,7 +75,7 @@ float ComputeShadow(CascadedShadowMapsData csmData, SamplerComparisonState shado
 float DistributionTrowbridgeReitzGGX(float3 normal, float3 halfDir, float roughness) {
     float alpha = roughness * roughness;
     float alpha2 = alpha * alpha;
-    float NdotH = max(dot(normal, halfDir), 0.0f);
+    float NdotH = saturate(dot(normal, halfDir));
     float NdotH2 = NdotH * NdotH;
     float denominator = NdotH2 * (alpha2 - 1.0f) + 1.0f;
     denominator = PI * denominator * denominator;

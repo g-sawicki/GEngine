@@ -19,7 +19,9 @@
 #include "Rendering/Components.hpp"
 #include "Rendering/GpuResourceCache.hpp"
 #include "Rendering/RenderPass/BloomPass.hpp"
+#include "Rendering/RenderPass/DeferredLightingPass.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
+#include "Rendering/RenderPass/GBufferPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
 #include "Rendering/RenderPass/ToneMapPass.hpp"
 #include "Rendering/SkyboxRenderer.hpp"
@@ -32,7 +34,13 @@
 
 namespace GEngine {
 
+enum class RenderMode : uint8_t {
+    Forward,
+    Deferred,
+};
+
 struct RendererSettings {
+    RenderMode Mode{RenderMode::Forward};
     RenderPass::BloomSettings Bloom{};
     RenderPass::ToneMapSettings ToneMapping{};
 };
@@ -97,10 +105,13 @@ class Renderer {
     Texture m_PresentTarget{};
     Texture m_DepthTexture{};
     Texture m_ShadowMapTexture{};
+    RenderPass::GBufferTextures m_GBufferTextures{};
 
     // Render passes
     RenderPass::ShadowPass m_ShadowPass;
     RenderPass::ForwardLightingPass m_ForwardLightingPass;
+    RenderPass::GBufferPass m_GBufferPass;
+    RenderPass::DeferredLightingPass m_DeferredLightingPass;
     RenderPass::BloomPass m_BloomPass;
     RenderPass::ToneMapPass m_ToneMapPass;
     RendererSettings m_Settings{};

@@ -67,7 +67,7 @@ float4 PSMain(PSInput input) : SV_TARGET {
     float3 V = normalize(sceneInfoCB.cameraPosition - input.worldPos);
 
     Material material;
-    material.albedo = albedo;
+    material.albedo = albedo.rgb;
     material.roughness = roughness;
     material.metallic = metallic;
 

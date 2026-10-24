@@ -34,6 +34,7 @@ class Application {
   private:
     void OnDestroy();
     void Render();
+    void BuildRendererUI();
     void HandleResize(uint32_t width, uint32_t height);
     LRESULT HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 

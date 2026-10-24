@@ -64,9 +64,31 @@ struct FrustumPlanes {
         .Width = width,
         .Height = height,
         .Format = DXGI_FORMAT_D32_FLOAT,
-        .Usage = TextureUsage::DepthStencil,
+        .Usage = TextureUsage::DepthStencil | TextureUsage::ShaderResource,
         .ClearValue = {.Format = DXGI_FORMAT_D32_FLOAT, .DepthStencil = {.Depth = 1.0f, .Stencil = 0}},
         .InitialState = D3D12_RESOURCE_STATE_DEPTH_WRITE,
+    };
+}
+
+constexpr RenderPass::GBufferFormats kGBufferFormats{};
+
+[[nodiscard]] constexpr TextureDesc GBufferTargetDesc(uint32_t width, uint32_t height,
+                                                      const DXGI_FORMAT format) noexcept {
+    return TextureDesc{
+        .Width = width,
+        .Height = height,
+        .Format = format,
+        .Usage = TextureUsage::RenderTarget | TextureUsage::ShaderResource,
+        .ClearValue = {.Format = format, .Color = {0.0f, 0.0f, 0.0f, 0.0f}},
+        .InitialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+    };
+}
+
+[[nodiscard]] RenderPass::GBufferTextures CreateGBufferTextures(Device& device, uint32_t width, uint32_t height) {
+    return {
+        Texture(device, GBufferTargetDesc(width, height, kGBufferFormats.AlbedoFormat)),
+        Texture(device, GBufferTargetDesc(width, height, kGBufferFormats.NormalFormat)),
+        Texture(device, GBufferTargetDesc(width, height, kGBufferFormats.RoughnessMetallicFormat)),
     };
 }
 
@@ -124,8 +146,10 @@ Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uin
       m_PresentTarget(Texture(m_Device, PresentTargetDesc(width, height))),
       m_DepthTexture(Texture(m_Device, DepthStencilTargetDesc(width, height))),
       m_ShadowMapTexture(Texture(m_Device, ShadowMapTargetDesc(shadowMapSize))),
+      m_GBufferTextures(CreateGBufferTextures(m_Device, width, height)),
       m_ShadowPass(m_Device, m_ShadowMapTexture.GetDesc().Format),
       m_ForwardLightingPass(m_Device, m_HdrTexture.GetDesc().Format, m_DepthTexture.GetDesc().Format),
+      m_GBufferPass(m_Device, kGBufferFormats, m_DepthTexture.GetDesc().Format), m_DeferredLightingPass(m_Device),
       m_BloomPass(m_Device), m_ToneMapPass(m_Device),
       m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture.GetDesc().Format,
                        m_DepthTexture.GetDesc().Format) {}
@@ -161,6 +185,7 @@ void Renderer::CreateRenderTargets(uint32_t width, uint32_t height) {
     m_HdrTexture.Create(m_Device, HdrTargetDesc(width, height));
     m_BloomTexture.Create(m_Device, BloomTargetDesc(width, height));
     m_PresentTarget.Create(m_Device, PresentTargetDesc(width, height));
+    m_GBufferTextures = CreateGBufferTextures(m_Device, width, height);
 }
 
 void Renderer::Destroy() {
@@ -386,16 +411,51 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
                               cascadedShadowMapsData.cascadeCount, m_RenderItems);
     }
 
-    // Forward lighting pass
-    {
-        TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                           D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (m_Settings.Mode == RenderMode::Forward) {
         TransitionResource(cmdList, m_ShadowMapTexture.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE,
                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
+        TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                           D3D12_RESOURCE_STATE_RENDER_TARGET);
         m_ForwardLightingPass.OnRender(*frame.CommandList, m_HdrTexture, m_DepthTexture, m_ShadowMapTexture,
                                        *frame.SceneInfoConstantBuffer, *frame.CascadedShadowMapsDataConstantBuffer,
                                        m_RenderItems);
+    } else {
+        TransitionResource(cmdList, m_GBufferTextures.AlbedoTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        TransitionResource(cmdList, m_GBufferTextures.NormalTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        TransitionResource(cmdList, m_GBufferTextures.RoughnessMetallicTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+        m_GBufferPass.OnRender(*frame.CommandList, m_GBufferTextures, m_DepthTexture, *frame.SceneInfoConstantBuffer,
+                               m_RenderItems);
+
+        TransitionResource(cmdList, m_GBufferTextures.AlbedoTexture.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_GBufferTextures.NormalTexture.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_GBufferTextures.RoughnessMetallicTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_DepthTexture.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_ShadowMapTexture.GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                           D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+        m_DeferredLightingPass.Dispatch(
+            *frame.CommandList, m_GBufferTextures.AlbedoTexture.GetSrvIndex(),
+            m_GBufferTextures.NormalTexture.GetSrvIndex(), m_GBufferTextures.RoughnessMetallicTexture.GetSrvIndex(),
+            m_DepthTexture.GetSrvIndex(), m_ShadowMapTexture.GetSrvIndex(), m_HdrTexture.GetUavIndex(),
+            *frame.SceneInfoConstantBuffer, *frame.CascadedShadowMapsDataConstantBuffer, m_SwapChain.GetWidth(),
+            m_SwapChain.GetHeight());
+
+        TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                           D3D12_RESOURCE_STATE_RENDER_TARGET);
+        TransitionResource(cmdList, m_DepthTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                           D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        TransitionResource(cmdList, m_ShadowMapTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
     m_RenderItems.clear();
