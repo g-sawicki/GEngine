@@ -13,7 +13,7 @@ DeferredLightingPass::DeferredLightingPass(Device& device)
 
 RootSignature DeferredLightingPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstants(6, 0);
+    rootParams[0].InitAsConstants(7, 0);
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
 
@@ -65,15 +65,17 @@ PipelineState DeferredLightingPass::CreatePipelineState(Device& device, const Ro
 }
 
 void DeferredLightingPass::Dispatch(CommandList& commandList, uint32_t albedoIndex, uint32_t normalIndex,
-                                    uint32_t roughnessMetallicIndex, uint32_t depthIndex, uint32_t shadowMapIndex,
-                                    uint32_t hdrIndex, const Buffer& sceneInfoCB,
-                                    const Buffer& cascadedShadowMapsDataCB, uint32_t width, uint32_t height) {
+                                    uint32_t roughnessMetallicIndex, uint32_t ambientOcclusionIndex,
+                                    uint32_t depthIndex, uint32_t shadowMapIndex, uint32_t hdrIndex,
+                                    const Buffer& sceneInfoCB, const Buffer& cascadedShadowMapsDataCB, uint32_t width,
+                                    uint32_t height) {
     auto* cmdList = commandList.GetHandle();
 
     DeferredLightingConstants constants{
         .AlbedoIndex = albedoIndex,
         .NormalIndex = normalIndex,
         .RoughnessMetallicIndex = roughnessMetallicIndex,
+        .AmbientOcclusionIndex = ambientOcclusionIndex,
         .DepthIndex = depthIndex,
         .ShadowIndex = shadowMapIndex,
         .HdrIndex = hdrIndex,
@@ -84,7 +86,7 @@ void DeferredLightingPass::Dispatch(CommandList& commandList, uint32_t albedoInd
 
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
-    cmdList->SetComputeRoot32BitConstants(0, 6, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(0, 7, &constants, 0);
     cmdList->SetComputeRootConstantBufferView(1, sceneInfoCB.GetGPUVirtualAddress());
     cmdList->SetComputeRootConstantBufferView(2, cascadedShadowMapsDataCB.GetGPUVirtualAddress());
     cmdList->Dispatch(groupCountX, groupCountY, 1);

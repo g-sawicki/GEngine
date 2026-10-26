@@ -21,7 +21,9 @@
 #include "Rendering/RenderPass/BloomPass.hpp"
 #include "Rendering/RenderPass/DeferredLightingPass.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
+#include "Rendering/RenderPass/GaussianBlurPass.hpp"
 #include "Rendering/RenderPass/GBufferPass.hpp"
+#include "Rendering/RenderPass/SSAOPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
 #include "Rendering/RenderPass/ToneMapPass.hpp"
 #include "Rendering/SkyboxRenderer.hpp"
@@ -40,7 +42,9 @@ enum class RenderMode : uint8_t {
 };
 
 struct RendererSettings {
-    RenderMode Mode{RenderMode::Forward};
+    RenderMode Mode{RenderMode::Deferred};
+    RenderPass::SSAOSettings SSAO{};
+    RenderPass::GaussianBlurSettings SSAOBlur{};
     RenderPass::BloomSettings Bloom{};
     RenderPass::ToneMapSettings ToneMapping{};
 };
@@ -74,6 +78,12 @@ class Renderer {
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CommandAllocator;
         std::unique_ptr<CommandList> CommandList;
         std::unique_ptr<Buffer> SceneInfoConstantBuffer;
+        std::unique_ptr<Buffer> GaussianBlurWeightsConstantBuffer;
+        RenderPass::GaussianBlurSettings UploadedGaussianBlurSettings{};
+        bool HasUploadedGaussianBlurWeights{};
+        std::unique_ptr<Buffer> BloomWeightsConstantBuffer;
+        uint64_t UploadedBloomWeightsRevision{};
+        bool HasUploadedBloomWeights{};
         std::unique_ptr<Buffer> CascadedShadowMapsDataConstantBuffer;
         std::unique_ptr<Buffer> LightDataStructuredBuffer;
         std::vector<std::unique_ptr<Buffer>> ObjectConstantBuffers;
@@ -103,6 +113,8 @@ class Renderer {
     Texture m_HdrTexture{};
     Texture m_BloomTexture{};
     Texture m_PresentTarget{};
+    Texture m_AmbientOcclusionTexture{};
+    Texture m_BlurredAmbientOcclusionTexture{};
     Texture m_DepthTexture{};
     Texture m_ShadowMapTexture{};
     RenderPass::GBufferTextures m_GBufferTextures{};
@@ -111,6 +123,8 @@ class Renderer {
     RenderPass::ShadowPass m_ShadowPass;
     RenderPass::ForwardLightingPass m_ForwardLightingPass;
     RenderPass::GBufferPass m_GBufferPass;
+    RenderPass::SSAOPass m_SSAOPass;
+    RenderPass::GaussianBlurPass m_GaussianBlurPass;
     RenderPass::DeferredLightingPass m_DeferredLightingPass;
     RenderPass::BloomPass m_BloomPass;
     RenderPass::ToneMapPass m_ToneMapPass;

@@ -113,6 +113,16 @@ constexpr RenderPass::GBufferFormats kGBufferFormats{};
     };
 }
 
+[[nodiscard]] constexpr TextureDesc AmbientOcclusionTargetDesc(uint32_t width, uint32_t height) noexcept {
+    return TextureDesc{
+        .Width = width,
+        .Height = height,
+        .Format = DXGI_FORMAT_R32_FLOAT,
+        .Usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess,
+        .InitialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+    };
+}
+
 [[nodiscard]] constexpr TextureDesc PresentTargetDesc(uint32_t width, uint32_t height) noexcept {
     return TextureDesc{
         .Width = width,
@@ -144,13 +154,16 @@ Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uin
       m_HdrTexture(Texture(m_Device, HdrTargetDesc(width, height))),
       m_BloomTexture(Texture(m_Device, BloomTargetDesc(width, height))),
       m_PresentTarget(Texture(m_Device, PresentTargetDesc(width, height))),
+      m_AmbientOcclusionTexture(Texture(m_Device, AmbientOcclusionTargetDesc(width, height))),
+      m_BlurredAmbientOcclusionTexture(Texture(m_Device, AmbientOcclusionTargetDesc(width, height))),
       m_DepthTexture(Texture(m_Device, DepthStencilTargetDesc(width, height))),
       m_ShadowMapTexture(Texture(m_Device, ShadowMapTargetDesc(shadowMapSize))),
       m_GBufferTextures(CreateGBufferTextures(m_Device, width, height)),
       m_ShadowPass(m_Device, m_ShadowMapTexture.GetDesc().Format),
       m_ForwardLightingPass(m_Device, m_HdrTexture.GetDesc().Format, m_DepthTexture.GetDesc().Format),
-      m_GBufferPass(m_Device, kGBufferFormats, m_DepthTexture.GetDesc().Format), m_DeferredLightingPass(m_Device),
-      m_BloomPass(m_Device), m_ToneMapPass(m_Device),
+      m_GBufferPass(m_Device, kGBufferFormats, m_DepthTexture.GetDesc().Format), m_SSAOPass(m_Device, m_UploadEngine),
+      m_GaussianBlurPass(m_Device),
+      m_DeferredLightingPass(m_Device), m_BloomPass(m_Device), m_ToneMapPass(m_Device),
       m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture.GetDesc().Format,
                        m_DepthTexture.GetDesc().Format) {}
 
@@ -166,6 +179,17 @@ Renderer::FrameResources Renderer::CreateFrameResources() {
                                          .HeapType = D3D12_HEAP_TYPE_UPLOAD,
                                          .MiscFlags = BufferMiscFlags::ConstantBuffer};
         frameResources[i].SceneInfoConstantBuffer = std::make_unique<Buffer>(m_Device, sceneInfoCbDesc);
+
+        const BufferDesc gaussianBlurWeightsCbDesc{.Size = sizeof(GaussianWeights),
+                                                  .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+                                                  .MiscFlags = BufferMiscFlags::ConstantBuffer};
+        frameResources[i].GaussianBlurWeightsConstantBuffer =
+            std::make_unique<Buffer>(m_Device, gaussianBlurWeightsCbDesc);
+
+        const BufferDesc bloomWeightsCbDesc{.Size = sizeof(BloomWeights),
+                                            .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+                                            .MiscFlags = BufferMiscFlags::ConstantBuffer};
+        frameResources[i].BloomWeightsConstantBuffer = std::make_unique<Buffer>(m_Device, bloomWeightsCbDesc);
 
         const BufferDesc cascadedShadowMapsDataCbDesc{.Size = sizeof(CascadedShadowMapsData),
                                                       .HeapType = D3D12_HEAP_TYPE_UPLOAD,
@@ -185,6 +209,8 @@ void Renderer::CreateRenderTargets(uint32_t width, uint32_t height) {
     m_HdrTexture.Create(m_Device, HdrTargetDesc(width, height));
     m_BloomTexture.Create(m_Device, BloomTargetDesc(width, height));
     m_PresentTarget.Create(m_Device, PresentTargetDesc(width, height));
+    m_AmbientOcclusionTexture.Create(m_Device, AmbientOcclusionTargetDesc(width, height));
+    m_BlurredAmbientOcclusionTexture.Create(m_Device, AmbientOcclusionTargetDesc(width, height));
     m_GBufferTextures = CreateGBufferTextures(m_Device, width, height);
 }
 
@@ -195,6 +221,8 @@ void Renderer::Destroy() {
         frame.CommandList.reset();
         frame.CommandAllocator.Reset();
         frame.SceneInfoConstantBuffer.reset();
+        frame.GaussianBlurWeightsConstantBuffer.reset();
+        frame.BloomWeightsConstantBuffer.reset();
         frame.CascadedShadowMapsDataConstantBuffer.reset();
         frame.LightDataStructuredBuffer.reset();
         frame.ObjectConstantBuffers.clear();
@@ -203,6 +231,8 @@ void Renderer::Destroy() {
     m_PresentTarget.Reset();
     m_HdrTexture.Reset();
     m_BloomTexture.Reset();
+    m_AmbientOcclusionTexture.Reset();
+    m_BlurredAmbientOcclusionTexture.Reset();
     m_ShadowMapTexture.Reset();
     m_DepthTexture.Reset();
 }
@@ -443,12 +473,45 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
+        if (!frame.HasUploadedGaussianBlurWeights ||
+            frame.UploadedGaussianBlurSettings != m_Settings.SSAOBlur) {
+            m_GaussianBlurPass.UploadWeights(*frame.GaussianBlurWeightsConstantBuffer, m_Settings.SSAOBlur);
+            frame.UploadedGaussianBlurSettings = m_Settings.SSAOBlur;
+            frame.HasUploadedGaussianBlurWeights = true;
+        }
+
+        TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        m_SSAOPass.Dispatch(*frame.CommandList, m_GBufferTextures.NormalTexture.GetSrvIndex(),
+                            m_DepthTexture.GetSrvIndex(), m_AmbientOcclusionTexture.GetUavIndex(),
+                            *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                            m_Settings.SSAO);
+        TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+        TransitionResource(cmdList, m_BlurredAmbientOcclusionTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        m_GaussianBlurPass.Dispatch(*frame.CommandList, m_AmbientOcclusionTexture.GetSrvIndex(),
+                                    m_BlurredAmbientOcclusionTexture.GetUavIndex(), true,
+                                    *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                                    *frame.GaussianBlurWeightsConstantBuffer, m_Settings.SSAOBlur);
+        TransitionResource(cmdList, m_BlurredAmbientOcclusionTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        m_GaussianBlurPass.Dispatch(*frame.CommandList, m_BlurredAmbientOcclusionTexture.GetSrvIndex(),
+                                    m_AmbientOcclusionTexture.GetUavIndex(), false, *frame.SceneInfoConstantBuffer,
+                                    m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                                    *frame.GaussianBlurWeightsConstantBuffer, m_Settings.SSAOBlur);
+        TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(),
+                           D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
         m_DeferredLightingPass.Dispatch(
             *frame.CommandList, m_GBufferTextures.AlbedoTexture.GetSrvIndex(),
             m_GBufferTextures.NormalTexture.GetSrvIndex(), m_GBufferTextures.RoughnessMetallicTexture.GetSrvIndex(),
-            m_DepthTexture.GetSrvIndex(), m_ShadowMapTexture.GetSrvIndex(), m_HdrTexture.GetUavIndex(),
-            *frame.SceneInfoConstantBuffer, *frame.CascadedShadowMapsDataConstantBuffer, m_SwapChain.GetWidth(),
-            m_SwapChain.GetHeight());
+            m_AmbientOcclusionTexture.GetSrvIndex(), m_DepthTexture.GetSrvIndex(), m_ShadowMapTexture.GetSrvIndex(),
+            m_HdrTexture.GetUavIndex(), *frame.SceneInfoConstantBuffer, *frame.CascadedShadowMapsDataConstantBuffer,
+            m_SwapChain.GetWidth(), m_SwapChain.GetHeight());
 
         TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                            D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -470,10 +533,17 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         TransitionResource(cmdList, m_BloomTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
+        if (!frame.HasUploadedBloomWeights ||
+            frame.UploadedBloomWeightsRevision != m_Settings.Bloom.WeightsRevision) {
+            m_BloomPass.UploadWeights(*frame.BloomWeightsConstantBuffer, m_Settings.Bloom);
+            frame.UploadedBloomWeightsRevision = m_Settings.Bloom.WeightsRevision;
+            frame.HasUploadedBloomWeights = true;
+        }
+
         // Bloom horizontal pass, writing to the bloom texture
         m_BloomPass.Dispatch(*frame.CommandList, m_HdrTexture.GetSrvIndex(), m_BloomTexture.GetUavIndex(), true,
                              *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
-                             m_Settings.Bloom);
+                             *frame.BloomWeightsConstantBuffer, m_Settings.Bloom);
 
         TransitionResource(cmdList, m_BloomTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -483,7 +553,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         // Bloom vertical pass, writing directly to the HDR texture
         m_BloomPass.Dispatch(*frame.CommandList, m_BloomTexture.GetSrvIndex(), m_HdrTexture.GetUavIndex(), false,
                              *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
-                             m_Settings.Bloom);
+                             *frame.BloomWeightsConstantBuffer, m_Settings.Bloom);
 
         TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

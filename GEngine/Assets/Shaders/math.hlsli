@@ -7,4 +7,16 @@ float Luminance(float3 color) {
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
+float3 DepthReprojection(float depth, float2 uv, row_major float4x4 inverseMatrix) {
+    float3 ndc = float3(uv * 2.0f - 1.0f, depth);
+    ndc.y = -ndc.y;
+    float4 homogenous = mul(float4(ndc, 1.0f), inverseMatrix);
+    float3 position = homogenous.xyz / homogenous.w;
+    return position;
+}
+
+float2 CenterBiasedUVFromPixelCoordinate(uint2 pixelCoord, uint2 resolution) {
+    return (float2(pixelCoord) + 0.5f) / float2(resolution);
+}
+
 #endif // SHADER_MATH_H

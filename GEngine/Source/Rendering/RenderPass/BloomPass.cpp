@@ -6,35 +6,22 @@
 #include "Graphics/D3D12/Shader.hpp"
 #include "Interop/Bloom.h"
 
+#include <algorithm>
+
 namespace GEngine::RenderPass {
 
 BloomPass::BloomPass(Device& device)
     : m_RootSignature(CreateRootSignature(device)), m_PipelineState(CreatePipelineState(device, m_RootSignature)) {}
 
 RootSignature BloomPass::CreateRootSignature(Device& device) {
-    CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
-    rootParams[0].InitAsConstants(5, 0);
+    CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
+    rootParams[0].InitAsConstants(6, 0);
     rootParams[1].InitAsConstantBufferView(1);
-
-    D3D12_STATIC_SAMPLER_DESC staticSampler{
-        .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .MipLODBias = 0.0f,
-        .MaxAnisotropy = 1,
-        .ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS,
-        .MinLOD = 0.0f,
-        .MaxLOD = 0.0f,
-        .ShaderRegister = 0,
-        .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-    };
+    rootParams[2].InitAsConstantBufferView(2);
 
     D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
     rootSigDesc.pParameters = rootParams;
-    rootSigDesc.NumStaticSamplers = 1;
-    rootSigDesc.pStaticSamplers = &staticSampler;
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 
     return RootSignature(device, rootSigDesc);
@@ -51,8 +38,24 @@ PipelineState BloomPass::CreatePipelineState(Device& device, const RootSignature
     return PipelineState(device, psoDesc);
 }
 
+void BloomPass::UploadWeights(Buffer& weightsBuffer, const BloomSettings& settings) const {
+    BloomWeights weights{};
+    for (uint32_t i = 0; i < kMaxBloomOffset; i += 4) {
+        DirectX::XMFLOAT4& packedWeights = weights.Weights[i / 4];
+        packedWeights.x = settings.Weights[i];
+        packedWeights.y = settings.Weights[i + 1];
+        packedWeights.z = settings.Weights[i + 2];
+        packedWeights.w = settings.Weights[i + 3];
+    }
+
+    auto* weightsData = static_cast<BloomWeights*>(weightsBuffer.Map());
+    *weightsData = weights;
+    weightsBuffer.Unmap();
+}
+
 void BloomPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex, bool horizontal,
-                         Buffer& sceneInfoBuffer, uint32_t width, uint32_t height, const BloomSettings& settings) {
+                         const Buffer& sceneInfoBuffer, uint32_t width, uint32_t height,
+                         const Buffer& weightsBuffer, const BloomSettings& settings) {
     auto* cmdList = commandList.GetHandle();
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
@@ -61,12 +64,14 @@ void BloomPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint3
         .InputIndex = inputSrvIndex,
         .OutputIndex = outputUavIndex,
         .Horizontal = horizontal ? 1u : 0u,
+        .WeightCount = std::min(settings.WeightCount, kMaxBloomOffset - 1),
         .Threshold = settings.Threshold,
         .Intensity = settings.Intensity,
     };
 
-    cmdList->SetComputeRoot32BitConstants(0, 5, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(0, 6, &constants, 0);
     cmdList->SetComputeRootConstantBufferView(1, sceneInfoBuffer.GetGPUVirtualAddress());
+    cmdList->SetComputeRootConstantBufferView(2, weightsBuffer.GetGPUVirtualAddress());
 
     const UINT groupCountX = DivideRoundUp(width, 8u);
     const UINT groupCountY = DivideRoundUp(height, 8u);

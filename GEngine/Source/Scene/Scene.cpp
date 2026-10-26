@@ -30,6 +30,8 @@ SceneInfo Scene::GetSceneInfo() const noexcept {
         &sceneInfo.inverseViewProjection,
         DirectX::XMMatrixInverse(nullptr,
                                  m_Camera.GetViewProjectionMatrix())); // TODO: call GetViewProjectionMatrix once
+    DirectX::XMStoreFloat4x4(&sceneInfo.inverseProjection,
+                             DirectX::XMMatrixInverse(nullptr, m_Camera.GetProjectionMatrix()));
     return sceneInfo;
 }
 

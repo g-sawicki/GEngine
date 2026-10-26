@@ -18,24 +18,27 @@ void DeferredLightingCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
     Texture2D albedoTexture = ResourceDescriptorHeap[constantsCB.AlbedoIndex];
     Texture2D normalTexture = ResourceDescriptorHeap[constantsCB.NormalIndex];
     Texture2D roughnessMetallicTexture = ResourceDescriptorHeap[constantsCB.RoughnessMetallicIndex];
+    Texture2D ambientOcclusionTexture = ResourceDescriptorHeap[constantsCB.AmbientOcclusionIndex];
     Texture2D depthTexture = ResourceDescriptorHeap[constantsCB.DepthIndex];
     Texture2DArray shadowTexture = ResourceDescriptorHeap[constantsCB.ShadowIndex];
     RWTexture2D<float4> hdrTexture = ResourceDescriptorHeap[constantsCB.HdrIndex];
 
-    float2 uv = (float2(dispatchThreadId.xy) + 0.5f) / float2(sceneInfoCB.screenResolution);
+    int2 pixelCoords = dispatchThreadId.xy;
+    int3 loadLocation = int3(dispatchThreadId.xy, 0);
+    float2 uv = CenterBiasedUVFromPixelCoordinate(pixelCoords, sceneInfoCB.screenResolution);
 
-    float depth = depthTexture.Load(int3(dispatchThreadId.xy, 0)).r;
-    float3 ndc = float3(uv * 2.0f - 1.0f, depth);
-    ndc.y = -ndc.y;
-    float4 worldH = mul(float4(ndc, 1.0f), sceneInfoCB.inverseViewProjection);
-    float3 worldPos = worldH.xyz / worldH.w;
-
-    float3 normal = normalize(normalTexture.Sample(texSampler, uv).xyz * 2.0f - 1.0f);
+    float3 albedo = albedoTexture.Load(loadLocation).rgb;
+    float3 normal = normalize(normalTexture.Load(loadLocation).xyz * 2.0f - 1.0f);
+    float2 roughnessMetallic = roughnessMetallicTexture.Load(loadLocation).rg;
+    float ambientOcclusion = ambientOcclusionTexture.Load(loadLocation).r;
+    float depth = depthTexture.Load(loadLocation).r;
 
     Material material;
-    material.albedo = albedoTexture.Sample(texSampler, uv).rgb;
-    material.roughness = roughnessMetallicTexture.Sample(texSampler, uv).r;
-    material.metallic = roughnessMetallicTexture.Sample(texSampler, uv).g;
+    material.albedo = albedo;
+    material.roughness = roughnessMetallic.r;
+    material.metallic = roughnessMetallic.g;
+
+    float3 worldPos = DepthReprojection(depth, uv, sceneInfoCB.inverseViewProjection);
 
     float3 V = normalize(sceneInfoCB.cameraPosition - worldPos);
 
@@ -47,6 +50,6 @@ void DeferredLightingCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
     float3 directLighting = CalculateDirectLighting(sceneInfoCB.lightIndex, sceneInfoCB.lightCount, worldPos, V, normal,
                                                     material, shadow);
 
-    float3 color = indirectLighting + directLighting;
+    float3 color = indirectLighting * ambientOcclusion + directLighting;
     hdrTexture[dispatchThreadId.xy] = float4(color, 1.0f);
 }

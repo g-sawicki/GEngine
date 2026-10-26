@@ -69,7 +69,7 @@ void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
     Texture2D<float4> hdrTexture = ResourceDescriptorHeap[constantsCB.InputIndex];
     RWTexture2D<float4> outputTexture = ResourceDescriptorHeap[constantsCB.OutputIndex];
 
-    float2 uv = (float2(dispatchThreadId.xy) + 0.5f) / float2(sceneInfoCB.screenResolution);
+    float2 uv = CenterBiasedUVFromPixelCoordinate(dispatchThreadId.xy, sceneInfoCB.screenResolution);
     half4 hdrTex = hdrTexture.SampleLevel(hdrSampler, uv, 0.0f);
 
     const float3 hdrColor = max(hdrTex.xyz, 0.0f);

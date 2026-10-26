@@ -16,6 +16,8 @@ compile_shader("bloom.hlsl" "BloomCS" "cs_6_6" "bloom_cs.cso")
 compile_shader("tonemap.hlsl" "ToneMapCS" "cs_6_6" "tonemap_cs.cso")
 compile_shader("skybox.hlsl" "VSMain" "vs_6_6" "skybox_vs.cso")
 compile_shader("skybox.hlsl" "PSMain" "ps_6_6" "skybox_ps.cso")
+compile_shader("ssao.hlsl" "SSAOCS" "cs_6_6" "ssao_cs.cso")
+compile_shader("gaussian_blur.hlsl" "GaussianBlurCS" "cs_6_6" "gaussian_blur_cs.cso")
 compile_shader("equirectangular_to_cubemap.hlsl" "VSMain" "vs_6_6" "equirectangular_to_cubemap_vs.cso")
 compile_shader("equirectangular_to_cubemap.hlsl" "PSMain" "ps_6_6" "equirectangular_to_cubemap_ps.cso")
 
@@ -33,6 +35,8 @@ set(GENGINE_SHADERS
     "${SHADER_GEN_DIR}/tonemap_cs.cso"
     "${SHADER_GEN_DIR}/skybox_vs.cso"
     "${SHADER_GEN_DIR}/skybox_ps.cso"
+    "${SHADER_GEN_DIR}/ssao_cs.cso"
+    "${SHADER_GEN_DIR}/gaussian_blur_cs.cso"
     "${SHADER_GEN_DIR}/equirectangular_to_cubemap_vs.cso"
     "${SHADER_GEN_DIR}/equirectangular_to_cubemap_ps.cso"
 )
@@ -48,8 +52,10 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Assets/Shaders/Interop/Interop.h"
     "Assets/Shaders/Interop/DeferredLighting.h"
     "Assets/Shaders/Interop/ForwardLighting.h"
+    "Assets/Shaders/Interop/GaussianBlur.h"
     "Assets/Shaders/Interop/GBuffer.h"
     "Assets/Shaders/Interop/Light.h"
+    "Assets/Shaders/Interop/SSAO.h"
     "Assets/Shaders/Interop/ToneMap.h"
 
     "Source/Core/Utility/Defines.hpp"
@@ -106,12 +112,16 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/RenderPass/DeferredLightingPass.hpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.cpp"
     "Source/Rendering/RenderPass/ForwardLightingPass.hpp"
+    "Source/Rendering/RenderPass/GaussianBlurPass.cpp"
+    "Source/Rendering/RenderPass/GaussianBlurPass.hpp"
     "Source/Rendering/RenderPass/GBufferPass.cpp"
     "Source/Rendering/RenderPass/GBufferPass.hpp"
     "Source/Rendering/RenderPass/ShadowPass.cpp"
     "Source/Rendering/RenderPass/ShadowPass.hpp"
     "Source/Rendering/RenderPass/SkyboxPass.cpp"
     "Source/Rendering/RenderPass/SkyboxPass.hpp"
+    "Source/Rendering/RenderPass/SSAOPass.cpp"
+    "Source/Rendering/RenderPass/SSAOPass.hpp"
     "Source/Rendering/RenderPass/ToneMapPass.cpp"
     "Source/Rendering/RenderPass/ToneMapPass.hpp"
     

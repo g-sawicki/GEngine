@@ -2,6 +2,7 @@
 
 #include "Application.hpp"
 #include "CommandLine.hpp"
+#include "Interop/SSAO.h"
 #include "Log.hpp"
 #include "UI/ImGui/Backends/Win32/ImGuiWin32PlatformBackend.hpp"
 #include "UI/ImGui/ImGuiLayer.hpp"
@@ -88,6 +89,15 @@ void Application::BuildRendererUI() {
     ImGui::SameLine();
     if (ImGui::RadioButton("Deferred", settings.Mode == RenderMode::Deferred))
         settings.Mode = RenderMode::Deferred;
+
+    ImGui::SeparatorText("SSAO");
+    ImGui::BeginDisabled(settings.Mode != RenderMode::Deferred);
+    int sampleCount = static_cast<int>(settings.SSAO.SampleCount);
+    if (ImGui::SliderInt("Samples", &sampleCount, 1, static_cast<int>(kMaxSamples)))
+        settings.SSAO.SampleCount = static_cast<uint32_t>(sampleCount);
+    ImGui::SliderFloat("Radius", &settings.SSAO.SampleRadius, 0.01f, 10.0f, "%.3f");
+    ImGui::SliderFloat("Depth bias", &settings.SSAO.DepthBias, 0.0f, 0.5f, "%.3f");
+    ImGui::EndDisabled();
     ImGui::End();
 }
 

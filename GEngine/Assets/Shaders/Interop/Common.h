@@ -10,6 +10,7 @@ struct SceneInfo {
     row_major float4x4 view;
     row_major float4x4 projection;
     row_major float4x4 inverseViewProjection;
+    row_major float4x4 inverseProjection;
     float3 cameraPosition;
     float pad0;
     float3 cameraForward;

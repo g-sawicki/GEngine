@@ -4,9 +4,7 @@
 
 ConstantBuffer<BloomConstants> constantsCB : register(b0);
 ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
-SamplerState hdrSampler : register(s0);
-
-static const float kBloomWeights[5] = {0.227027f, 0.1945946f, 0.1216216f, 0.054054f, 0.016216f};
+ConstantBuffer<BloomWeights> bloomWeightsCB : register(b2);
 
 float3 ExtractBrightPass(float3 color, float threshold) {
     const float luminance = Luminance(color);
@@ -23,24 +21,26 @@ void BloomCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
     Texture2D<float4> inputTexture = ResourceDescriptorHeap[constantsCB.InputIndex];
     RWTexture2D<float4> outputTexture = ResourceDescriptorHeap[constantsCB.OutputIndex];
 
-    float2 uv = (float2(dispatchThreadId.xy) + 0.5f) / float2(sceneInfoCB.screenResolution);
-    const float2 texelSize = rcp(float2(sceneInfoCB.screenResolution));
-    const float2 axis = constantsCB.Horizontal != 0 ? float2(texelSize.x, 0.0f) : float2(0.0f, texelSize.y);
+    const int2 pixelCoords = int2(dispatchThreadId.xy);
+    const int2 axis = constantsCB.Horizontal != 0 ? int2(1, 0) : int2(0, 1);
+    const int2 maximum = int2(sceneInfoCB.screenResolution) - 1;
 
     float3 color = 0.0f;
-    for (int offset = -4; offset <= 4; ++offset) {
-        float3 sampleColor = inputTexture.SampleLevel(hdrSampler, uv + axis * offset, 0.0f).rgb;
+    for (int offset = -int(constantsCB.WeightCount); offset <= int(constantsCB.WeightCount); ++offset) {
+        const int2 sampleCoords = clamp(pixelCoords + axis * offset, int2(0, 0), maximum);
+        float3 sampleColor = inputTexture.Load(int3(sampleCoords, 0)).rgb;
         if (constantsCB.Horizontal != 0)
             sampleColor = ExtractBrightPass(sampleColor, constantsCB.Threshold);
 
-        color += sampleColor * kBloomWeights[abs(offset)];
+        const uint weightIndex = abs(offset);
+        const float weight = bloomWeightsCB.Weights[weightIndex / 4][weightIndex % 4];
+        color += sampleColor * weight;
     }
 
     if (constantsCB.Horizontal != 0) {
-        outputTexture[dispatchThreadId.xy] = float4(color, 1.0f);
+        outputTexture[pixelCoords] = float4(color, 1.0f);
     } else {
-        float4 sceneColor = outputTexture[dispatchThreadId.xy];
-        outputTexture[dispatchThreadId.xy] =
-            float4(sceneColor.rgb + color * constantsCB.Intensity, sceneColor.a);
+        float4 sceneColor = outputTexture[pixelCoords];
+        outputTexture[pixelCoords] = float4(sceneColor.rgb + color * constantsCB.Intensity, sceneColor.a);
     }
 }
