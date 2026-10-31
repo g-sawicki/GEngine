@@ -2,6 +2,7 @@
 
 #include "GBufferPass.hpp"
 
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 #include "Interop/GBuffer.h"
 
@@ -13,7 +14,7 @@ GBufferPass::GBufferPass(Device& device, const GBufferFormats& gBufferFormats, D
 
 RootSignature GBufferPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstants(3, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<GBufferConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
 
@@ -136,7 +137,7 @@ void GBufferPass::OnRender(CommandList& commandList, const GBufferTextures& gBuf
             .NormalIndex = item.Material.NormalIndex,
             .RoughnessMetallicIndex = item.Material.RoughnessMetallicIndex,
         };
-        cmdList->SetGraphicsRoot32BitConstants(0, 3, &constants, 0);
+        cmdList->SetGraphicsRoot32BitConstants(0, RootConstantCount<GBufferConstants>, &constants, 0);
         cmdList->SetGraphicsRootConstantBufferView(2, item.TransformCB->GetGPUVirtualAddress());
 
         auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};

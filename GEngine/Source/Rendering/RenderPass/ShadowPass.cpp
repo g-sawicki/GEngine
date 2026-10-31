@@ -2,6 +2,7 @@
 
 #include "ShadowPass.hpp"
 
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 #include "Interop/ShadowPass.h"
 
@@ -13,7 +14,7 @@ ShadowPass::ShadowPass(Device& device, DXGI_FORMAT depthFormat)
 
 RootSignature ShadowPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstants(1, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<ShadowPassConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
 
@@ -76,7 +77,7 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
         cmdList->ClearDepthStencilView(depthDsv, D3D12_CLEAR_FLAG_DEPTH, clearValue.DepthStencil.Depth,
                                        clearValue.DepthStencil.Stencil, 0, nullptr);
         const ShadowPassConstants constants{.CascadeIndex = cascadeIndex};
-        cmdList->SetGraphicsRoot32BitConstants(0, 1, &constants, 0);
+        cmdList->SetGraphicsRoot32BitConstants(0, RootConstantCount<ShadowPassConstants>, &constants, 0);
         for (const auto& item : renderItems) {
             if (!item.ShadowCaster || !(item.ShadowCascadeMask & (1u << cascadeIndex)))
                 continue;

@@ -2,6 +2,7 @@
 
 #include "CubeMapBakePass.hpp"
 
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 
 namespace GEngine::RenderPass {
@@ -17,7 +18,7 @@ CubeMapBakePass::CubeMapBakePass(Device& device, DXGI_FORMAT outputFormat)
 
 RootSignature CubeMapBakePass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
-    rootParams[0].InitAsConstants(2, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<CubeMapBakeConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
 
     D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{
@@ -137,7 +138,7 @@ void CubeMapBakePass::RenderCubeFaces(CommandList& commandList, PipelineState& p
         cmdList->OMSetRenderTargets(1, &colorRtv, FALSE, nullptr);
 
         CubeMapBakeConstants constants{.InputIndex = inputSrvIndex, .CameraIndex = i};
-        cmdList->SetGraphicsRoot32BitConstants(0, 2, &constants, 0);
+        cmdList->SetGraphicsRoot32BitConstants(0, RootConstantCount<CubeMapBakeConstants>, &constants, 0);
 
         auto vbv{cubeRenderItem.Mesh->VertexBuffer.GetVBV(cubeRenderItem.Mesh->VertexStride)};
         cmdList->IASetVertexBuffers(0, 1, &vbv);

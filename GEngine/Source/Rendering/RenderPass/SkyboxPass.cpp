@@ -2,6 +2,7 @@
 
 #include "SkyboxPass.hpp"
 
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 #include "Interop/Skybox.h"
 
@@ -13,7 +14,7 @@ SkyboxPass::SkyboxPass(Device& device, const DXGI_FORMAT colorFormat, const DXGI
 
 RootSignature SkyboxPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
-    rootParams[0].InitAsConstants(1, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<SkyboxConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
 
     D3D12_STATIC_SAMPLER_DESC staticSamplers[1]{};
@@ -97,7 +98,7 @@ void SkyboxPass::OnRender(CommandList& commandList, const MeshGPU& cubeMesh, con
     cmdList->SetPipelineState(m_PipelineState.Get());
 
     const SkyboxConstants constants{.SkyboxIndex = skyboxSrvIndex};
-    cmdList->SetGraphicsRoot32BitConstants(0, 1, &constants, 0);
+    cmdList->SetGraphicsRoot32BitConstants(0, RootConstantCount<SkyboxConstants>, &constants, 0);
     cmdList->SetGraphicsRootConstantBufferView(1, sceneInfoCB.GetGPUVirtualAddress());
 
     auto vbv{cubeMesh.VertexBuffer.GetVBV(cubeMesh.VertexStride)};

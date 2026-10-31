@@ -3,6 +3,7 @@
 #include "ToneMapPass.hpp"
 
 #include "Core/Utility/Math.hpp"
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 
 namespace GEngine::RenderPass {
@@ -12,7 +13,7 @@ ToneMapPass::ToneMapPass(Device& device)
 
 RootSignature ToneMapPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[2]{};
-    rootParams[0].InitAsConstants(4, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<ToneMapConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
 
     D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
@@ -47,7 +48,7 @@ void ToneMapPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uin
         .MaxWhite = settings.MaxWhite,
     };
 
-    cmdList->SetComputeRoot32BitConstants(0, 4, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(0, RootConstantCount<ToneMapConstants>, &constants, 0);
     cmdList->SetComputeRootConstantBufferView(1, sceneInfoBuffer.GetGPUVirtualAddress());
 
     const UINT groupCountX = DivideRoundUp(width, 8u);

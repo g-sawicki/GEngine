@@ -3,6 +3,7 @@
 #include "DeferredLightingPass.hpp"
 
 #include "Core/Utility/Math.hpp"
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 #include "Interop/DeferredLighting.h"
 
@@ -13,7 +14,7 @@ DeferredLightingPass::DeferredLightingPass(Device& device)
 
 RootSignature DeferredLightingPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstants(7, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<DeferredLightingConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
 
@@ -86,7 +87,7 @@ void DeferredLightingPass::Dispatch(CommandList& commandList, uint32_t albedoInd
 
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
-    cmdList->SetComputeRoot32BitConstants(0, 7, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(0, RootConstantCount<DeferredLightingConstants>, &constants, 0);
     cmdList->SetComputeRootConstantBufferView(1, sceneInfoCB.GetGPUVirtualAddress());
     cmdList->SetComputeRootConstantBufferView(2, cascadedShadowMapsDataCB.GetGPUVirtualAddress());
     cmdList->Dispatch(groupCountX, groupCountY, 1);

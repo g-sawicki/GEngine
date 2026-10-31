@@ -2,6 +2,7 @@
 
 #include "ForwardLightingPass.hpp"
 
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 #include "Interop/ForwardLighting.h"
 
@@ -13,7 +14,7 @@ ForwardLightingPass::ForwardLightingPass(Device& device, DXGI_FORMAT colorFormat
 
 RootSignature ForwardLightingPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[4]{};
-    rootParams[0].InitAsConstants(4, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<ForwardLightingConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
     rootParams[3].InitAsConstantBufferView(3);
@@ -125,7 +126,7 @@ void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colo
         constants.AlbedoIndex = item.Material.AlbedoIndex;
         constants.NormalIndex = item.Material.NormalIndex;
         constants.RoughnessMetallicIndex = item.Material.RoughnessMetallicIndex;
-        cmdList->SetGraphicsRoot32BitConstants(0, 4, &constants, 0);
+        cmdList->SetGraphicsRoot32BitConstants(0, RootConstantCount<ForwardLightingConstants>, &constants, 0);
         cmdList->SetGraphicsRootConstantBufferView(3, item.TransformCB->GetGPUVirtualAddress());
 
         auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};

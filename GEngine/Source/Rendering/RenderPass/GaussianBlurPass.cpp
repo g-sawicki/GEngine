@@ -3,6 +3,7 @@
 #include "GaussianBlurPass.hpp"
 
 #include "Core/Utility/Math.hpp"
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 #include "Interop/GaussianBlur.h"
 
@@ -15,7 +16,7 @@ GaussianBlurPass::GaussianBlurPass(Device& device)
 
 RootSignature GaussianBlurPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstants(4, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<GaussianBlurConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
 
@@ -69,7 +70,7 @@ void GaussianBlurPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex
 
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
-    cmdList->SetComputeRoot32BitConstants(0, 4, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(0, RootConstantCount<GaussianBlurConstants>, &constants, 0);
     cmdList->SetComputeRootConstantBufferView(1, sceneInfoBuffer.GetGPUVirtualAddress());
     cmdList->SetComputeRootConstantBufferView(2, weightsBuffer.GetGPUVirtualAddress());
     cmdList->Dispatch(groupCountX, groupCountY, 1);

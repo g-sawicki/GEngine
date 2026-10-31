@@ -3,6 +3,7 @@
 #include "BloomPass.hpp"
 
 #include "Core/Utility/Math.hpp"
+#include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
 #include "Interop/Bloom.h"
 
@@ -15,7 +16,7 @@ BloomPass::BloomPass(Device& device)
 
 RootSignature BloomPass::CreateRootSignature(Device& device) {
     CD3DX12_ROOT_PARAMETER1 rootParams[3]{};
-    rootParams[0].InitAsConstants(6, 0);
+    rootParams[0].InitAsConstants(RootConstantCount<BloomConstants>, 0);
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
 
@@ -69,7 +70,7 @@ void BloomPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint3
         .Intensity = settings.Intensity,
     };
 
-    cmdList->SetComputeRoot32BitConstants(0, 6, &constants, 0);
+    cmdList->SetComputeRoot32BitConstants(0, RootConstantCount<BloomConstants>, &constants, 0);
     cmdList->SetComputeRootConstantBufferView(1, sceneInfoBuffer.GetGPUVirtualAddress());
     cmdList->SetComputeRootConstantBufferView(2, weightsBuffer.GetGPUVirtualAddress());
 
