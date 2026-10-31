@@ -53,16 +53,13 @@ float ComputeShadow(CascadedShadowMapsData csmData, SamplerComparisonState shado
     float viewDepth = dot(worldPos - cameraPosition, cameraForward);
     uint cascade = SelectCascade(csmData, viewDepth);
 
-    float split = cascade == 0   ? csmData.cascadeSplits.x
-                  : cascade == 1 ? csmData.cascadeSplits.y
-                  : cascade == 2 ? csmData.cascadeSplits.z
-                                 : 1e30f;
-    float blendStart = split * 0.8f;
-    float blend = saturate((viewDepth - blendStart) / max(split - blendStart, 1e-6f));
-
     float shadow = SampleCascadeShadow(csmData, shadowSampler, worldPos, shadowMap, cascade);
-    if (cascade < csmData.cascadeCount - 1)
+    if (cascade < csmData.cascadeCount - 1) {
+        const float split = csmData.cascadeSplits[cascade];
+        const float blendStart = split * 0.8f;
+        const float blend = saturate((viewDepth - blendStart) / max(split - blendStart, 1e-6f));
         shadow = lerp(shadow, SampleCascadeShadow(csmData, shadowSampler, worldPos, shadowMap, cascade + 1), blend);
+    }
 
     return shadow;
 }
