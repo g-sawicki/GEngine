@@ -11,10 +11,10 @@ struct VSInput {
 
 struct PSInput {
     float4 position : SV_POSITION;
-    float2 uv : TEXCOORD;
-    float3 worldPos : WORLDPOS;
-    float3 tangent : TANGENT;
-    float3 normal : NORMAL;
+    float3 normal : TEXCOORD0;
+    float3 tangent : TEXCOORD1;
+    float2 uv : TEXCOORD2;
+    float3 worldPos : TEXCOORD3;
 };
 
 ConstantBuffer<ForwardLightingConstants> constantsCB : register(b0);
@@ -33,32 +33,32 @@ PSInput VSMain(VSInput input) {
     output.uv = input.uv;
     output.worldPos = worldPos.xyz;
     output.tangent = normalize(mul(float4(input.tangent, 0.0f), objectDataCB.world).xyz);
-    output.normal = normalize(mul(float4(input.normal, 0.0f), objectDataCB.world).xyz);
+    output.normal = normalize(mul(float4(input.normal, 0.0f), objectDataCB.normal).xyz);
     return output;
 }
 
 [shader("pixel")]
 float4 PSMain(PSInput input) : SV_TARGET {
-    Texture2D albedoTexture = ResourceDescriptorHeap[constantsCB.AlbedoIndex];
-    Texture2D normalTexture = ResourceDescriptorHeap[constantsCB.NormalIndex];
-    Texture2D roughnessMetallicTexture = ResourceDescriptorHeap[constantsCB.RoughnessMetallicIndex];
+    Texture2D<float4> albedoTexture = ResourceDescriptorHeap[constantsCB.AlbedoIndex];
+    Texture2D<float3> normalTexture = ResourceDescriptorHeap[constantsCB.NormalIndex];
+    Texture2D<float3> roughnessMetallicTexture = ResourceDescriptorHeap[constantsCB.RoughnessMetallicIndex];
     Texture2DArray shadowTexture = ResourceDescriptorHeap[constantsCB.ShadowIndex];
 
     float4 albedo = albedoTexture.Sample(texSampler, input.uv);
     if (albedo.a < 0.01f)
         discard;
-    float3 normalTS = (normalTexture.Sample(texSampler, input.uv).xyz * 2.0f - 1.0f);
-    float4 roughnessMetallic = roughnessMetallicTexture.Sample(texSampler, input.uv);
-    float roughness = roughnessMetallic.y;
-    float metallic = roughnessMetallic.z;
+    const float3 normalTS = normalTexture.Sample(texSampler, input.uv) * 2.0f - 1.0f;
+    const float2 roughnessMetallic = roughnessMetallicTexture.Sample(texSampler, input.uv).gb;
+    const float roughness = roughnessMetallic.x;
+    const float metallic = roughnessMetallic.y;
 
-    float3 N = normalize(input.normal);
-    float3 T = normalize(input.tangent.xyz - dot(input.tangent.xyz, N) * N);
-    float3 B = cross(N, T);
-    float3x3 TBN = float3x3(T, B, N);
+    const float3 N = normalize(input.normal);
+    const float3 T = normalize(input.tangent - dot(input.tangent, N) * N);
+    const float3 B = cross(N, T);
+    const float3x3 TBN = float3x3(T, B, N);
 
-    float3 normal = normalize(mul(normalTS, TBN));
-    float3 V = normalize(sceneInfoCB.cameraPosition - input.worldPos);
+    const float3 normal = normalize(mul(normalTS, TBN));
+    const float3 V = normalize(sceneInfoCB.cameraPosition - input.worldPos);
 
     Material material;
     material.albedo = albedo.rgb;

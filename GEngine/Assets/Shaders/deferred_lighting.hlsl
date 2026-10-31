@@ -12,32 +12,30 @@ SamplerComparisonState shadowSampler : register(s1);
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void DeferredLightingCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
-    if (dispatchThreadId.x >= sceneInfoCB.screenResolution.x || dispatchThreadId.y >= sceneInfoCB.screenResolution.y)
+    const uint2 pixelCoords = dispatchThreadId.xy;
+    if (any(pixelCoords >= sceneInfoCB.screenResolution))
         return;
 
-    Texture2D albedoTexture = ResourceDescriptorHeap[constantsCB.AlbedoIndex];
-    Texture2D normalTexture = ResourceDescriptorHeap[constantsCB.NormalIndex];
-    Texture2D roughnessMetallicTexture = ResourceDescriptorHeap[constantsCB.RoughnessMetallicIndex];
-    Texture2D ambientOcclusionTexture = ResourceDescriptorHeap[constantsCB.AmbientOcclusionIndex];
-    Texture2D depthTexture = ResourceDescriptorHeap[constantsCB.DepthIndex];
+    Texture2D<float3> albedoTexture = ResourceDescriptorHeap[constantsCB.AlbedoIndex];
+    Texture2D<float3> normalTexture = ResourceDescriptorHeap[constantsCB.NormalIndex];
+    Texture2D<float2> roughnessMetallicTexture = ResourceDescriptorHeap[constantsCB.RoughnessMetallicIndex];
+    Texture2D<float> ambientOcclusionTexture = ResourceDescriptorHeap[constantsCB.AmbientOcclusionIndex];
+    Texture2D<float> depthTexture = ResourceDescriptorHeap[constantsCB.DepthIndex];
     Texture2DArray shadowTexture = ResourceDescriptorHeap[constantsCB.ShadowIndex];
     RWTexture2D<float4> hdrTexture = ResourceDescriptorHeap[constantsCB.HdrIndex];
 
-    int2 pixelCoords = dispatchThreadId.xy;
-    int3 loadLocation = int3(dispatchThreadId.xy, 0);
-    float2 uv = CenterBiasedUVFromPixelCoordinate(pixelCoords, sceneInfoCB.screenResolution);
-
-    float3 albedo = albedoTexture.Load(loadLocation).rgb;
-    float3 normal = normalize(normalTexture.Load(loadLocation).xyz * 2.0f - 1.0f);
-    float2 roughnessMetallic = roughnessMetallicTexture.Load(loadLocation).rg;
-    float ambientOcclusion = ambientOcclusionTexture.Load(loadLocation).r;
-    float depth = depthTexture.Load(loadLocation).r;
+    const float3 albedo = albedoTexture[pixelCoords];
+    const float3 normal = normalize(normalTexture[pixelCoords] * 2.0f - 1.0f);
+    const float2 roughnessMetallic = roughnessMetallicTexture[pixelCoords];
+    const float ambientOcclusion = ambientOcclusionTexture[pixelCoords];
+    const float depth = depthTexture[pixelCoords];
 
     Material material;
     material.albedo = albedo;
     material.roughness = roughnessMetallic.r;
     material.metallic = roughnessMetallic.g;
 
+    float2 uv = CenterBiasedUVFromPixelCoordinate(pixelCoords, sceneInfoCB.screenResolution);
     float3 worldPos = DepthReprojection(depth, uv, sceneInfoCB.inverseViewProjection);
 
     float3 V = normalize(sceneInfoCB.cameraPosition - worldPos);

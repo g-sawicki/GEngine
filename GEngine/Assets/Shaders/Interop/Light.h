@@ -3,8 +3,8 @@
 
 #include "Interop.h"
 
-static const uint kMaxCascades = 4;
-static const uint kMaxLights = 16;
+static const uint32_t kMaxCascades = 4;
+static const uint32_t kMaxLights = 16;
 
 enum LightType : uint32_t {
     Directional = 0,
@@ -19,15 +19,15 @@ struct CascadedShadowMapsData {
     float shadowBias;
     float shadowSlopeScaleBias;
     float normalOffsetScale;
-    uint shadowEnabled;
-    uint cascadeCount;
-    uint pad0;
-    uint pad1;
+    uint32_t shadowEnabled;
+    uint32_t cascadeCount;
+    uint32_t pad0;
+    uint32_t pad1;
 };
 
 struct LightData {
     float3 position;
-    uint32_t type;
+    LightType type;
     float3 direction;
     float3 color;
     float intensity;

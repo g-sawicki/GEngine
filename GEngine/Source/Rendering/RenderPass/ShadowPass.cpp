@@ -3,6 +3,7 @@
 #include "ShadowPass.hpp"
 
 #include "Graphics/D3D12/Shader.hpp"
+#include "Interop/ShadowPass.h"
 
 namespace GEngine::RenderPass {
 
@@ -74,7 +75,8 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
         const D3D12_CLEAR_VALUE& clearValue = shadowMapTexture.GetDesc().ClearValue;
         cmdList->ClearDepthStencilView(depthDsv, D3D12_CLEAR_FLAG_DEPTH, clearValue.DepthStencil.Depth,
                                        clearValue.DepthStencil.Stencil, 0, nullptr);
-        cmdList->SetGraphicsRoot32BitConstant(0, cascadeIndex, 0);
+        const ShadowPassConstants constants{.CascadeIndex = cascadeIndex};
+        cmdList->SetGraphicsRoot32BitConstants(0, 1, &constants, 0);
         for (const auto& item : renderItems) {
             if (!item.ShadowCaster || !(item.ShadowCascadeMask & (1u << cascadeIndex)))
                 continue;

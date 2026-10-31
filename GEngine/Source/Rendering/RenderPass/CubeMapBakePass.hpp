@@ -7,16 +7,12 @@
 #include "Graphics/D3D12/PipelineState.hpp"
 #include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/Texture.hpp"
+#include "Interop/CubeMapBake.h"
 #include "Rendering/Components.hpp"
 
-#include <DirectXMath.h>
 #include <filesystem>
 
 namespace GEngine::RenderPass {
-
-struct CubeFaceCameraData {
-    DirectX::XMFLOAT4X4 ViewProjection[6];
-};
 
 class CubeMapBakePass {
   public:

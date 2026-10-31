@@ -1,6 +1,8 @@
 #ifndef SHADER_INTEROP_DEFERRED_LIGHTING_H
 #define SHADER_INTEROP_DEFERRED_LIGHTING_H
 
+#include "Interop.h"
+
 struct DeferredLightingConstants {
     uint32_t AlbedoIndex;
     uint32_t NormalIndex;

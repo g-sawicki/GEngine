@@ -1,19 +1,16 @@
 #include "Interop/Common.h"
+#include "Interop/Skybox.h"
 
 struct VSInput {
     float3 position : POSITION;
 };
 
 struct PSInput {
-    float3 worldDir : WORLDDIR;
     float4 position : SV_POSITION;
+    float3 worldDir : TEXCOORD0;
 };
 
-struct RootConstants {
-    uint skyboxIndex;
-};
-
-ConstantBuffer<RootConstants> constantsCB : register(b0);
+ConstantBuffer<SkyboxConstants> constantsCB : register(b0);
 ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
 SamplerState texSampler : register(s0);
 
@@ -30,6 +27,6 @@ PSInput VSMain(VSInput input) {
 
 [shader("pixel")]
 float4 PSMain(PSInput input) : SV_TARGET {
-    TextureCube skyboxTexture = ResourceDescriptorHeap[constantsCB.skyboxIndex];
+    TextureCube skyboxTexture = ResourceDescriptorHeap[constantsCB.SkyboxIndex];
     return skyboxTexture.Sample(texSampler, input.worldDir);
 }

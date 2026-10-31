@@ -10,8 +10,8 @@ float Luminance(float3 color) {
 float3 DepthReprojection(float depth, float2 uv, row_major float4x4 inverseMatrix) {
     float3 ndc = float3(uv * 2.0f - 1.0f, depth);
     ndc.y = -ndc.y;
-    float4 homogenous = mul(float4(ndc, 1.0f), inverseMatrix);
-    float3 position = homogenous.xyz / homogenous.w;
+    float4 homogeneous = mul(float4(ndc, 1.0f), inverseMatrix);
+    float3 position = homogeneous.xyz / homogeneous.w;
     return position;
 }
 

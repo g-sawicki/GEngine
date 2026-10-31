@@ -15,25 +15,9 @@ RootSignature ToneMapPass::CreateRootSignature(Device& device) {
     rootParams[0].InitAsConstants(4, 0);
     rootParams[1].InitAsConstantBufferView(1);
 
-    D3D12_STATIC_SAMPLER_DESC staticSampler{
-        .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .MipLODBias = 0.0f,
-        .MaxAnisotropy = 1,
-        .ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS,
-        .MinLOD = 0.0f,
-        .MaxLOD = 0.0f,
-        .ShaderRegister = 0,
-        .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-    };
-
     D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
     rootSigDesc.pParameters = rootParams;
-    rootSigDesc.NumStaticSamplers = 1;
-    rootSigDesc.pStaticSamplers = &staticSampler;
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 
     return RootSignature(device, rootSigDesc);
@@ -56,7 +40,7 @@ void ToneMapPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uin
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
 
-    ToneMapRootConstants constants{
+    ToneMapConstants constants{
         .InputIndex = inputSrvIndex,
         .OutputIndex = outputUavIndex,
         .TonemapMode = settings.Mode,

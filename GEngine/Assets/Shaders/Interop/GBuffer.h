@@ -1,6 +1,8 @@
 #ifndef SHADER_INTEROP_GBUFFER_H
 #define SHADER_INTEROP_GBUFFER_H
 
+#include "Interop.h"
+
 struct GBufferConstants {
     uint32_t AlbedoIndex;
     uint32_t NormalIndex;

@@ -162,8 +162,7 @@ Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uin
       m_ShadowPass(m_Device, m_ShadowMapTexture.GetDesc().Format),
       m_ForwardLightingPass(m_Device, m_HdrTexture.GetDesc().Format, m_DepthTexture.GetDesc().Format),
       m_GBufferPass(m_Device, kGBufferFormats, m_DepthTexture.GetDesc().Format), m_SSAOPass(m_Device, m_UploadEngine),
-      m_GaussianBlurPass(m_Device),
-      m_DeferredLightingPass(m_Device), m_BloomPass(m_Device), m_ToneMapPass(m_Device),
+      m_GaussianBlurPass(m_Device), m_DeferredLightingPass(m_Device), m_BloomPass(m_Device), m_ToneMapPass(m_Device),
       m_SkyboxRenderer(m_Device, m_UploadEngine, m_GpuResources, m_HdrTexture.GetDesc().Format,
                        m_DepthTexture.GetDesc().Format) {}
 
@@ -181,8 +180,8 @@ Renderer::FrameResources Renderer::CreateFrameResources() {
         frameResources[i].SceneInfoConstantBuffer = std::make_unique<Buffer>(m_Device, sceneInfoCbDesc);
 
         const BufferDesc gaussianBlurWeightsCbDesc{.Size = sizeof(GaussianWeights),
-                                                  .HeapType = D3D12_HEAP_TYPE_UPLOAD,
-                                                  .MiscFlags = BufferMiscFlags::ConstantBuffer};
+                                                   .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+                                                   .MiscFlags = BufferMiscFlags::ConstantBuffer};
         frameResources[i].GaussianBlurWeightsConstantBuffer =
             std::make_unique<Buffer>(m_Device, gaussianBlurWeightsCbDesc);
 
@@ -359,7 +358,10 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         ObjectData objectData{};
         const Transform* transform = scene.GetEntityRegistry().GetComponent<Transform>(entity);
         const DirectX::XMMATRIX worldMatrix = transform ? transform->GetMatrix() : DirectX::XMMatrixIdentity();
+        const DirectX::XMMATRIX normalMatrix =
+            DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, worldMatrix));
         DirectX::XMStoreFloat4x4(&objectData.world, worldMatrix);
+        DirectX::XMStoreFloat4x4(&objectData.normal, normalMatrix);
         WriteDynamicBuffer(*objectConstantBuffers[objectIndex], &objectData, sizeof(ObjectData));
 
         for (const GpuMesh& mesh : gpuModel->Meshes) {
@@ -389,7 +391,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         const DirectionalLight& directionalLight = scene.GetDirectionalLight();
         lightData.push_back({
             .position = {},
-            .type = static_cast<uint32_t>(LightType::Directional),
+            .type = LightType::Directional,
             .direction = directionalLight.Direction,
             .color = directionalLight.Color,
             .intensity = directionalLight.Intensity,
@@ -398,7 +400,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
     for (const PointLight& pointLight : scene.GetPointLights()) {
         lightData.push_back({
             .position = pointLight.Position,
-            .type = static_cast<uint32_t>(LightType::Point),
+            .type = LightType::Point,
             .color = pointLight.Color,
             .intensity = pointLight.Intensity,
         });
@@ -406,7 +408,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
     for (const SpotLight& spotLight : scene.GetSpotLights()) {
         lightData.push_back({
             .position = spotLight.Position,
-            .type = static_cast<uint32_t>(LightType::Spot),
+            .type = LightType::Spot,
             .direction = spotLight.Direction,
             .color = spotLight.Color,
             .intensity = spotLight.Intensity,
@@ -473,8 +475,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         TransitionResource(cmdList, m_HdrTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-        if (!frame.HasUploadedGaussianBlurWeights ||
-            frame.UploadedGaussianBlurSettings != m_Settings.SSAOBlur) {
+        if (!frame.HasUploadedGaussianBlurWeights || frame.UploadedGaussianBlurSettings != m_Settings.SSAOBlur) {
             m_GaussianBlurPass.UploadWeights(*frame.GaussianBlurWeightsConstantBuffer, m_Settings.SSAOBlur);
             frame.UploadedGaussianBlurSettings = m_Settings.SSAOBlur;
             frame.HasUploadedGaussianBlurWeights = true;
@@ -503,8 +504,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
                                     m_AmbientOcclusionTexture.GetUavIndex(), false, *frame.SceneInfoConstantBuffer,
                                     m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
                                     *frame.GaussianBlurWeightsConstantBuffer, m_Settings.SSAOBlur);
-        TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(),
-                           D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
         m_DeferredLightingPass.Dispatch(
             *frame.CommandList, m_GBufferTextures.AlbedoTexture.GetSrvIndex(),
@@ -533,8 +534,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         TransitionResource(cmdList, m_BloomTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-        if (!frame.HasUploadedBloomWeights ||
-            frame.UploadedBloomWeightsRevision != m_Settings.Bloom.WeightsRevision) {
+        if (!frame.HasUploadedBloomWeights || frame.UploadedBloomWeightsRevision != m_Settings.Bloom.WeightsRevision) {
             m_BloomPass.UploadWeights(*frame.BloomWeightsConstantBuffer, m_Settings.Bloom);
             frame.UploadedBloomWeightsRevision = m_Settings.Bloom.WeightsRevision;
             frame.HasUploadedBloomWeights = true;

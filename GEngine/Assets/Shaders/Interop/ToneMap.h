@@ -10,10 +10,10 @@ enum ToneMapMode : uint32_t {
     ACES = 3,
 };
 
-struct ToneMapRootConstants {
+struct ToneMapConstants {
     uint32_t InputIndex;
     uint32_t OutputIndex;
-    uint32_t TonemapMode;
+    ToneMapMode TonemapMode;
     float MaxWhite; // Only used for ExtendedReinhard mode
 };
 

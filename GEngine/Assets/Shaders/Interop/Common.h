@@ -3,7 +3,7 @@
 
 #include "Interop.h"
 
-static const uint kInvalidBindlessIndex = 0xFFFFFFFF;
+static const uint32_t kInvalidBindlessIndex = 0xFFFFFFFF;
 
 struct SceneInfo {
     row_major float4x4 viewProjection;
@@ -16,16 +16,17 @@ struct SceneInfo {
     float3 cameraForward;
     float pad1;
     uint2 screenResolution;
-    uint lightCount;
-    uint lightIndex;
-    uint irradianceIndex;
-    uint pad2;
-    uint pad3;
-    uint pad4;
+    uint32_t lightCount;
+    uint32_t lightIndex;
+    uint32_t irradianceIndex;
+    uint32_t pad2;
+    uint32_t pad3;
+    uint32_t pad4;
 };
 
 struct ObjectData {
     row_major float4x4 world;
+    row_major float4x4 normal;
 };
 
 #endif // SHADER_INTEROP_COMMON_H

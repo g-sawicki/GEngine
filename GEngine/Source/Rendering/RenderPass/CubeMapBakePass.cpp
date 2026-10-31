@@ -20,25 +20,40 @@ RootSignature CubeMapBakePass::CreateRootSignature(Device& device) {
     rootParams[0].InitAsConstants(2, 0);
     rootParams[1].InitAsConstantBufferView(1);
 
-    D3D12_STATIC_SAMPLER_DESC staticSampler{
-        .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-        .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-        .MipLODBias = 0.0f,
-        .MaxAnisotropy = 1,
-        .ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS,
-        .MinLOD = 0.0f,
-        .MaxLOD = 0.0f,
-        .ShaderRegister = 0,
-        .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+    D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{
+        {
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+            .MipLODBias = 0.0f,
+            .MaxAnisotropy = 1,
+            .ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS,
+            .MinLOD = 0.0f,
+            .MaxLOD = 0.0f,
+            .ShaderRegister = 0,
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+        },
+        {
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+            .MipLODBias = 0.0f,
+            .MaxAnisotropy = 1,
+            .ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS,
+            .MinLOD = 0.0f,
+            .MaxLOD = 0.0f,
+            .ShaderRegister = 1,
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+        },
     };
 
     D3D12_ROOT_SIGNATURE_DESC1 rootSigDesc{};
     rootSigDesc.NumParameters = static_cast<UINT>(std::size(rootParams));
     rootSigDesc.pParameters = rootParams;
-    rootSigDesc.NumStaticSamplers = 1;
-    rootSigDesc.pStaticSamplers = &staticSampler;
+    rootSigDesc.NumStaticSamplers = static_cast<UINT>(std::size(staticSamplers));
+    rootSigDesc.pStaticSamplers = staticSamplers;
     rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                         D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 
@@ -116,17 +131,12 @@ void CubeMapBakePass::RenderCubeFaces(CommandList& commandList, PipelineState& p
     cmdList->SetPipelineState(pipelineState.Get());
     cmdList->SetGraphicsRootConstantBufferView(1, cubeFaceCameraBuffer.GetGPUVirtualAddress());
 
-    struct RootConstants {
-        uint32_t InputIndex;
-        uint32_t CameraIndex;
-    };
-
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     for (uint16_t i{}; i < 6; ++i) {
         const D3D12_CPU_DESCRIPTOR_HANDLE colorRtv = targetTexture.GetRtvHandle(i);
         cmdList->OMSetRenderTargets(1, &colorRtv, FALSE, nullptr);
 
-        RootConstants constants{.InputIndex = inputSrvIndex, .CameraIndex = i};
+        CubeMapBakeConstants constants{.InputIndex = inputSrvIndex, .CameraIndex = i};
         cmdList->SetGraphicsRoot32BitConstants(0, 2, &constants, 0);
 
         auto vbv{cubeRenderItem.Mesh->VertexBuffer.GetVBV(cubeRenderItem.Mesh->VertexStride)};

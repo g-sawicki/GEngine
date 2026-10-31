@@ -3,6 +3,7 @@
 #include "SkyboxPass.hpp"
 
 #include "Graphics/D3D12/Shader.hpp"
+#include "Interop/Skybox.h"
 
 namespace GEngine::RenderPass {
 
@@ -95,7 +96,8 @@ void SkyboxPass::OnRender(CommandList& commandList, const MeshGPU& cubeMesh, con
     cmdList->SetGraphicsRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());
 
-    cmdList->SetGraphicsRoot32BitConstants(0, 1, &skyboxSrvIndex, 0);
+    const SkyboxConstants constants{.SkyboxIndex = skyboxSrvIndex};
+    cmdList->SetGraphicsRoot32BitConstants(0, 1, &constants, 0);
     cmdList->SetGraphicsRootConstantBufferView(1, sceneInfoCB.GetGPUVirtualAddress());
 
     auto vbv{cubeMesh.VertexBuffer.GetVBV(cubeMesh.VertexStride)};

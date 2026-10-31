@@ -1,6 +1,7 @@
 #ifndef SHADER_CUBEMAP_BAKE_H
 #define SHADER_CUBEMAP_BAKE_H
 
+#include "Interop/CubeMapBake.h"
 #include "math.hlsli"
 
 struct VSInput {
@@ -9,27 +10,20 @@ struct VSInput {
 
 struct PSInput {
     float4 position : SV_POSITION;
-    float3 worldPosition : TEXCOORD0;
+    float3 cubeDirection : TEXCOORD0;
 };
 
-struct CameraData {
-    row_major float4x4 viewProjection[6];
-};
-
-struct RootConstants {
-    uint32_t inputIndex;
-    uint32_t cameraIndex;
-};
-
-ConstantBuffer<RootConstants> constantsCB : register(b0);
-ConstantBuffer<CameraData> cameraDataCB : register(b1);
+ConstantBuffer<CubeMapBakeConstants> constantsCB : register(b0);
+ConstantBuffer<CubeFaceCameraData> cameraDataCB : register(b1);
 SamplerState texSampler : register(s0);
+SamplerState equirectSampler : register(s1);
 
 [shader("vertex")]
 PSInput VSMain(VSInput input) {
     PSInput output;
-    output.position = mul(float4(input.position, 1.0), cameraDataCB.viewProjection[constantsCB.cameraIndex]);
-    output.worldPosition = input.position;
+    const row_major float4x4 cameraViewProjection = cameraDataCB.ViewProjection[constantsCB.CameraIndex];
+    output.position = mul(float4(input.position, 1.0), cameraViewProjection);
+    output.cubeDirection = input.position;
     return output;
 }
 

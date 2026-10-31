@@ -27,8 +27,8 @@ constexpr DirectX::XMFLOAT3 kCubeMapFaceUpVectors[6] = {
 constexpr DXGI_FORMAT kSkyboxCubeMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 constexpr uint32_t kIrradianceSize = 32;
 
-[[nodiscard]] RenderPass::CubeFaceCameraData BuildCubeFaceCameras() {
-    RenderPass::CubeFaceCameraData cameraData{};
+[[nodiscard]] CubeFaceCameraData BuildCubeFaceCameras() {
+    CubeFaceCameraData cameraData{};
 
     const float fovY = DirectX::XMConvertToRadians(90.0f);
     for (uint32_t i{}; i < std::size(kCubeMapFaceDirections); ++i) {
@@ -54,14 +54,14 @@ SkyboxRenderer::SkyboxRenderer(Device& device, UploadEngine& uploadEngine, GpuRe
                                const DXGI_FORMAT colorFormat, const DXGI_FORMAT depthFormat)
     : m_Device(device), m_UploadEngine(uploadEngine), m_Resources(resources),
       m_CubeMapBakePass(device, kSkyboxCubeMapFormat), m_SkyboxPass(device, colorFormat, depthFormat),
-      m_CubeFaceCameraCB(device, BufferDesc{.Size = sizeof(RenderPass::CubeFaceCameraData),
+      m_CubeFaceCameraCB(device, BufferDesc{.Size = sizeof(CubeFaceCameraData),
                                             .HeapType = D3D12_HEAP_TYPE_UPLOAD,
                                             .MiscFlags = BufferMiscFlags::ConstantBuffer}) {
     m_UploadEngine.Begin();
     m_CubeMesh = m_Resources.StageMesh(MeshFactory::Cube());
     m_UploadEngine.Submit();
 
-    const RenderPass::CubeFaceCameraData cameraData = BuildCubeFaceCameras();
+    const CubeFaceCameraData cameraData = BuildCubeFaceCameras();
     void* const dst = m_CubeFaceCameraCB.Map();
     std::memcpy(dst, &cameraData, sizeof(cameraData));
     m_CubeFaceCameraCB.Unmap();

@@ -49,12 +49,15 @@ add_dependencies(GEngine GEngineShaders)
 target_sources(${PROJECT_NAME} PRIVATE
     "Assets/Shaders/Interop/Bloom.h"
     "Assets/Shaders/Interop/Common.h"
+    "Assets/Shaders/Interop/CubeMapBake.h"
     "Assets/Shaders/Interop/Interop.h"
     "Assets/Shaders/Interop/DeferredLighting.h"
     "Assets/Shaders/Interop/ForwardLighting.h"
     "Assets/Shaders/Interop/GaussianBlur.h"
     "Assets/Shaders/Interop/GBuffer.h"
     "Assets/Shaders/Interop/Light.h"
+    "Assets/Shaders/Interop/ShadowPass.h"
+    "Assets/Shaders/Interop/Skybox.h"
     "Assets/Shaders/Interop/SSAO.h"
     "Assets/Shaders/Interop/ToneMap.h"
 

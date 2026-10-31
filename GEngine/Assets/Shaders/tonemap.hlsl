@@ -2,10 +2,8 @@
 #include "Interop/ToneMap.h"
 #include "math.hlsli"
 
-ConstantBuffer<ToneMapRootConstants> constantsCB : register(b0);
+ConstantBuffer<ToneMapConstants> constantsCB : register(b0);
 ConstantBuffer<SceneInfo> sceneInfoCB : register(b1);
-SamplerState hdrSampler : register(s0);
-
 // https://64.github.io/tonemapping
 float3 ReinhardToneMap(float3 color) {
     const float luminance = Luminance(color);
@@ -63,16 +61,14 @@ float3 ACESFitted(float3 color) {
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
-    if (dispatchThreadId.x >= sceneInfoCB.screenResolution.x || dispatchThreadId.y >= sceneInfoCB.screenResolution.y)
+    const uint2 pixelCoords = dispatchThreadId.xy;
+    if (any(pixelCoords >= sceneInfoCB.screenResolution))
         return;
 
-    Texture2D<float4> hdrTexture = ResourceDescriptorHeap[constantsCB.InputIndex];
+    Texture2D<float3> hdrTexture = ResourceDescriptorHeap[constantsCB.InputIndex];
     RWTexture2D<float4> outputTexture = ResourceDescriptorHeap[constantsCB.OutputIndex];
 
-    float2 uv = CenterBiasedUVFromPixelCoordinate(dispatchThreadId.xy, sceneInfoCB.screenResolution);
-    half4 hdrTex = hdrTexture.SampleLevel(hdrSampler, uv, 0.0f);
-
-    const float3 hdrColor = max(hdrTex.xyz, 0.0f);
+    const float3 hdrColor = hdrTexture[pixelCoords];
 
     float3 color;
     switch (constantsCB.TonemapMode) {
@@ -92,5 +88,5 @@ void ToneMapCS(uint3 dispatchThreadId : SV_DispatchThreadID) {
     }
 
     color = pow(color, 1.0f / 2.2f);
-    outputTexture[dispatchThreadId.xy] = float4(color, 1.0f);
+    outputTexture[pixelCoords] = float4(color, 1.0f);
 }
