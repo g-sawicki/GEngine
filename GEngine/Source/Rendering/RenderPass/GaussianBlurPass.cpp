@@ -5,7 +5,6 @@
 #include "Core/Utility/Math.hpp"
 #include "Graphics/D3D12/D3D12Common.hpp"
 #include "Graphics/D3D12/Shader.hpp"
-#include "Interop/GaussianBlur.h"
 
 #include <algorithm>
 
@@ -53,20 +52,20 @@ void GaussianBlurPass::UploadWeights(Buffer& weightsBuffer, const GaussianBlurSe
     weightsBuffer.Unmap();
 }
 
-void GaussianBlurPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex,
-                                bool horizontal, const Buffer& sceneInfoBuffer, uint32_t width, uint32_t height,
-                                const Buffer& weightsBuffer, const GaussianBlurSettings& settings) {
+void GaussianBlurPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, const Texture& outputTexture,
+                                bool horizontal, const Buffer& sceneInfoBuffer, const Buffer& weightsBuffer,
+                                const GaussianBlurSettings& settings) {
     auto* cmdList = commandList.GetHandle();
 
     const GaussianBlurConstants constants{
         .InputIndex = inputSrvIndex,
-        .OutputIndex = outputUavIndex,
+        .OutputIndex = outputTexture.GetUavIndex(),
         .Horizontal = horizontal ? 1u : 0u,
         .WeightCount = std::min(settings.WeightCount, kMaxOffset - 1),
     };
 
-    const UINT groupCountX = DivideRoundUp(width, 8u);
-    const UINT groupCountY = DivideRoundUp(height, 8u);
+    const UINT groupCountX = DivideRoundUp(outputTexture.GetDesc().Width, 8u);
+    const UINT groupCountY = DivideRoundUp(outputTexture.GetDesc().Height, 8u);
 
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());

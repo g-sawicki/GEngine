@@ -8,6 +8,7 @@
 #include "Interop/Light.h"
 #include "UI/ImGui/Backends/D3D12/ImGuiD3D12RendererBackend.hpp"
 
+#include <algorithm>
 #include <cstring>
 
 namespace GEngine {
@@ -113,10 +114,12 @@ constexpr RenderPass::GBufferFormats kGBufferFormats{};
     };
 }
 
+constexpr uint32_t kAmbientOcclusionScale = 2;
+
 [[nodiscard]] constexpr TextureDesc AmbientOcclusionTargetDesc(uint32_t width, uint32_t height) noexcept {
     return TextureDesc{
-        .Width = width,
-        .Height = height,
+        .Width = std::max(1u, width / kAmbientOcclusionScale),
+        .Height = std::max(1u, height / kAmbientOcclusionScale),
         .Format = DXGI_FORMAT_R32_FLOAT,
         .Usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess,
         .InitialState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
@@ -484,8 +487,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(),
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         m_SSAOPass.Dispatch(*frame.CommandList, m_GBufferTextures.NormalTexture.GetSrvIndex(),
-                            m_DepthTexture.GetSrvIndex(), m_AmbientOcclusionTexture.GetUavIndex(),
-                            *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                            m_DepthTexture.GetSrvIndex(), m_AmbientOcclusionTexture, *frame.SceneInfoConstantBuffer,
                             m_Settings.SSAO);
         TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -493,16 +495,14 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         TransitionResource(cmdList, m_BlurredAmbientOcclusionTexture.GetResource(),
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         m_GaussianBlurPass.Dispatch(*frame.CommandList, m_AmbientOcclusionTexture.GetSrvIndex(),
-                                    m_BlurredAmbientOcclusionTexture.GetUavIndex(), true,
-                                    *frame.SceneInfoConstantBuffer, m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                                    m_BlurredAmbientOcclusionTexture, true, *frame.SceneInfoConstantBuffer,
                                     *frame.GaussianBlurWeightsConstantBuffer, m_Settings.SSAOBlur);
         TransitionResource(cmdList, m_BlurredAmbientOcclusionTexture.GetResource(),
                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(),
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         m_GaussianBlurPass.Dispatch(*frame.CommandList, m_BlurredAmbientOcclusionTexture.GetSrvIndex(),
-                                    m_AmbientOcclusionTexture.GetUavIndex(), false, *frame.SceneInfoConstantBuffer,
-                                    m_SwapChain.GetWidth(), m_SwapChain.GetHeight(),
+                                    m_AmbientOcclusionTexture, false, *frame.SceneInfoConstantBuffer,
                                     *frame.GaussianBlurWeightsConstantBuffer, m_Settings.SSAOBlur);
         TransitionResource(cmdList, m_AmbientOcclusionTexture.GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

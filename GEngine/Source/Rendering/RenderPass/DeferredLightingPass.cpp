@@ -18,7 +18,7 @@ RootSignature DeferredLightingPass::CreateRootSignature(Device& device) {
     rootParams[1].InitAsConstantBufferView(1);
     rootParams[2].InitAsConstantBufferView(2);
 
-    D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
+    D3D12_STATIC_SAMPLER_DESC staticSamplers[3]{};
     staticSamplers[0] = D3D12_STATIC_SAMPLER_DESC{
         .Filter = D3D12_FILTER_ANISOTROPIC,
         .AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
@@ -41,6 +41,19 @@ RootSignature DeferredLightingPass::CreateRootSignature(Device& device) {
         .MinLOD = 0.0f,
         .MaxLOD = 0.0f,
         .ShaderRegister = 1,
+        .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+    };
+    staticSamplers[2] = D3D12_STATIC_SAMPLER_DESC{
+        .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+        .MipLODBias = 0.0f,
+        .MaxAnisotropy = 1,
+        .ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS,
+        .MinLOD = 0.0f,
+        .MaxLOD = 0.0f,
+        .ShaderRegister = 2,
         .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
     };
 

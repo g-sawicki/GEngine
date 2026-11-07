@@ -15,7 +15,7 @@ float3 DepthReprojection(float depth, float2 uv, row_major float4x4 inverseMatri
     return position;
 }
 
-float2 CenterBiasedUVFromPixelCoordinate(uint2 pixelCoord, uint2 resolution) {
+float2 GetCenterBiasedUV(uint2 pixelCoord, uint2 resolution) {
     return (float2(pixelCoord) + 0.5f) / float2(resolution);
 }
 

@@ -71,7 +71,8 @@ Buffer SSAOPass::CreateSampleOffsetsBuffer(Device& device) {
         if (distanceSquared > 1.0f || distanceSquared <= 0.0f)
             continue;
 
-        offsets.emplace_back(x, y, z, 0.0f);
+        const float inverseLength = 1.0f / std::sqrt(distanceSquared);
+        offsets.emplace_back(x * inverseLength, y * inverseLength, z * inverseLength, 0.0f);
     }
 
     Buffer buffer{device, BufferDesc{.Size = sizeof(SampleData),
@@ -109,7 +110,7 @@ Texture SSAOPass::CreateRandomVectorTexture(Device& device, UploadEngine& upload
 }
 
 void SSAOPass::Dispatch(CommandList& commandList, uint32_t normalIndex, uint32_t depthIndex,
-                        uint32_t ambientOcclusionIndex, const Buffer& sceneInfoCB, uint32_t width, uint32_t height,
+                        const Texture& ambientOcclusionTexture, const Buffer& sceneInfoCB,
                         const SSAOSettings& settings) {
     auto* cmdList = commandList.GetHandle();
 
@@ -117,14 +118,12 @@ void SSAOPass::Dispatch(CommandList& commandList, uint32_t normalIndex, uint32_t
         .NormalIndex = normalIndex,
         .DepthIndex = depthIndex,
         .RandomVectorIndex = m_RandomVectorTexture.GetSrvIndex(),
-        .AmbientOcclusionIndex = ambientOcclusionIndex,
-        .SampleCount = std::clamp(settings.SampleCount, 1u, kMaxSamples),
+        .AmbientOcclusionIndex = ambientOcclusionTexture.GetUavIndex(),
         .SampleRadius = settings.SampleRadius,
-        .DepthBias = settings.DepthBias,
     };
 
-    const UINT groupCountX = DivideRoundUp(width, 8u);
-    const UINT groupCountY = DivideRoundUp(height, 8u);
+    const UINT groupCountX = DivideRoundUp(ambientOcclusionTexture.GetDesc().Width, 8u);
+    const UINT groupCountY = DivideRoundUp(ambientOcclusionTexture.GetDesc().Height, 8u);
 
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());

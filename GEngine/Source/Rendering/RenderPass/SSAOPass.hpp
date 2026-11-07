@@ -15,9 +15,7 @@ class UploadEngine;
 namespace GEngine::RenderPass {
 
 struct SSAOSettings {
-    uint32_t SampleCount{16u};
-    float SampleRadius{1.0f};
-    float DepthBias{0.025f};
+    float SampleRadius{0.1f};
 };
 
 class SSAOPass {
@@ -27,8 +25,7 @@ class SSAOPass {
     GE_NO_COPY_NO_MOVE(SSAOPass)
 
     void Dispatch(CommandList& commandList, uint32_t normalIndex, uint32_t depthIndex,
-                  uint32_t ambientOcclusionIndex, const Buffer& sceneInfoCB, uint32_t width, uint32_t height,
-                  const SSAOSettings& settings);
+                  const Texture& ambientOcclusionTexture, const Buffer& sceneInfoCB, const SSAOSettings& settings);
 
   private:
     static Buffer CreateSampleOffsetsBuffer(Device& device);
