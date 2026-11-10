@@ -81,7 +81,7 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
         for (const auto& item : renderItems) {
             if (!item.ShadowCaster || !(item.ShadowCascadeMask & (1u << cascadeIndex)))
                 continue;
-            cmdList->SetGraphicsRootConstantBufferView(2, item.TransformCB->GetGPUVirtualAddress());
+            cmdList->SetGraphicsRootConstantBufferView(2, item.ObjectConstantBuffer);
 
             auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};
             cmdList->IASetVertexBuffers(0, 1, &vbv);

@@ -12,6 +12,7 @@
 #include "Graphics/D3D12/DescriptorHeap.hpp"
 #include "Graphics/D3D12/Device.hpp"
 #include "Graphics/D3D12/Fence.hpp"
+#include "Graphics/D3D12/LinearAllocator.hpp"
 #include "Graphics/D3D12/PipelineState.hpp"
 #include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/SwapChain.hpp"
@@ -21,8 +22,8 @@
 #include "Rendering/RenderPass/BloomPass.hpp"
 #include "Rendering/RenderPass/DeferredLightingPass.hpp"
 #include "Rendering/RenderPass/ForwardLightingPass.hpp"
-#include "Rendering/RenderPass/GaussianBlurPass.hpp"
 #include "Rendering/RenderPass/GBufferPass.hpp"
+#include "Rendering/RenderPass/GaussianBlurPass.hpp"
 #include "Rendering/RenderPass/SSAOPass.hpp"
 #include "Rendering/RenderPass/ShadowPass.hpp"
 #include "Rendering/RenderPass/ToneMapPass.hpp"
@@ -86,12 +87,10 @@ class Renderer {
         bool HasUploadedBloomWeights{};
         std::unique_ptr<Buffer> CascadedShadowMapsDataConstantBuffer;
         std::unique_ptr<Buffer> LightDataStructuredBuffer;
-        std::vector<std::unique_ptr<Buffer>> ObjectConstantBuffers;
+        std::unique_ptr<LinearAllocator> TransientLinearAllocator;
         uint64_t FenceValue{};
     };
     using FrameResources = std::array<FrameResource, SwapChain::NumFrames>;
-
-    std::unique_ptr<Buffer> CreateConstantBuffer(UINT64 size);
 
     FrameResources CreateFrameResources();
     void CreateRenderTargets(uint32_t width, uint32_t height);

@@ -138,7 +138,7 @@ void GBufferPass::OnRender(CommandList& commandList, const GBufferTextures& gBuf
             .RoughnessMetallicIndex = item.Material.RoughnessMetallicIndex,
         };
         cmdList->SetGraphicsRoot32BitConstants(0, RootConstantCount<GBufferConstants>, &constants, 0);
-        cmdList->SetGraphicsRootConstantBufferView(2, item.TransformCB->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootConstantBufferView(2, item.ObjectConstantBuffer);
 
         auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};
         cmdList->IASetVertexBuffers(0, 1, &vbv);

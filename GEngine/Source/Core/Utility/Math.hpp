@@ -1,6 +1,8 @@
 #pragma once
 
 #include <bit>
+#include <cassert>
+#include <concepts>
 
 namespace GEngine {
 
@@ -13,6 +15,12 @@ template <auto Multiple, std::unsigned_integral T>
     requires(is_powerof2(Multiple))
 constexpr T RoundUp(T number) {
     return (number + static_cast<T>(Multiple) - 1) & ~static_cast<T>(Multiple - 1);
+}
+
+template <std::unsigned_integral T>
+constexpr T RoundUp(T number, T alignment) {
+    assert(alignment != 0 && is_powerof2(alignment));
+    return (number + alignment - 1) & ~(alignment - 1);
 }
 
 template <typename T>

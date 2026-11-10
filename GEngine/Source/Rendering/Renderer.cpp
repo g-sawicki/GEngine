@@ -148,6 +148,8 @@ constexpr uint32_t kAmbientOcclusionScale = 2;
     };
 }
 
+constexpr size_t kTransientLinearAllocatorSize = 16 * 1024 * 1024;
+
 } // namespace
 
 Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uint32_t shadowMapSize)
@@ -172,36 +174,39 @@ Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uin
 Renderer::FrameResources Renderer::CreateFrameResources() {
     std::array<FrameResource, SwapChain::NumFrames> frameResources;
     for (uint32_t i{}; i < SwapChain::NumFrames; ++i) {
+        FrameResource& frameResource = frameResources[i];
         ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                                             IID_PPV_ARGS(&frameResources[i].CommandAllocator)));
-        frameResources[i].CommandList = std::make_unique<CommandList>(
-            m_Device, frameResources[i].CommandAllocator.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
+                                                             IID_PPV_ARGS(&frameResource.CommandAllocator)));
+        frameResource.CommandList = std::make_unique<CommandList>(m_Device, frameResource.CommandAllocator.Get(),
+                                                                  D3D12_COMMAND_LIST_TYPE_DIRECT);
 
         const BufferDesc sceneInfoCbDesc{.Size = sizeof(SceneInfo),
                                          .HeapType = D3D12_HEAP_TYPE_UPLOAD,
                                          .MiscFlags = BufferMiscFlags::ConstantBuffer};
-        frameResources[i].SceneInfoConstantBuffer = std::make_unique<Buffer>(m_Device, sceneInfoCbDesc);
+        frameResource.SceneInfoConstantBuffer = std::make_unique<Buffer>(m_Device, sceneInfoCbDesc);
 
         const BufferDesc gaussianBlurWeightsCbDesc{.Size = sizeof(GaussianWeights),
                                                    .HeapType = D3D12_HEAP_TYPE_UPLOAD,
                                                    .MiscFlags = BufferMiscFlags::ConstantBuffer};
-        frameResources[i].GaussianBlurWeightsConstantBuffer =
-            std::make_unique<Buffer>(m_Device, gaussianBlurWeightsCbDesc);
+        frameResource.GaussianBlurWeightsConstantBuffer = std::make_unique<Buffer>(m_Device, gaussianBlurWeightsCbDesc);
 
         const BufferDesc bloomWeightsCbDesc{.Size = sizeof(BloomWeights),
                                             .HeapType = D3D12_HEAP_TYPE_UPLOAD,
                                             .MiscFlags = BufferMiscFlags::ConstantBuffer};
-        frameResources[i].BloomWeightsConstantBuffer = std::make_unique<Buffer>(m_Device, bloomWeightsCbDesc);
+        frameResource.BloomWeightsConstantBuffer = std::make_unique<Buffer>(m_Device, bloomWeightsCbDesc);
 
         const BufferDesc cascadedShadowMapsDataCbDesc{.Size = sizeof(CascadedShadowMapsData),
                                                       .HeapType = D3D12_HEAP_TYPE_UPLOAD,
                                                       .MiscFlags = BufferMiscFlags::ConstantBuffer};
-        frameResources[i].CascadedShadowMapsDataConstantBuffer =
+        frameResource.CascadedShadowMapsDataConstantBuffer =
             std::make_unique<Buffer>(m_Device, cascadedShadowMapsDataCbDesc);
 
         const BufferDesc LightDataSbDesc{.Size = kMaxLights * sizeof(LightData), .HeapType = D3D12_HEAP_TYPE_UPLOAD};
-        frameResources[i].LightDataStructuredBuffer = std::make_unique<Buffer>(m_Device, LightDataSbDesc);
-        frameResources[i].LightDataStructuredBuffer->CreateStructuredBufferSRV(m_Device, kMaxLights, sizeof(LightData));
+        frameResource.LightDataStructuredBuffer = std::make_unique<Buffer>(m_Device, LightDataSbDesc);
+        frameResource.LightDataStructuredBuffer->CreateStructuredBufferSRV(m_Device, kMaxLights, sizeof(LightData));
+
+        frameResource.TransientLinearAllocator =
+            std::make_unique<LinearAllocator>(m_Device, kTransientLinearAllocatorSize);
     }
     return frameResources;
 }
@@ -227,7 +232,7 @@ void Renderer::Destroy() {
         frame.BloomWeightsConstantBuffer.reset();
         frame.CascadedShadowMapsDataConstantBuffer.reset();
         frame.LightDataStructuredBuffer.reset();
-        frame.ObjectConstantBuffers.clear();
+        frame.TransientLinearAllocator.reset();
     }
 
     m_PresentTarget.Reset();
@@ -257,12 +262,6 @@ void Renderer::ReportLiveObjects() {
                                      DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
     }
 #endif
-}
-
-std::unique_ptr<Buffer> Renderer::CreateConstantBuffer(UINT64 size) {
-    const BufferDesc desc{
-        .Size = size, .HeapType = D3D12_HEAP_TYPE_UPLOAD, .MiscFlags = BufferMiscFlags::ConstantBuffer};
-    return std::make_unique<Buffer>(m_Device, desc);
 }
 
 void Renderer::OnResize(uint32_t width, uint32_t height) {
@@ -342,9 +341,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
 
     UpdateGpuScene(scene, assetManager);
 
-    auto& objectConstantBuffers{frame.ObjectConstantBuffers};
+    frame.TransientLinearAllocator->Reset();
     m_RenderItems.clear();
-    uint32_t objectIndex{};
     for (const auto& [entity, modelComponent] : scene.GetEntityRegistry().View<ModelComponent>()) {
         if (!modelComponent.Model.IsValid())
             continue;
@@ -353,10 +351,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         if (!gpuModel)
             continue;
 
-        if (objectIndex >= objectConstantBuffers.size())
-            objectConstantBuffers.resize(objectIndex + 1);
-        if (!objectConstantBuffers[objectIndex])
-            objectConstantBuffers[objectIndex] = CreateConstantBuffer(sizeof(ObjectData));
+        auto [objectConstantBufferPtr, objectConstantBufferGpuAddress] = frame.TransientLinearAllocator->Allocate(
+            sizeof(ObjectData), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
         ObjectData objectData{};
         const Transform* transform = scene.GetEntityRegistry().GetComponent<Transform>(entity);
@@ -365,7 +361,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
             DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, worldMatrix));
         DirectX::XMStoreFloat4x4(&objectData.world, worldMatrix);
         DirectX::XMStoreFloat4x4(&objectData.normal, normalMatrix);
-        WriteDynamicBuffer(*objectConstantBuffers[objectIndex], &objectData, sizeof(ObjectData));
+        std::memcpy(objectConstantBufferPtr, &objectData, sizeof(ObjectData));
 
         for (const GpuMesh& mesh : gpuModel->Meshes) {
             DirectX::BoundingBox worldBounds;
@@ -373,13 +369,12 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
 
             m_RenderItems.push_back({
                 .Mesh = &mesh.Geometry,
-                .TransformCB = objectConstantBuffers[objectIndex].get(),
+                .ObjectConstantBuffer = objectConstantBufferGpuAddress,
                 .Material = mesh.Material,
                 .BoundingBox = worldBounds,
                 .ShadowCaster = modelComponent.CastsShadow,
             });
         }
-        ++objectIndex;
     }
 
     SceneInfo sceneInfo = scene.GetSceneInfo();

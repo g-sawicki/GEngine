@@ -127,7 +127,7 @@ void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colo
         constants.NormalIndex = item.Material.NormalIndex;
         constants.RoughnessMetallicIndex = item.Material.RoughnessMetallicIndex;
         cmdList->SetGraphicsRoot32BitConstants(0, RootConstantCount<ForwardLightingConstants>, &constants, 0);
-        cmdList->SetGraphicsRootConstantBufferView(3, item.TransformCB->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootConstantBufferView(3, item.ObjectConstantBuffer);
 
         auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};
         cmdList->IASetVertexBuffers(0, 1, &vbv);

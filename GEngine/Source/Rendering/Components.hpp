@@ -38,7 +38,7 @@ struct MaterialGPU {
 
 struct RenderItem {
     const MeshGPU* Mesh{};
-    const Buffer* TransformCB{};
+    D3D12_GPU_VIRTUAL_ADDRESS ObjectConstantBuffer{};
     MaterialGPU Material{};
     DirectX::BoundingBox BoundingBox{};
     bool ShadowCaster{true};

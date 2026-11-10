@@ -79,7 +79,7 @@ void Buffer::ReleaseDescriptors() noexcept {
 
 void* Buffer::Map(UINT subresource, const D3D12_RANGE* readRange) const {
     assert(m_Resource != nullptr);
-    void* pData{nullptr};
+    void* pData{};
     ThrowIfFailed(m_Resource->Map(subresource, readRange, &pData));
     return pData;
 }
