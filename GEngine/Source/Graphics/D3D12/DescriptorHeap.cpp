@@ -14,13 +14,11 @@ DescriptorHeap::DescriptorHeap(Device& device, D3D12_DESCRIPTOR_HEAP_DESC desc)
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::GetCpuHandle(UINT index) const noexcept {
-    return {m_DescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr +
-            static_cast<SIZE_T>(index) * m_DescriptorSize};
+    return {m_DescriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr + static_cast<SIZE_T>(index) * m_DescriptorSize};
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::GetGpuHandle(UINT index) const noexcept {
-    return {m_DescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr +
-            static_cast<UINT64>(index) * m_DescriptorSize};
+    return {m_DescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr + static_cast<UINT64>(index) * m_DescriptorSize};
 }
 
 uint32_t DescriptorHeap::GetIndex(D3D12_CPU_DESCRIPTOR_HANDLE handle) const noexcept {

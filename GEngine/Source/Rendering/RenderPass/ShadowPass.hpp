@@ -8,6 +8,9 @@
 #include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
+#include "Rendering/Culling.hpp"
+
+#include <span>
 
 namespace GEngine::RenderPass {
 
@@ -18,7 +21,7 @@ class ShadowPass {
     GE_NO_COPY_NO_MOVE(ShadowPass)
 
     void OnRender(CommandList& commandList, Texture& shadowMapTexture, Buffer& lightDataConstantBuffer,
-                  uint32_t cascadeCount, std::span<const RenderItem> renderItems);
+                  std::span<const RenderItem> renderItems, const CascadeVisibility& cascadeVisibleItems);
 
   private:
     static RootSignature CreateRootSignature(Device& device);

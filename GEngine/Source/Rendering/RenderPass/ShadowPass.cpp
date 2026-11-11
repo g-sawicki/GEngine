@@ -56,7 +56,7 @@ PipelineState ShadowPass::CreatePipelineState(Device& device, const RootSignatur
 }
 
 void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, Buffer& lightDataConstantBuffer,
-                          uint32_t cascadeCount, std::span<const RenderItem> renderItems) {
+                          std::span<const RenderItem> renderItems, const CascadeVisibility& cascadeVisibleItems) {
     auto* cmdList = commandList.GetHandle();
 
     uint32_t width = shadowMapTexture.GetDesc().Width;
@@ -70,17 +70,17 @@ void ShadowPass::OnRender(CommandList& commandList, Texture& shadowMapTexture, B
     cmdList->SetPipelineState(m_PipelineState.Get());
     cmdList->SetGraphicsRootConstantBufferView(1, lightDataConstantBuffer.GetGPUVirtualAddress());
 
-    for (uint8_t cascadeIndex{}; cascadeIndex < cascadeCount; ++cascadeIndex) {
-        const D3D12_CPU_DESCRIPTOR_HANDLE depthDsv = shadowMapTexture.GetDsvHandle(cascadeIndex);
+    for (uint32_t cascadeIndex{}; cascadeIndex < cascadeVisibleItems.Count; ++cascadeIndex) {
+        const auto dsvIndex = static_cast<uint16_t>(cascadeIndex);
+        const D3D12_CPU_DESCRIPTOR_HANDLE depthDsv = shadowMapTexture.GetDsvHandle(dsvIndex);
         cmdList->OMSetRenderTargets(0, nullptr, FALSE, &depthDsv);
         const D3D12_CLEAR_VALUE& clearValue = shadowMapTexture.GetDesc().ClearValue;
         cmdList->ClearDepthStencilView(depthDsv, D3D12_CLEAR_FLAG_DEPTH, clearValue.DepthStencil.Depth,
                                        clearValue.DepthStencil.Stencil, 0, nullptr);
         const ShadowPassConstants constants{.CascadeIndex = cascadeIndex};
         cmdList->SetGraphicsRoot32BitConstants(0, RootConstantCount<ShadowPassConstants>, &constants, 0);
-        for (const auto& item : renderItems) {
-            if (!item.ShadowCaster || !(item.ShadowCascadeMask & (1u << cascadeIndex)))
-                continue;
+        for (const uint32_t itemIndex : cascadeVisibleItems.Cascades[cascadeIndex].Indices) {
+            const RenderItem& item = renderItems[itemIndex];
             cmdList->SetGraphicsRootConstantBufferView(2, item.ObjectConstantBuffer);
 
             auto vbv{item.Mesh->VertexBuffer.GetVBV(item.Mesh->VertexStride)};

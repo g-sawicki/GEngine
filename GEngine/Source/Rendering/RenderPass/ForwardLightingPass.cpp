@@ -93,7 +93,8 @@ PipelineState ForwardLightingPass::CreatePipelineState(Device& device, const Roo
 
 void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colorTexture, const Texture& depthTexture,
                                    const Texture& shadowMapTexture, const Buffer& sceneInfoCB,
-                                   const Buffer& cascadedShadowMapsDataCB, std::span<const RenderItem> renderItems) {
+                                   const Buffer& cascadedShadowMapsDataCB, std::span<const RenderItem> renderItems,
+                                   const VisibleItems& visibleItems) {
 
     auto* cmdList = commandList.GetHandle();
     cmdList->ClearRenderTargetView(colorTexture.GetRtvHandle(), colorTexture.GetDesc().ClearValue.Color, 0, nullptr);
@@ -119,9 +120,8 @@ void ForwardLightingPass::OnRender(CommandList& commandList, const Texture& colo
     ForwardLightingConstants constants{
         .ShadowIndex = shadowMapTexture.GetSrvIndex(),
     };
-    for (const auto& item : renderItems) {
-        if (!item.CameraVisible)
-            continue;
+    for (const uint32_t itemIndex : visibleItems.Indices) {
+        const RenderItem& item = renderItems[itemIndex];
 
         constants.AlbedoIndex = item.Material.AlbedoIndex;
         constants.NormalIndex = item.Material.NormalIndex;

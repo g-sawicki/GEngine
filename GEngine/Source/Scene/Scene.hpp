@@ -15,6 +15,7 @@
 #include <vector>
 
 struct SceneInfo;
+struct LightData;
 struct CascadedShadowMapsData;
 
 namespace GEngine {
@@ -55,6 +56,7 @@ class Scene {
     [[nodiscard]] const ShadowConfig& GetShadowConfig() const noexcept { return m_ShadowConfig; }
 
     CascadedShadowMapsData GetCascadedShadowMapsData() const noexcept;
+    std::vector<LightData> GetLightData() const;
     SceneInfo GetSceneInfo() const noexcept;
 
     [[nodiscard]] ComponentRegistry& GetEntityRegistry() noexcept { return m_EntityRegistry; }

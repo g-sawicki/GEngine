@@ -55,8 +55,8 @@ void BloomPass::UploadWeights(Buffer& weightsBuffer, const BloomSettings& settin
 }
 
 void BloomPass::Dispatch(CommandList& commandList, uint32_t inputSrvIndex, uint32_t outputUavIndex, bool horizontal,
-                         const Buffer& sceneInfoBuffer, uint32_t width, uint32_t height,
-                         const Buffer& weightsBuffer, const BloomSettings& settings) {
+                         const Buffer& sceneInfoBuffer, uint32_t width, uint32_t height, const Buffer& weightsBuffer,
+                         const BloomSettings& settings) {
     auto* cmdList = commandList.GetHandle();
     cmdList->SetComputeRootSignature(m_RootSignature.Get());
     cmdList->SetPipelineState(m_PipelineState.Get());

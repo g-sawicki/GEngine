@@ -8,6 +8,9 @@
 #include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
+#include "Rendering/Culling.hpp"
+
+#include <span>
 
 namespace GEngine::RenderPass {
 
@@ -19,7 +22,7 @@ class ForwardLightingPass {
 
     void OnRender(CommandList& commandList, const Texture& colorTexture, const Texture& depthTexture,
                   const Texture& shadowMapTexture, const Buffer& sceneInfoCB, const Buffer& cascadedShadowMapsDataCB,
-                  std::span<const RenderItem> renderItems);
+                  std::span<const RenderItem> renderItems, const VisibleItems& visibleItems);
 
   private:
     static RootSignature CreateRootSignature(Device& device);

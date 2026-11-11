@@ -8,6 +8,7 @@
 #include "Graphics/D3D12/RootSignature.hpp"
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
+#include "Rendering/Culling.hpp"
 
 #include <span>
 
@@ -32,7 +33,7 @@ class GBufferPass {
     GE_NO_COPY_NO_MOVE(GBufferPass)
 
     void OnRender(CommandList& commandList, const GBufferTextures& gBufferTextures, const Texture& depthTexture,
-                  const Buffer& sceneInfoCB, std::span<const RenderItem> renderItems);
+                  const Buffer& sceneInfoCB, std::span<const RenderItem> renderItems, const VisibleItems& visibleItems);
 
   private:
     static RootSignature CreateRootSignature(Device& device);

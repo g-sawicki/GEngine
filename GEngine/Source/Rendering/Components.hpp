@@ -42,8 +42,6 @@ struct RenderItem {
     MaterialGPU Material{};
     DirectX::BoundingBox BoundingBox{};
     bool ShadowCaster{true};
-    bool CameraVisible{true};
-    uint8_t ShadowCascadeMask{0xFFu};
 };
 
 struct GpuMesh {

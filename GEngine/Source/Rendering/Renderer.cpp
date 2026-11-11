@@ -6,6 +6,7 @@
 #include "Graphics/D3D12/D3D12Common.hpp"
 #include "Interop/Common.h"
 #include "Interop/Light.h"
+#include "Rendering/Culling.hpp"
 #include "UI/ImGui/Backends/D3D12/ImGuiD3D12RendererBackend.hpp"
 
 #include <algorithm>
@@ -27,37 +28,6 @@ void WriteDynamicBuffer(const Buffer& buffer, const void* data, const UINT64 siz
     void* const dst = buffer.Map();
     std::memcpy(dst, data, size);
     buffer.Unmap();
-}
-
-struct FrustumPlanes {
-    DirectX::XMVECTOR Plane[6]{};
-};
-
-[[nodiscard]] FrustumPlanes ExtractFrustumPlanes(DirectX::FXMMATRIX viewProjection) noexcept {
-    const DirectX::XMMATRIX m = DirectX::XMMatrixTranspose(viewProjection);
-    FrustumPlanes planes;
-    planes.Plane[0] = DirectX::XMVectorAdd(m.r[3], m.r[0]);      // left
-    planes.Plane[1] = DirectX::XMVectorSubtract(m.r[3], m.r[0]); // right
-    planes.Plane[2] = DirectX::XMVectorAdd(m.r[3], m.r[1]);      // bottom
-    planes.Plane[3] = DirectX::XMVectorSubtract(m.r[3], m.r[1]); // top
-    planes.Plane[4] = m.r[2];                                    // near
-    planes.Plane[5] = DirectX::XMVectorSubtract(m.r[3], m.r[2]); // far
-    return planes;
-}
-
-[[nodiscard]] bool Intersects(const FrustumPlanes& frustum, const DirectX::BoundingBox& box) noexcept {
-    const DirectX::XMVECTOR center = DirectX::XMLoadFloat3(&box.Center);
-    const DirectX::XMVECTOR extents = DirectX::XMLoadFloat3(&box.Extents);
-
-    for (const DirectX::XMVECTOR plane : frustum.Plane) {
-        const DirectX::XMVECTOR absNormal = DirectX::XMVectorAbs(plane);
-        const float radius = DirectX::XMVectorGetX(DirectX::XMVector3Dot(absNormal, extents));
-        const float signedDistance =
-            DirectX::XMVectorGetX(DirectX::XMVector3Dot(plane, center)) + DirectX::XMVectorGetW(plane);
-        if (signedDistance + radius < 0.0f)
-            return false;
-    }
-    return true;
 }
 
 [[nodiscard]] constexpr TextureDesc DepthStencilTargetDesc(uint32_t width, uint32_t height) noexcept {
@@ -172,9 +142,9 @@ Renderer::Renderer(HWND hwnd, uint32_t width, uint32_t height, bool useWarp, uin
                        m_DepthTexture.GetDesc().Format) {}
 
 Renderer::FrameResources Renderer::CreateFrameResources() {
-    std::array<FrameResource, SwapChain::NumFrames> frameResources;
+    std::array<FrameResource, SwapChain::NumFrames> frame;
     for (uint32_t i{}; i < SwapChain::NumFrames; ++i) {
-        FrameResource& frameResource = frameResources[i];
+        FrameResource& frameResource = frame[i];
         ThrowIfFailed(m_Device.Get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
                                                              IID_PPV_ARGS(&frameResource.CommandAllocator)));
         frameResource.CommandList = std::make_unique<CommandList>(m_Device, frameResource.CommandAllocator.Get(),
@@ -208,7 +178,7 @@ Renderer::FrameResources Renderer::CreateFrameResources() {
         frameResource.TransientLinearAllocator =
             std::make_unique<LinearAllocator>(m_Device, kTransientLinearAllocatorSize);
     }
-    return frameResources;
+    return frame;
 }
 
 void Renderer::CreateRenderTargets(uint32_t width, uint32_t height) {
@@ -303,46 +273,24 @@ void Renderer::UpdateGpuScene(const Scene& scene, const AssetManager& assetManag
     m_SkyboxRenderer.Update(scene.GetSkybox());
 }
 
-void Renderer::FrustumCulling(const Camera& camera, const CascadedShadowMapsData& cascadedShadowMapsData) {
-    const FrustumPlanes cameraFrustum = ExtractFrustumPlanes(camera.GetViewProjectionMatrix());
+void Renderer::UploadSceneData(const Scene& scene, const CascadedShadowMapsData& cascades, FrameResource& frame) {
+    SceneInfo sceneInfo = scene.GetSceneInfo();
+    sceneInfo.screenResolution.x = m_SwapChain.GetWidth();
+    sceneInfo.screenResolution.y = m_SwapChain.GetHeight();
+    sceneInfo.irradianceIndex = m_SkyboxRenderer.GetIrradianceSrvIndex();
+    const std::vector<LightData> lightData = scene.GetLightData();
 
-    const bool shadowCulling = cascadedShadowMapsData.shadowEnabled != 0 && cascadedShadowMapsData.cascadeCount > 0;
-    const uint32_t cascadeCount = shadowCulling ? std::min(cascadedShadowMapsData.cascadeCount, kMaxCascades) : 0u;
-    std::array<FrustumPlanes, kMaxCascades> cascadeFrustums{};
-    for (uint32_t i{}; i < cascadeCount; ++i)
-        cascadeFrustums[i] =
-            ExtractFrustumPlanes(DirectX::XMLoadFloat4x4(&cascadedShadowMapsData.lightViewProjection[i]));
+    WriteDynamicBuffer(*frame.LightDataStructuredBuffer, lightData.data(), lightData.size() * sizeof(LightData));
+    sceneInfo.lightCount = static_cast<uint32_t>(lightData.size());
+    sceneInfo.lightIndex = frame.LightDataStructuredBuffer->GetSrvIndex();
 
-    for (RenderItem& item : m_RenderItems) {
-        item.CameraVisible = Intersects(cameraFrustum, item.BoundingBox);
-
-        if (!item.ShadowCaster || cascadeCount == 0)
-            continue;
-
-        uint8_t cascadeMask{};
-        for (uint8_t i{}; i < cascadeCount; ++i) {
-            if (Intersects(cascadeFrustums[i], item.BoundingBox))
-                cascadeMask |= 1u << i;
-        }
-        item.ShadowCascadeMask = cascadeMask;
-    }
+    WriteDynamicBuffer(*frame.SceneInfoConstantBuffer, &sceneInfo, sizeof(sceneInfo));
+    WriteDynamicBuffer(*frame.CascadedShadowMapsDataConstantBuffer, &cascades, sizeof(cascades));
 }
 
-void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::Overlay* overlay) {
-    auto currentIdx{m_SwapChain.GetCurrentBackBufferIndex()};
-    auto& frame{m_FrameResources[currentIdx]};
-
-    m_Fence.WaitForValue(frame.FenceValue);
-
-    Texture& backBuffer{m_SwapChain.GetCurrentBackBuffer()};
-
-    frame.CommandList->Reset(frame.CommandAllocator.Get());
-    auto* cmdList{frame.CommandList->GetHandle()};
-
-    UpdateGpuScene(scene, assetManager);
-
-    frame.TransientLinearAllocator->Reset();
-    m_RenderItems.clear();
+void Renderer::CreateRenderItems(const Scene& scene, LinearAllocator& transientAllocator,
+                                 std::vector<RenderItem>& renderItems) {
+    renderItems.clear();
     for (const auto& [entity, modelComponent] : scene.GetEntityRegistry().View<ModelComponent>()) {
         if (!modelComponent.Model.IsValid())
             continue;
@@ -351,8 +299,8 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         if (!gpuModel)
             continue;
 
-        auto [objectConstantBufferPtr, objectConstantBufferGpuAddress] = frame.TransientLinearAllocator->Allocate(
-            sizeof(ObjectData), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+        auto [objectConstantBufferPtr, objectConstantBufferGpuAddress] =
+            transientAllocator.Allocate(sizeof(ObjectData), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
         ObjectData objectData{};
         const Transform* transform = scene.GetEntityRegistry().GetComponent<Transform>(entity);
@@ -367,7 +315,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
             DirectX::BoundingBox worldBounds;
             mesh.BoundingBox.Transform(worldBounds, worldMatrix);
 
-            m_RenderItems.push_back({
+            renderItems.push_back({
                 .Mesh = &mesh.Geometry,
                 .ObjectConstantBuffer = objectConstantBufferGpuAddress,
                 .Material = mesh.Material,
@@ -376,61 +324,34 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
             });
         }
     }
+}
 
-    SceneInfo sceneInfo = scene.GetSceneInfo();
-    sceneInfo.screenResolution.x = m_SwapChain.GetWidth();
-    sceneInfo.screenResolution.y = m_SwapChain.GetHeight();
-    sceneInfo.irradianceIndex = m_SkyboxRenderer.GetIrradianceSrvIndex();
-    const CascadedShadowMapsData cascadedShadowMapsData = scene.GetCascadedShadowMapsData();
+void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::Overlay* overlay) {
+    FrameResource& frame{m_FrameResources[m_SwapChain.GetCurrentBackBufferIndex()]};
 
-    std::vector<LightData> lightData;
-    lightData.reserve(1 + scene.GetPointLights().size() + scene.GetSpotLights().size());
-    {
-        const DirectionalLight& directionalLight = scene.GetDirectionalLight();
-        lightData.push_back({
-            .position = {},
-            .type = LightType::Directional,
-            .direction = directionalLight.Direction,
-            .color = directionalLight.Color,
-            .intensity = directionalLight.Intensity,
-        });
-    }
-    for (const PointLight& pointLight : scene.GetPointLights()) {
-        lightData.push_back({
-            .position = pointLight.Position,
-            .type = LightType::Point,
-            .color = pointLight.Color,
-            .intensity = pointLight.Intensity,
-        });
-    }
-    for (const SpotLight& spotLight : scene.GetSpotLights()) {
-        lightData.push_back({
-            .position = spotLight.Position,
-            .type = LightType::Spot,
-            .direction = spotLight.Direction,
-            .color = spotLight.Color,
-            .intensity = spotLight.Intensity,
-            .cosInnerCone = std::cos(DirectX::XMConvertToRadians(spotLight.InnerConeAngle)),
-            .cosOuterCone = std::cos(DirectX::XMConvertToRadians(spotLight.OuterConeAngle)),
-        });
-    }
-    if (lightData.size() > kMaxLights) {
-        assert(false && "Too many lights; excess lights beyond kMaxLights are ignored.");
-        lightData.resize(kMaxLights);
-    }
-    WriteDynamicBuffer(*frame.LightDataStructuredBuffer, lightData.data(), lightData.size() * sizeof(LightData));
-    sceneInfo.lightCount = static_cast<uint32_t>(lightData.size());
-    sceneInfo.lightIndex = frame.LightDataStructuredBuffer->GetSrvIndex();
+    m_Fence.WaitForValue(frame.FenceValue);
 
-    WriteDynamicBuffer(*frame.SceneInfoConstantBuffer, &sceneInfo, sizeof(sceneInfo));
-    WriteDynamicBuffer(*frame.CascadedShadowMapsDataConstantBuffer, &cascadedShadowMapsData,
-                       sizeof(cascadedShadowMapsData));
+    Texture& backBuffer{m_SwapChain.GetCurrentBackBuffer()};
+
+    frame.CommandList->Reset(frame.CommandAllocator.Get());
+    ID3D12GraphicsCommandList4* cmdList{frame.CommandList->GetHandle()};
+
+    const CascadedShadowMapsData cascades = scene.GetCascadedShadowMapsData();
+
+    frame.TransientLinearAllocator->Reset();
+
+    UpdateGpuScene(scene, assetManager);
+    UploadSceneData(scene, cascades, frame);
+
+    CreateRenderItems(scene, *frame.TransientLinearAllocator, m_RenderLists.RenderItems);
+
+    CullView(m_RenderLists.RenderItems, Frustum::FromViewProjection(scene.GetActiveCamera().GetViewProjectionMatrix()),
+             m_RenderLists.CameraVisibleItems);
+    CullShadowCascades(m_RenderLists.RenderItems, cascades, m_RenderLists.ShadowCascades);
 
     m_Device.SetDescriptorHeaps(*frame.CommandList);
 
     m_SkyboxRenderer.BakeEnvironmentMaps(*frame.CommandList);
-
-    FrustumCulling(scene.GetActiveCamera(), cascadedShadowMapsData);
 
     // Cascaded shadow maps
     {
@@ -438,7 +359,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
                            D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
         m_ShadowPass.OnRender(*frame.CommandList, m_ShadowMapTexture, *frame.CascadedShadowMapsDataConstantBuffer,
-                              cascadedShadowMapsData.cascadeCount, m_RenderItems);
+                              m_RenderLists.RenderItems, m_RenderLists.ShadowCascades);
     }
 
     if (m_Settings.Mode == RenderMode::Forward) {
@@ -448,7 +369,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
                            D3D12_RESOURCE_STATE_RENDER_TARGET);
         m_ForwardLightingPass.OnRender(*frame.CommandList, m_HdrTexture, m_DepthTexture, m_ShadowMapTexture,
                                        *frame.SceneInfoConstantBuffer, *frame.CascadedShadowMapsDataConstantBuffer,
-                                       m_RenderItems);
+                                       m_RenderLists.RenderItems, m_RenderLists.CameraVisibleItems);
     } else {
         TransitionResource(cmdList, m_GBufferTextures.AlbedoTexture.GetResource(),
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -458,7 +379,7 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         m_GBufferPass.OnRender(*frame.CommandList, m_GBufferTextures, m_DepthTexture, *frame.SceneInfoConstantBuffer,
-                               m_RenderItems);
+                               m_RenderLists.RenderItems, m_RenderLists.CameraVisibleItems);
 
         TransitionResource(cmdList, m_GBufferTextures.AlbedoTexture.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -516,8 +437,6 @@ void Renderer::Render(const Scene& scene, const AssetManager& assetManager, UI::
         TransitionResource(cmdList, m_ShadowMapTexture.GetResource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
-
-    m_RenderItems.clear();
 
     // Skybox pass
     m_SkyboxRenderer.Render(*frame.CommandList, m_HdrTexture, m_DepthTexture, *frame.SceneInfoConstantBuffer);

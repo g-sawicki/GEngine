@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/Utility/Defines.hpp"
 #include "Core/UI/UiOverlay.hpp"
+#include "Core/Utility/Defines.hpp"
 #include "Platform/Windows/Window.hpp"
 #include "Rendering/Renderer.hpp"
 #include "Scene/Scene.hpp"

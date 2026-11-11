@@ -93,7 +93,7 @@ PipelineState GBufferPass::CreatePipelineState(Device& device, const RootSignatu
 
 void GBufferPass::OnRender(CommandList& commandList, const GBufferTextures& gBufferTextures,
                            const Texture& depthTexture, const Buffer& sceneInfoCB,
-                           std::span<const RenderItem> renderItems) {
+                           std::span<const RenderItem> renderItems, const VisibleItems& visibleItems) {
     auto* cmdList = commandList.GetHandle();
 
     cmdList->ClearRenderTargetView(gBufferTextures.AlbedoTexture.GetRtvHandle(),
@@ -128,9 +128,8 @@ void GBufferPass::OnRender(CommandList& commandList, const GBufferTextures& gBuf
     cmdList->SetPipelineState(m_PipelineState.Get());
     cmdList->SetGraphicsRootConstantBufferView(1, sceneInfoCB.GetGPUVirtualAddress());
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    for (const auto& item : renderItems) {
-        if (!item.CameraVisible)
-            continue;
+    for (const uint32_t itemIndex : visibleItems.Indices) {
+        const RenderItem& item = renderItems[itemIndex];
 
         const GBufferConstants constants{
             .AlbedoIndex = item.Material.AlbedoIndex,

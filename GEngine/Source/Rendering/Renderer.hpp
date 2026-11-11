@@ -18,6 +18,7 @@
 #include "Graphics/D3D12/SwapChain.hpp"
 #include "Graphics/D3D12/Texture.hpp"
 #include "Rendering/Components.hpp"
+#include "Rendering/Culling.hpp"
 #include "Rendering/GpuResourceCache.hpp"
 #include "Rendering/RenderPass/BloomPass.hpp"
 #include "Rendering/RenderPass/DeferredLightingPass.hpp"
@@ -92,12 +93,19 @@ class Renderer {
     };
     using FrameResources = std::array<FrameResource, SwapChain::NumFrames>;
 
+    struct RenderLists {
+        std::vector<RenderItem> RenderItems;
+        VisibleItems CameraVisibleItems;
+        CascadeVisibility ShadowCascades;
+    };
+
     FrameResources CreateFrameResources();
     void CreateRenderTargets(uint32_t width, uint32_t height);
 
     void UpdateGpuScene(const Scene& scene, const AssetManager& assetManager);
-
-    void FrustumCulling(const Camera& camera, const CascadedShadowMapsData& cascadedShadowMapsData);
+    void UploadSceneData(const Scene& scene, const CascadedShadowMapsData& cascades, FrameResource& frameResources);
+    void CreateRenderItems(const Scene& scene, LinearAllocator& transientAllocator,
+                           std::vector<RenderItem>& renderItems);
 
     Device m_Device;
     CommandQueue m_CommandQueue;
@@ -105,7 +113,6 @@ class Renderer {
     SwapChain m_SwapChain;
     UploadEngine m_UploadEngine;
     GpuResourceCache m_GpuResources;
-
     FrameResources m_FrameResources{};
 
     // Render pass resources
@@ -131,7 +138,7 @@ class Renderer {
 
     SkyboxRenderer m_SkyboxRenderer;
 
-    std::vector<RenderItem> m_RenderItems;
+    RenderLists m_RenderLists;
 };
 
 } // namespace GEngine

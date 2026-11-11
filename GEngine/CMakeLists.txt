@@ -133,6 +133,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     "Source/Rendering/CascadedShadowMaps.cpp"
     "Source/Rendering/CascadedShadowMaps.hpp"
     "Source/Rendering/Components.hpp"
+    "Source/Rendering/Culling.cpp"
+    "Source/Rendering/Culling.hpp"
+    "Source/Rendering/Frustum.hpp"
     "Source/Rendering/GpuResourceCache.cpp"
     "Source/Rendering/GpuResourceCache.hpp"
     "Source/Rendering/MeshFactory.cpp"
@@ -196,3 +199,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE imgui_backend_win32 imgui_backend_
 if(WIN32)
     target_link_options(${PROJECT_NAME} INTERFACE /ENTRY:mainCRTStartup)
 endif()
+
+file(GLOB_RECURSE GE_FORMAT_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.hpp")
+
+add_custom_target(format COMMAND clang-format -i ${GE_FORMAT_SOURCES} VERBATIM)
+add_custom_target(format-check COMMAND clang-format --dry-run --Werror ${GE_FORMAT_SOURCES} VERBATIM)
